@@ -141,10 +141,6 @@ rules:
     - flights, seats, flight_daily_stats
     - payments, refund_requests
 
-  # 广播表 (全局字典表，每个库都有一份)
-  broadcastTables:
-    - admins
-    - configs
 
   # 默认分片策略
   defaultDatabaseStrategy:
@@ -184,3 +180,8 @@ rules:
       type: SNOWFLAKE
       props:
         worker-id: 123
+
+- !BROADCAST
+  tables:
+    - admins
+    - configs
