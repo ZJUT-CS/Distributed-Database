@@ -1,0 +1,179 @@
+# =======================================
+# 通用说明
+# =======================================
+# 该文件定义了在版本控制中应忽略的文件与目录，覆盖：
+# 1) 系统自动生成的文件与临时文件
+# 2) 开发环境与本地配置（如 .env 系列）
+# 3) 依赖目录与构建/缓存产物
+# 4) IDE/编辑器生成的项目文件
+# 5) 常见语言/框架的通用忽略规则
+# 6) 本项目特定的目录（如数据库数据与日志）
+
+# =======================================
+# 操作系统与通用临时文件
+# =======================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Thumbs.db.old
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*~
+.fuse_hidden*
+.Trash-*/
+.nfs*
+
+# =======================================
+# IDE 与编辑器
+# =======================================
+.idea/
+.vscode/
+.vs/
+.history/
+*.iml
+*.swp
+*.swo
+*.orig
+
+# =======================================
+# 环境配置与本地敏感信息
+# =======================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+!.env.example
+!.env*.example
+!.env.sample
+!.env*.sample
+
+# =======================================
+# 依赖目录（常见包管理器）
+# =======================================
+node_modules/
+vendor/
+
+# =======================================
+# 构建产物与缓存
+# =======================================
+dist/
+build/
+out/
+.cache/
+coverage/
+coverage-*/
+*.log
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+*.pid
+tmp/
+temp/
+.tmp/
+
+# =======================================
+# 前端常见框架与工具
+# =======================================
+.next/
+.nuxt/
+.svelte-kit/
+.docusaurus/
+
+# =======================================
+# Python
+# =======================================
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+htmlcov/
+.coverage*
+coverage.xml
+
+# =======================================
+# Java / JVM（Maven/Gradle）
+# =======================================
+target/
+.gradle/
+.mvn/
+*.class
+*.war
+*.ear
+# 保留必要的 *.jar（本项目 ext-lib 需要），不做全局忽略
+
+# =======================================
+# Go
+# =======================================
+bin/
+# vendor 已在上方通用依赖规则中
+*.test
+
+# =======================================
+# Rust
+# =======================================
+target/
+
+# =======================================
+# .NET / C#
+# =======================================
+bin/
+obj/
+*.user
+*.suo
+*.cache
+
+# =======================================
+# C / C++ / 通用二进制与构建系统
+# =======================================
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.lib
+*.exe
+*.out
+CMakeFiles/
+CMakeCache.txt
+
+# =======================================
+# Docker 与容器相关
+# =======================================
+docker-compose.override.yml
+.docker/
+
+# =======================================
+# 数据库与密钥（项目特定）
+# =======================================
+# 忽略 ShardingSphere-Proxy 的数据与日志目录，不纳入版本控制
+Shardingsphere-proxy/mysql-data/
+Shardingsphere-proxy/logs/
+
+# 可选：忽略数据库初始化生成的中间文件（若产生）
+Shardingsphere-proxy/mysql-data/**/#*
+Shardingsphere-proxy/mysql-data/**/*.sdi
+Shardingsphere-proxy/mysql-data/**/*.ibd
+Shardingsphere-proxy/mysql-data/**/ibdata*
+Shardingsphere-proxy/mysql-data/**/ibtmp*
+Shardingsphere-proxy/mysql-data/**/binlog.*
+Shardingsphere-proxy/mysql-data/**/ib_buffer_pool
+Shardingsphere-proxy/mysql-data/**/performance_schema/
+
+# =======================================
+# 例外与保留
+# =======================================
+# 保留项目配置与示例文件：
+!Shardingsphere-proxy/conf/
+!Shardingsphere-proxy/mysql-init/
+!docker-compose.yml
+

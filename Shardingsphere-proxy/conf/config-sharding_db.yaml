@@ -1,0 +1,84 @@
+databaseName: sharding_db
+
+dataSources:
+  db0:
+    url: jdbc:mysql://ss-mysql:3306/db_xuc_core_00?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: shardingsphere
+    connectionTimeoutMilliseconds: 30000
+    idleTimeoutMilliseconds: 600000
+    maxLifetimeMilliseconds: 1800000
+    maxPoolSize: 100
+    minPoolSize: 10
+  db1:
+    url: jdbc:mysql://26.47.189.229:3306/db_xuc_core_01?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: zf
+    password: 1417588355zf
+    connectionTimeoutMilliseconds: 30000
+    idleTimeoutMilliseconds: 600000
+    maxLifetimeMilliseconds: 1800000
+    maxPoolSize: 100
+    minPoolSize: 10
+
+rules:
+- !SHARDING
+  tables:
+    # 学生表分片配置
+    xuc_stu:
+      actualDataNodes: db${0..1}.xuc_stu
+      databaseStrategy:
+        standard:
+          shardingColumn: xuc_sno
+          shardingAlgorithmName: xuc_database_inline_sno
+      keyGenerateStrategy:
+        column: xuc_sno
+        keyGeneratorName: xuc_snowflake
+        
+    # 课程表分片配置
+    xuc_cou:
+      actualDataNodes: db${0..1}.xuc_cou
+      databaseStrategy:
+        standard:
+          shardingColumn: xuc_cno
+          shardingAlgorithmName: xuc_database_inline_cno
+      keyGenerateStrategy:
+        column: xuc_cno
+        keyGeneratorName: xuc_snowflake
+        
+    # 选课表分片配置
+    xuc_sc:
+      actualDataNodes: db${0..1}.xuc_sc
+      databaseStrategy:
+        standard:
+          shardingColumn: xuc_sno
+          shardingAlgorithmName: xuc_database_inline_sno
+      
+
+  # 默认分片策略
+  defaultDatabaseStrategy:
+    none:
+  defaultTableStrategy:
+    none:
+
+  # 分片算法配置
+  shardingAlgorithms:
+      # 分库算法：基于学号取模的简单分片算法（用于学生表和选课表）
+      xuc_database_inline_sno:
+        type: INLINE
+        props:
+          algorithm-expression: db${xuc_sno % 2}
+          allow-range-query-with-inline-sharding: true
+  
+      # 分库算法：基于课号取模的简单分片算法（用于课程表）
+      xuc_database_inline_cno:
+        type: INLINE
+        props:
+          algorithm-expression: db${xuc_cno % 2}
+          allow-range-query-with-inline-sharding: true
+
+  # 分布式主键生成器
+  keyGenerators:
+    xuc_snowflake:
+      type: SNOWFLAKE
+      props:
+        worker-id: 123
