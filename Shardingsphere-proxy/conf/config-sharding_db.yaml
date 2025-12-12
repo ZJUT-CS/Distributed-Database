@@ -1,58 +1,150 @@
 databaseName: sharding_db
 
 dataSources:
-  db0:
-    url: jdbc:mysql://ss-mysql:3306/db_xuc_core_00?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+  ds_0:
+    url: jdbc:mysql://26.42.251.27:3306/zh_db_0?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+    username: zh
+    password: 123456
+    connectionTimeoutMilliseconds: 30000
+    idleTimeoutMilliseconds: 60000
+    maxLifetimeMilliseconds: 1800000
+    maxPoolSize: 50
+    minPoolSize: 1
+  ds_1:
+    url: jdbc:mysql://26.47.189.229:3306/zf_db_1?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+    username: zf
+    password: 123456
+    connectionTimeoutMilliseconds: 30000
+    idleTimeoutMilliseconds: 60000
+    maxLifetimeMilliseconds: 1800000
+    maxPoolSize: 50
+    minPoolSize: 1
+  ds_2:
+    url: jdbc:mysql://26.122.246.196:3306/xc_db_2?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: shardingsphere
     connectionTimeoutMilliseconds: 30000
-    idleTimeoutMilliseconds: 600000
+    idleTimeoutMilliseconds: 60000
     maxLifetimeMilliseconds: 1800000
-    maxPoolSize: 100
-    minPoolSize: 10
-  db1:
-    url: jdbc:mysql://26.47.189.229:3306/db_xuc_core_01?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: zf
-    password: 1417588355zf
-    connectionTimeoutMilliseconds: 30000
-    idleTimeoutMilliseconds: 600000
-    maxLifetimeMilliseconds: 1800000
-    maxPoolSize: 100
-    minPoolSize: 10
+    maxPoolSize: 50
+    minPoolSize: 1
 
 rules:
 - !SHARDING
   tables:
-    # 学生表分片配置
-    xuc_stu:
-      actualDataNodes: db${0..1}.xuc_stu
+    # 1. 用户表 (按 user_id 分片)
+    users:
+      actualDataNodes: ds_${0..2}.users
       databaseStrategy:
         standard:
-          shardingColumn: xuc_sno
-          shardingAlgorithmName: xuc_database_inline_sno
+          shardingColumn: user_id
+          shardingAlgorithmName: user_id_inline
       keyGenerateStrategy:
-        column: xuc_sno
-        keyGeneratorName: xuc_snowflake
-        
-    # 课程表分片配置
-    xuc_cou:
-      actualDataNodes: db${0..1}.xuc_cou
+        column: user_id
+        keyGeneratorName: snowflake
+
+    # 2. 航班表 (按 flight_id 分片)
+    flights:
+      actualDataNodes: ds_${0..2}.flights
       databaseStrategy:
         standard:
-          shardingColumn: xuc_cno
-          shardingAlgorithmName: xuc_database_inline_cno
+          shardingColumn: flight_id
+          shardingAlgorithmName: flight_id_inline
       keyGenerateStrategy:
-        column: xuc_cno
-        keyGeneratorName: xuc_snowflake
-        
-    # 选课表分片配置
-    xuc_sc:
-      actualDataNodes: db${0..1}.xuc_sc
+        column: flight_id
+        keyGeneratorName: snowflake
+
+    # 3. 座位表 (按 flight_id 分片，与航班表绑定)
+    seats:
+      actualDataNodes: ds_${0..2}.seats
       databaseStrategy:
         standard:
-          shardingColumn: xuc_sno
-          shardingAlgorithmName: xuc_database_inline_sno
-      
+          shardingColumn: flight_id
+          shardingAlgorithmName: flight_id_inline
+      keyGenerateStrategy:
+        column: seat_id
+        keyGeneratorName: snowflake
+
+    # 4. 订单表 (按 user_id 分片)
+    orders:
+      actualDataNodes: ds_${0..2}.orders
+      databaseStrategy:
+        standard:
+          shardingColumn: user_id
+          shardingAlgorithmName: user_id_inline
+      keyGenerateStrategy:
+        column: order_id
+        keyGeneratorName: snowflake
+
+    # 5. 支付记录表 (按 order_id 分片)
+    payments:
+      actualDataNodes: ds_${0..2}.payments
+      databaseStrategy:
+        standard:
+          shardingColumn: order_id
+          shardingAlgorithmName: order_id_inline
+      keyGenerateStrategy:
+        column: payment_id
+        keyGeneratorName: snowflake
+
+    # 6. 退款申请表 (按 order_id 分片)
+    refund_requests:
+      actualDataNodes: ds_${0..2}.refund_requests
+      databaseStrategy:
+        standard:
+          shardingColumn: order_id
+          shardingAlgorithmName: order_id_inline
+      keyGenerateStrategy:
+        column: request_id
+        keyGeneratorName: snowflake
+
+    # 7. 改签申请表 (按 original_order_id 分片)
+    change_requests:
+      actualDataNodes: ds_${0..2}.change_requests
+      databaseStrategy:
+        standard:
+          shardingColumn: original_order_id
+          shardingAlgorithmName: order_id_inline # 复用 order_id 算法
+      keyGenerateStrategy:
+        column: request_id
+        keyGeneratorName: snowflake
+
+    # 9. 操作日志表 (按 log_id 分片)
+    operation_logs:
+      actualDataNodes: ds_${0..2}.operation_logs
+      databaseStrategy:
+        standard:
+          shardingColumn: log_id
+          shardingAlgorithmName: log_id_inline
+      keyGenerateStrategy:
+        column: log_id
+        keyGeneratorName: snowflake
+        
+    # 13. 用户行为统计表 (按 user_id 分片)
+    user_behavior_stats:
+      actualDataNodes: ds_${0..2}.user_behavior_stats
+      databaseStrategy:
+        standard:
+          shardingColumn: user_id
+          shardingAlgorithmName: user_id_inline
+
+    # 12. 航班日统计表 (按 flight_id 分片)
+    flight_daily_stats:
+      actualDataNodes: ds_${0..2}.flight_daily_stats
+      databaseStrategy:
+        standard:
+          shardingColumn: flight_id
+          shardingAlgorithmName: flight_id_inline
+
+  # 绑定表规则 (优化关联查询性能)
+  bindingTables:
+    - flights, seats, flight_daily_stats
+    - payments, refund_requests
+
+  # 广播表 (全局字典表，每个库都有一份)
+  broadcastTables:
+    - admins
+    - configs
 
   # 默认分片策略
   defaultDatabaseStrategy:
@@ -62,23 +154,33 @@ rules:
 
   # 分片算法配置
   shardingAlgorithms:
-      # 分库算法：基于学号取模的简单分片算法（用于学生表和选课表）
-      xuc_database_inline_sno:
-        type: INLINE
-        props:
-          algorithm-expression: db${xuc_sno % 2}
-          allow-range-query-with-inline-sharding: true
-  
-      # 分库算法：基于课号取模的简单分片算法（用于课程表）
-      xuc_database_inline_cno:
-        type: INLINE
-        props:
-          algorithm-expression: db${xuc_cno % 2}
-          allow-range-query-with-inline-sharding: true
+    # 基于 user_id 取模 3
+    user_id_inline:
+      type: INLINE
+      props:
+        algorithm-expression: ds_${user_id % 3}
+    
+    # 基于 flight_id 取模 3
+    flight_id_inline:
+      type: INLINE
+      props:
+        algorithm-expression: ds_${flight_id % 3}
+        
+    # 基于 order_id 取模 3
+    order_id_inline:
+      type: INLINE
+      props:
+        algorithm-expression: ds_${order_id % 3}
+
+    # 基于 log_id 取模 3
+    log_id_inline:
+      type: INLINE
+      props:
+        algorithm-expression: ds_${log_id % 3}
 
   # 分布式主键生成器
   keyGenerators:
-    xuc_snowflake:
+    snowflake:
       type: SNOWFLAKE
       props:
         worker-id: 123
