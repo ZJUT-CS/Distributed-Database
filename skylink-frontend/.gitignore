@@ -7,6 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+.vite
 node_modules
 dist
 dist-ssr
@@ -18,6 +19,10 @@ dist-ssr
 !.env.example
 *.tsbuildinfo
 coverage
+
+# Tooling & IDE metadata
+.trae/
+Thumbs.db
 
 # Editor directories and files
 .vscode/*
