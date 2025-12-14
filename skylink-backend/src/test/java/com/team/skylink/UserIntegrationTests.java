@@ -1,6 +1,6 @@
 package com.team.skylink;
 
-import com.team.skylink.infrastructure.persistence.mapper.UserMapper;
+import com.team.skylink.mapper.UserMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,4 +28,3 @@ public class UserIntegrationTests {
         assertTrue(cnt >= 0);
     }
 }
-
