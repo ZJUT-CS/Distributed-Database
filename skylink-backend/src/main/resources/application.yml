@@ -1,0 +1,16 @@
+server:
+  port: 9999
+
+spring:
+  datasource:
+    url: jdbc:mysql://26.122.246.196:3307/sharding_db?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: shardingsphere
+    driver-class-name: com.mysql.cj.jdbc.Driver
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      table-underline: true
