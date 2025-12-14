@@ -1,6 +1,6 @@
 target/
+.mvn/wrapper/maven-wrapper.jar
 .mvn/wrapper/maven-wrapper.properties
-!.mvn/wrapper/maven-wrapper.jar
 
 # IDE
 .idea/
@@ -21,3 +21,8 @@ Thumbs.db
 *.bat
 !mvnw.cmd
 
+# Secrets & environment
+*.env
+*.pem
+*.crt
+*.key

@@ -5,7 +5,8 @@ import com.team.skylink.domain.model.User;
 
 public interface UserRepository {
     User findById(Long id);
+    User findByUsername(String username);
     Page<User> page(int page, int size);
     boolean save(User user);
+    void update(User user);
 }
-

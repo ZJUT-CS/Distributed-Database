@@ -21,6 +21,13 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public User findByUsername(String username) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getUsername, username);
+        return userMapper.selectOne(wrapper);
+    }
+
+    @Override
     public Page<User> page(int page, int size) {
         Page<User> p = new Page<>(page, size);
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
@@ -31,5 +38,9 @@ public class UserRepositoryImpl implements UserRepository {
     public boolean save(User user) {
         return userMapper.insert(user) > 0;
     }
-}
 
+    @Override
+    public void update(User user) {
+        userMapper.updateById(user);
+    }
+}

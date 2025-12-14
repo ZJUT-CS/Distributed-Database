@@ -12,5 +12,8 @@ public class User {
     private Long id;
     private String username;
     private String email;
+    private String passwordHash;
+    private Boolean locked;
+    private Integer failedAttempts;
+    private Long lockUntil;
 }
-
