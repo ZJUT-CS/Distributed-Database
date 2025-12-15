@@ -11,8 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.Date;
+import java.time.format.DateTimeParseException; // 引入异常类
 import java.util.Map;
 
 @RestController
@@ -57,6 +56,7 @@ public class AuthController {
         String idCard = body.get("idCard");
         String genderStr = body.get("gender");
         String birthDateStr = body.get("birthDate");
+
         if (phoneNumber == null || password == null) {
             return Result.fail(400, "missing phoneNumber or password");
         }
@@ -78,13 +78,23 @@ public class AuthController {
             try {
                 user.setGender(Integer.parseInt(genderStr));
             } catch (NumberFormatException ignored) {
+                // 也可以考虑在这里记录日志
             }
         }
-        if (birthDateStr != null) {
-            LocalDate localDate = LocalDate.parse(birthDateStr);
-            Date utilDate = Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
-            user.setBirthDate(new java.sql.Date(utilDate.getTime()));
+
+        // --- 修改开始 ---
+        if (birthDateStr != null && !birthDateStr.isEmpty()) {
+            try {
+                // 1. 直接解析为 LocalDate
+                LocalDate localDate = LocalDate.parse(birthDateStr);
+                // 2. 直接设置，不再需要转换为 java.sql.Date
+                user.setBirthDate(localDate);
+            } catch (DateTimeParseException e) {
+                // 如果日期格式错误（不是 yyyy-MM-dd），返回 400 错误
+                return Result.fail(400, "Invalid birthDate format. Expected yyyy-MM-dd");
+            }
         }
+        // --- 修改结束 ---
 
         user.setUserStatus(1);
         long now = System.currentTimeMillis();
