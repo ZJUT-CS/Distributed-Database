@@ -13,16 +13,28 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ isOpen, onClose, on
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<AIRecommendation[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleSearch = async () => {
-    if (!query.trim()) return;
+    if (!query.trim() || loading) return;
     setLoading(true);
-    setRecommendations([]); // Clear previous
-    const results = await getSmartRecommendations(query);
-    setRecommendations(results);
-    setLoading(false);
+    setError(null);
+    setRecommendations([]);
+    try {
+      const results = await getSmartRecommendations(query);
+      if (!results || results.length === 0) {
+        setError('暂时未能获取到智能推荐，可能是 AI 服务未配置或暂时不可用。');
+        return;
+      }
+      setRecommendations(results);
+    } catch (err) {
+      console.error('Failed to get AI travel recommendations', err);
+      setError('获取 AI 推荐时发生错误，请稍后重试或联系管理员。');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,7 +55,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ isOpen, onClose, on
 
         {/* Body */}
         <div className="p-6 overflow-y-auto flex-1 bg-gray-50">
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-3">
             <input
               type="text"
               value={query}
@@ -60,6 +72,12 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ isOpen, onClose, on
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
             </button>
           </div>
+
+          {!loading && error && (
+            <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 text-red-600 text-sm">
+              {error}
+            </div>
+          )}
 
           {loading && (
             <div className="text-center py-10">

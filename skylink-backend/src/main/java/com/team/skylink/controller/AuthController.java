@@ -2,7 +2,13 @@ package com.team.skylink.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.team.skylink.common.Result;
+import com.team.skylink.dto.AdminLoginRequest;
+import com.team.skylink.dto.LoginRequest;
+import com.team.skylink.dto.LoginResponse;
+import com.team.skylink.dto.AdminRegisterRequest;
+import com.team.skylink.entity.Admin;
 import com.team.skylink.entity.User;
+import com.team.skylink.mapper.AdminMapper;
 import com.team.skylink.mapper.UserMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,33 +19,109 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException; // 引入异常类
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
     private final UserMapper userMapper;
+    private final AdminMapper adminMapper;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthController(UserMapper userMapper, PasswordEncoder passwordEncoder) {
+    public AuthController(UserMapper userMapper, AdminMapper adminMapper, PasswordEncoder passwordEncoder) {
         this.userMapper = userMapper;
+        this.adminMapper = adminMapper;
         this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/login")
-    public Result<String> login(@RequestBody Map<String, String> body) {
-        String phoneNumber = body.get("phoneNumber");
-        String password = body.get("password");
+    public Result<LoginResponse> login(@RequestBody LoginRequest request) {
+        String phoneNumber = request.getPhoneNumber();
+        String password = request.getPassword();
         if (phoneNumber == null || password == null) {
             return Result.fail(400, "missing phoneNumber or password");
         }
+
         User user = userMapper.selectOne(new QueryWrapper<User>().eq("phone_number", phoneNumber));
         if (user == null) {
             return Result.fail(401, "invalid phoneNumber");
         }
+
         if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
             return Result.fail(401, "invalid password");
         }
-        return Result.ok("ok");
+
+        if (user.getUserStatus() != null && user.getUserStatus() != 1) {
+            return Result.fail(423, "user is disabled");
+        }
+
+        long now = System.currentTimeMillis();
+        user.setLastLoginTime(now);
+        userMapper.updateById(user);
+
+        LoginResponse resp = new LoginResponse(
+                user.getUserId(),
+                user.getPhoneNumber(),
+                "user",
+                UUID.randomUUID().toString()
+        );
+        return Result.ok(resp);
+    }
+
+    @PostMapping("/admin/login")
+    public Result<LoginResponse> adminLogin(@RequestBody AdminLoginRequest request) {
+        String username = request.getUsername();
+        String password = request.getPassword();
+        if (username == null || password == null) {
+            return Result.fail(400, "missing username or password");
+        }
+
+        Admin admin = adminMapper.selectOne(new QueryWrapper<Admin>().eq("username", username));
+        if (admin == null) {
+            return Result.fail(401, "invalid username");
+        }
+
+        if (admin.getPasswordHash() == null || !passwordEncoder.matches(password, admin.getPasswordHash())) {
+            return Result.fail(401, "invalid password");
+        }
+
+        long now = System.currentTimeMillis();
+        admin.setLastLoginTime(now);
+        adminMapper.updateById(admin);
+
+        LoginResponse resp = new LoginResponse(
+                admin.getAdminId(),
+                admin.getUsername(),
+                "admin",
+                UUID.randomUUID().toString()
+        );
+        return Result.ok(resp);
+    }
+
+    @PostMapping("/admin/register")
+    public Result<Boolean> adminRegister(@RequestBody AdminRegisterRequest request) {
+        String username = request.getUsername();
+        String password = request.getPassword();
+        Integer role = request.getRole();
+        if (username == null || password == null) {
+            return Result.fail(400, "missing username or password");
+        }
+
+        Admin existing = adminMapper.selectOne(new QueryWrapper<Admin>().eq("username", username));
+        if (existing != null) {
+            return Result.fail(409, "username already exists");
+        }
+
+        Admin admin = new Admin();
+        admin.setUsername(username);
+        admin.setPasswordHash(passwordEncoder.encode(password));
+        admin.setRole(role != null ? role : 1);
+        long now = System.currentTimeMillis();
+        admin.setCreateTime(now);
+        admin.setLastLoginTime(now);
+
+        int rows = adminMapper.insert(admin);
+        return Result.ok(rows > 0);
     }
 
     @PostMapping("/register")

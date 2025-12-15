@@ -6,6 +6,7 @@ import FlightResult from '../pages/FlightResult';
 import Booking from '../pages/Booking';
 import Confirmation from '../pages/Booking/Confirmation';
 import Login from '../pages/User/Login';
+import AdminApply from '../pages/User/AdminApply';
 import Profile from '../pages/User/Profile';
 import Settings from '../pages/User/Settings';
 import UserBookings from '../pages/User/Bookings';
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'login', element: <Login /> },
+      { path: 'admin-apply', element: <AdminApply /> },
       { path: 'results', element: <FlightResult /> },
       { path: 'booking', element: <Booking /> },
       { path: 'booking/confirmation', element: <Confirmation /> },

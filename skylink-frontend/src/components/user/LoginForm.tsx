@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Lock, ArrowRight, ShieldAlert, HelpCircle, Mail } from 'lucide-react';
-import { loginApi, registerApi } from '../../services/auth';
+import { adminLoginApi, loginApi, registerApi } from '../../services/auth';
 import { User } from '../../types';
 
 interface LoginFormProps {
@@ -9,6 +10,7 @@ interface LoginFormProps {
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
+  const navigate = useNavigate();
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
@@ -34,16 +36,30 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
         }
       }
 
-      const res = await loginApi({ phoneNumber, password });
+      const res = isAdminMode
+        ? await adminLoginApi({ username: phoneNumber, password })
+        : await loginApi({ phoneNumber, password });
       if (res.code !== 0) {
         throw new Error(res.msg || '登录失败');
       }
 
+      if (!res.data) {
+        throw new Error('登录失败：服务端未返回用户信息');
+      }
+
+      if (isAdminMode && res.data.role !== 'admin') {
+        throw new Error('该账号不是管理员，无法登录控制台');
+      }
+
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+      }
+
       onLogin({
-        username: phoneNumber,
+        username: res.data.username || phoneNumber,
         email: isRegisterMode ? email : undefined,
-        role: isAdminMode ? 'admin' : 'user',
-        avatarUrl: `https://ui-avatars.com/api/?name=${phoneNumber}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`
+        role: res.data.role,
+        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(res.data.username || phoneNumber)}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`
       });
     } catch (err: any) {
       alert(err?.message || '请求失败，请稍后再试');
@@ -206,12 +222,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
           <div className="mt-6 text-center">
             <button
               type="button"
-              onClick={toggleMode}
+              onClick={() => {
+                if (!isRegisterMode && isAdminMode) {
+                  navigate('/admin-apply');
+                  return;
+                }
+                toggleMode();
+              }}
               className={`text-sm font-medium transition-colors hover:underline ${
                 isRegisterMode ? 'text-cyan-600 hover:text-cyan-700' : 'text-blue-600 hover:text-blue-700'
               }`}
             >
-              {isRegisterMode ? '已有账号？立即登录' : '没有账号？立即注册'}
+              {isRegisterMode ? '已有账号？立即登录' : (isAdminMode ? '提交入驻申请' : '没有账号？立即注册')}
             </button>
           </div>
 
