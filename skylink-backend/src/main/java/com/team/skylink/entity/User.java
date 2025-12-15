@@ -8,13 +8,17 @@ import lombok.Data;
 @Data
 @TableName("users")
 public class User {
-    @TableId(value = "id", type = IdType.AUTO)
-    private Long id;
-    private String username;
-    private String email;
+    @TableId(value = "user_id", type = IdType.AUTO)
+    private Long userId;
+    private String phoneNumber;
     private String passwordHash;
-    private Boolean locked;
-    private Integer failedAttempts;
-    private Long lockUntil;
+    private String realName;
+    private String email;
+    private String idCard;
+    private Integer gender;
+    private java.sql.Date birthDate;
+    private Integer userStatus;
+    private Long registerTime;
+    private Long lastLoginTime;
 }
 

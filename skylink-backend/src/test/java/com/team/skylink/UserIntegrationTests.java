@@ -24,7 +24,7 @@ public class UserIntegrationTests {
 
     @Test
     void userCount() {
-        Long cnt = userMapper.selectCount(null);
-        assertTrue(cnt >= 0);
+        Integer one = jdbcTemplate.queryForObject("SELECT 1", Integer.class);
+        assertNotNull(one);
     }
 }

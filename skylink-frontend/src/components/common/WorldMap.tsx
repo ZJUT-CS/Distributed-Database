@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MapPoint } from '../../types';
+import worldMapSvg from '../../assets/images/Simplified_World_Map.svg';
 
 interface WorldMapProps {
   points: MapPoint[];
@@ -103,9 +104,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
         {/* Background Grid */}
         {showGrid && renderGrid()}
         
-        {/* World Map Image (Updated Dimensions) */}
         <image 
-            href="https://upload.wikimedia.org/wikipedia/commons/d/db/Simplified_World_Map.svg" 
+            href={worldMapSvg}
             x="0" 
             y="0" 
             width={MAP_WIDTH} 

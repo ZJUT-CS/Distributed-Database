@@ -2,7 +2,8 @@ import axios from 'axios';
 
 // Create an axios instance
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  // Default to backend service port 9999 when env is not provided
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:9999',
   timeout: 10000,
 });
 

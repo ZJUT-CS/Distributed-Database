@@ -12,9 +12,31 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isResultsPage = location.pathname.includes('/results');
+
+  // Handle scroll to hide/show navbar
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Always show at top or if scrolling up
+      if (currentScrollY < 10 || currentScrollY < lastScrollY) {
+        setIsVisible(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Hide when scrolling down past 100px
+        setIsVisible(false);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   // Click Outside
   useEffect(() => {
@@ -49,7 +71,13 @@ const Navbar: React.FC = () => {
 
   return (
     <>
-      <nav className={`backdrop-blur-md border-b sticky top-0 z-40 transition-all duration-300 ${isResultsPage ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/90 border-gray-200 text-slate-800'}`}>
+      <nav 
+        className={`backdrop-blur-md border-b sticky top-0 z-40 transition-all duration-300 transform ${
+          isVisible ? 'translate-y-0' : '-translate-y-full'
+        } ${
+          isResultsPage ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/90 border-gray-200 text-slate-800'
+        }`}
+      >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <Link 
