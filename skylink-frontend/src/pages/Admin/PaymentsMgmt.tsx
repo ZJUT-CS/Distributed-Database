@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Download, Eye, MoreHorizontal, Filter, AlertCircle, FileText } from 'lucide-react';
-import { INITIAL_TRANSACTIONS, INITIAL_GATEWAYS } from '../../services/mockData';
+import { Search, Download, Eye, Filter, AlertCircle, FileText } from 'lucide-react';
+import { INITIAL_TRANSACTIONS } from '../../services/mockData';
 import Pagination from './components/Pagination';
 import TableActionMenu from './components/TableActionMenu';
 
@@ -26,7 +26,7 @@ const PaymentsMgmt: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
            <h2 className="text-2xl font-bold text-gray-800">支付管理</h2>
-           <p className="text-gray-500 mt-1">管理支付网关与查看交易流水</p>
+           <p className="text-gray-500 mt-1 text-sm">查看支付/退款流水与对账状态</p>
         </div>
         <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
             <Download className="w-4 h-4" /> 导出报表
@@ -68,38 +68,6 @@ const PaymentsMgmt: React.FC = () => {
               ))}
            </div>
         </div>
-      </div>
-
-      {/* Gateways */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {INITIAL_GATEWAYS.map(g => (
-            <div key={g.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow group">
-                <div className="flex justify-between items-start mb-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl shadow-lg ${g.color}`}>
-                        {g.name[0]}
-                    </div>
-                    <div className="flex gap-2">
-                        <span className={`px-2 py-1 rounded-lg text-xs font-bold ${g.status ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-100 text-gray-500 border border-gray-200'}`}>
-                            {g.status ? '运行中' : '已停用'}
-                        </span>
-                        <button className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <MoreHorizontal className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-                <h3 className="font-bold text-gray-800 text-lg">{g.name}</h3>
-                <div className="mt-4 pt-4 border-t border-gray-50 grid grid-cols-2 gap-4 text-xs">
-                    <div>
-                        <span className="text-gray-400 block mb-1">费率</span>
-                        <span className="font-semibold text-gray-700 text-sm">{g.fee}</span>
-                    </div>
-                    <div>
-                        <span className="text-gray-400 block mb-1">结算周期</span>
-                        <span className="font-semibold text-gray-700 text-sm">{g.cycle}</span>
-                    </div>
-                </div>
-            </div>
-        ))}
       </div>
 
       {/* Transactions */}

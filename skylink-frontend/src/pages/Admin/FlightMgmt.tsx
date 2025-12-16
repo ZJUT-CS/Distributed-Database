@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Download, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X } from 'lucide-react';
+import { Download, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X, Save } from 'lucide-react';
 import { INITIAL_FLIGHTS } from '../../services/mockData';
 import { FlightStatus } from '../../types';
 import Pagination from './components/Pagination';
