@@ -1,5 +1,4 @@
 databaseName: sharding_db
-
 dataSources:
   ds_0:
     url: jdbc:mysql://26.42.251.27:3306/zh_db_0?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
@@ -28,11 +27,10 @@ dataSources:
     maxLifetimeMilliseconds: 1800000
     maxPoolSize: 50
     minPoolSize: 1
-
 rules:
 - !SHARDING
   tables:
-    # 1. 用户表 (按 user_id 分片)
+    # 1. 用户表 (对应 users 表，按 user_id 分片)
     users:
       actualDataNodes: ds_${0..2}.users
       databaseStrategy:
@@ -43,7 +41,7 @@ rules:
         column: user_id
         keyGeneratorName: snowflake
 
-    # 2. 航班表 (按 flight_id 分片)
+    # 2. 航班表 (对应 flights 表，按 flight_id 分片)
     flights:
       actualDataNodes: ds_${0..2}.flights
       databaseStrategy:
@@ -54,18 +52,18 @@ rules:
         column: flight_id
         keyGeneratorName: snowflake
 
-    # 3. 座位表 (按 flight_id 分片，与航班表绑定)
-    seats:
-      actualDataNodes: ds_${0..2}.seats
+    # 3. 舱位表 (对应 cabins 表，与航班表绑定分片)
+    cabins:
+      actualDataNodes: ds_${0..2}.cabins
       databaseStrategy:
         standard:
           shardingColumn: flight_id
-          shardingAlgorithmName: flight_id_inline
+          shardingAlgorithmName: flight_id_inline # 与航班表同分片键，优化关联查询
       keyGenerateStrategy:
-        column: seat_id
+        column: cabin_id
         keyGeneratorName: snowflake
 
-    # 4. 订单表 (按 user_id 分片)
+    # 4. 机票订单表 (对应 orders 表，按 user_id 分片)
     orders:
       actualDataNodes: ds_${0..2}.orders
       databaseStrategy:
@@ -76,7 +74,7 @@ rules:
         column: order_id
         keyGeneratorName: snowflake
 
-    # 5. 支付记录表 (按 order_id 分片)
+    # 5. 支付订单表 (对应 payments 表，按 order_id 分片)
     payments:
       actualDataNodes: ds_${0..2}.payments
       databaseStrategy:
@@ -87,31 +85,31 @@ rules:
         column: payment_id
         keyGeneratorName: snowflake
 
-    # 6. 退款申请表 (按 order_id 分片)
-    refund_requests:
-      actualDataNodes: ds_${0..2}.refund_requests
+    # 6. 退票/改签记录表 (对应 refund_change_record 表，按 order_id 分片)
+    refund_change_record:
+      actualDataNodes: ds_${0..2}.refund_change_record
       databaseStrategy:
         standard:
           shardingColumn: order_id
-          shardingAlgorithmName: order_id_inline
+          shardingAlgorithmName: order_id_inline # 与支付表同分片键，优化关联查询
       keyGenerateStrategy:
-        column: request_id
+        column: record_id
         keyGeneratorName: snowflake
 
-    # 7. 改签申请表 (按 original_order_id 分片)
-    change_requests:
-      actualDataNodes: ds_${0..2}.change_requests
+    # 7. 系统配置表 (对应 system_config 表，按 config_id 分片)
+    system_config:
+      actualDataNodes: ds_${0..2}.system_config
       databaseStrategy:
         standard:
-          shardingColumn: original_order_id
-          shardingAlgorithmName: order_id_inline # 复用 order_id 算法
+          shardingColumn: config_id
+          shardingAlgorithmName: config_id_inline
       keyGenerateStrategy:
-        column: request_id
+        column: config_id
         keyGeneratorName: snowflake
 
-    # 9. 操作日志表 (按 log_id 分片)
-    operation_logs:
-      actualDataNodes: ds_${0..2}.operation_logs
+    # 8. 系统操作日志表 (对应 system_log 表，按 log_id 分片)
+    system_log:
+      actualDataNodes: ds_${0..2}.system_log
       databaseStrategy:
         standard:
           shardingColumn: log_id
@@ -119,36 +117,21 @@ rules:
       keyGenerateStrategy:
         column: log_id
         keyGeneratorName: snowflake
-        
-    # 13. 用户行为统计表 (按 user_id 分片)
-    user_behavior_stats:
-      actualDataNodes: ds_${0..2}.user_behavior_stats
-      databaseStrategy:
-        standard:
-          shardingColumn: user_id
-          shardingAlgorithmName: user_id_inline
 
-    # 12. 航班日统计表 (按 flight_id 分片)
-    flight_daily_stats:
-      actualDataNodes: ds_${0..2}.flight_daily_stats
-      databaseStrategy:
-        standard:
-          shardingColumn: flight_id
-          shardingAlgorithmName: flight_id_inline
-
-  # 绑定表规则 (优化关联查询性能)
+  # 绑定表规则（优化关联查询性能，同分片键的表绑定）
   bindingTables:
-    - flights, seats, flight_daily_stats
-    - payments, refund_requests
+    - flights, cabins # 航班与舱位强关联，同分片
+    - orders, payments, refund_change_record # 订单、支付、退改签强关联，同分片
+    - system_config # 单表绑定（可选，便于扩展）
+    - system_log # 单表绑定（可选，便于扩展）
 
-
-  # 默认分片策略
+  # 默认分片策略（未明确配置的表使用）
   defaultDatabaseStrategy:
     none:
   defaultTableStrategy:
     none:
 
-  # 分片算法配置
+  # 分片算法配置（新增 config_id 算法，其余复用原有）
   shardingAlgorithms:
     # 基于 user_id 取模 3
     user_id_inline:
@@ -174,7 +157,13 @@ rules:
       props:
         algorithm-expression: ds_${log_id % 3}
 
-  # 分布式主键生成器
+    # 基于 config_id 取模 3（新增，适配 system_config 表）
+    config_id_inline:
+      type: INLINE
+      props:
+        algorithm-expression: ds_${config_id % 3}
+
+  # 分布式主键生成器（复用雪花算法，与 SQL 表中主键生成逻辑一致）
   keyGenerators:
     snowflake:
       type: SNOWFLAKE
@@ -183,5 +172,4 @@ rules:
 
 - !BROADCAST
   tables:
-    - admins
-    - configs
+    - admins # 管理员表（广播表，所有分片同步数据，适配全局查询）
