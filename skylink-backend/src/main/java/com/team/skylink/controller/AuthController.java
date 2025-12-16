@@ -16,8 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException; // 引入异常类
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -55,9 +54,7 @@ public class AuthController {
             return Result.fail(423, "user is disabled");
         }
 
-        long now = System.currentTimeMillis();
-        user.setLastLoginTime(now);
-        userMapper.updateById(user);
+        // 用户表不记录最后登录时间字段，直接返回登录结果
 
         LoginResponse resp = new LoginResponse(
                 user.getUserId(),
@@ -164,24 +161,11 @@ public class AuthController {
             }
         }
 
-        // --- 修改开始 ---
-        if (birthDateStr != null && !birthDateStr.isEmpty()) {
-            try {
-                // 1. 直接解析为 LocalDate
-                LocalDate localDate = LocalDate.parse(birthDateStr);
-                // 2. 直接设置，不再需要转换为 java.sql.Date
-                user.setBirthDate(localDate);
-            } catch (DateTimeParseException e) {
-                // 如果日期格式错误（不是 yyyy-MM-dd），返回 400 错误
-                return Result.fail(400, "Invalid birthDate format. Expected yyyy-MM-dd");
-            }
-        }
-        // --- 修改结束 ---
+        // 用户表无出生日期字段，忽略 birthDate
 
         user.setUserStatus(1);
-        long now = System.currentTimeMillis();
-        user.setRegisterTime(now);
-        user.setLastLoginTime(now);
+        LocalDateTime now = LocalDateTime.now();
+        user.setCreateTime(now);
 
         int rows = userMapper.insert(user);
         return Result.ok(rows > 0);
