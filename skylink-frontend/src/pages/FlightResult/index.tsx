@@ -22,6 +22,15 @@ const FlightResultPage: React.FC = () => {
   const [origin, setOrigin] = useState(urlParams.get('origin') || 'PEK');
   const [destination, setDestination] = useState(urlParams.get('destination') || 'SHA');
   const [date, setDate] = useState(urlParams.get('date') || new Date().toISOString().split('T')[0]);
+  const [passengers, setPassengers] = useState(() => {
+    const raw = Number(urlParams.get('passengers') || 1);
+    return Number.isFinite(raw) && raw > 0 ? raw : 1;
+  });
+  const [cabinClass, setCabinClass] = useState<'economy' | 'business' | 'first'>(() => {
+    const raw = urlParams.get('cabinClass');
+    if (raw === 'business' || raw === 'first' || raw === 'economy') return raw;
+    return 'economy';
+  });
   
   const [flights, setFlights] = useState<Flight[]>([]);
   const [selectedFlights, setSelectedFlights] = useState<Flight[]>([]);
@@ -80,6 +89,7 @@ const FlightResultPage: React.FC = () => {
         departureTime: r.departureTime,
         arrivalTime: r.arrivalTime,
         price: Number(r.price ?? 0),
+        remainingSeats: typeof r.remainingSeats === 'number' ? r.remainingSeats : undefined,
         duration: r.duration || '',
         stops: 0,
         baggageWeight: 23,
@@ -97,6 +107,8 @@ const FlightResultPage: React.FC = () => {
       const stateParams = location.state?.searchParams as SearchParams;
       if (stateParams) {
           setTripSegments(stateParams.segments);
+          setPassengers(stateParams.passengers);
+          setCabinClass(stateParams.cabinClass || 'economy');
           // Initial search for first leg
           const firstLeg = stateParams.segments[0];
           setOrigin(firstLeg.origin);
@@ -116,6 +128,8 @@ const FlightResultPage: React.FC = () => {
       setTripSegments(params.segments);
       setSelectedFlights([]);
       setCurrentLegIndex(0);
+      setPassengers(params.passengers);
+      setCabinClass(params.cabinClass || 'economy');
       
       const firstLeg = params.segments[0];
       setOrigin(firstLeg.origin);
@@ -128,6 +142,8 @@ const FlightResultPage: React.FC = () => {
       newParams.set('origin', firstLeg.origin);
       newParams.set('destination', firstLeg.destination);
       newParams.set('date', firstLeg.date);
+      newParams.set('passengers', String(params.passengers));
+      if (params.cabinClass) newParams.set('cabinClass', params.cabinClass);
       navigate(`?${newParams.toString()}`, { replace: true, state: { searchParams: params } });
   };
 
@@ -181,16 +197,23 @@ const FlightResultPage: React.FC = () => {
 
   // Filter Logic
   const filteredFlights = useMemo(() => {
-    return flights.filter(flight => {
-       if (flight.price > filters.priceMax) return false;
-       if (filters.stops === 'direct' && flight.stops > 0) return false;
-       if (filters.stops === '1stop' && flight.stops !== 1) return false;
-       if (filters.airlines.length > 0 && !filters.airlines.includes(flight.airlineCode)) return false;
-       if (parseDuration(flight.duration) > filters.durationMax) return false;
-       // ... other filters omitted for brevity or can be added
-       return true;
-    });
-  }, [flights, filters]);
+    const cabinMultiplier = cabinClass === 'first' ? 2.1 : cabinClass === 'business' ? 1.6 : 1;
+    return flights
+      .filter((flight) => {
+        const effectivePrice = flight.price * cabinMultiplier;
+        if (effectivePrice > filters.priceMax) return false;
+        if (typeof flight.remainingSeats === 'number' && flight.remainingSeats < passengers) return false;
+        if (filters.stops === 'direct' && flight.stops > 0) return false;
+        if (filters.stops === '1stop' && flight.stops !== 1) return false;
+        if (filters.airlines.length > 0 && !filters.airlines.includes(flight.airlineCode)) return false;
+        if (parseDuration(flight.duration) > filters.durationMax) return false;
+        return true;
+      })
+      .map((flight) => ({
+        ...flight,
+        price: Math.round(flight.price * cabinMultiplier),
+      }));
+  }, [flights, filters, cabinClass, passengers]);
 
   // Map Data
   const getCityName = (code: string) => AIRPORTS_CONST.find(a => a.code === code)?.city || code;
@@ -267,7 +290,8 @@ const FlightResultPage: React.FC = () => {
               initialValues={{ 
                   tripType: 'oneWay', 
                   segments: tripSegments.length ? tripSegments : [{origin, destination, date}],
-                  passengers: 1 
+                  passengers,
+                  cabinClass
               } as any}
             />
 

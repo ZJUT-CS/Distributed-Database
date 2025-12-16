@@ -604,13 +604,15 @@ const SearchForm: React.FC<SearchFormProps> = ({
                                 className={`w-full h-full bg-gray-50 border border-transparent rounded-2xl text-left pl-5 pr-4 outline-none transition-all hover:bg-purple-50/30 flex flex-col justify-center ${isPassengerOpen ? 'bg-white ring-2 ring-purple-100 border-purple-200' : ''}`}
                             >
                                 <label className={`block ${labelTextSize} font-bold text-gray-400 uppercase tracking-wider mb-0.5`}>旅客 & 舱位</label>
-                                <div className="flex items-center justify-between">
-                                    <span className={`font-bold text-gray-800 truncate ${compact ? 'text-base' : 'text-lg'}`}>
-                                    {adults + children + infants} 人
-                                    </span>
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className={`font-bold text-gray-800 truncate ${compact ? 'text-base' : 'text-lg'}`}>
+                                        {adults + children + infants} 人
+                                      </span>
+                                      <span className={`${labelTextSize} text-gray-500 truncate`}>{getCabinLabel(cabinClass)}</span>
+                                    </div>
                                     <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-300 ${isPassengerOpen ? 'rotate-180' : ''}`} />
                                 </div>
-                                <div className={`${labelTextSize} text-gray-500 truncate mt-0.5`}>{getCabinLabel(cabinClass)}</div>
                             </button>
                             {isPassengerOpen && (
                                 <div className="absolute top-full right-0 mt-3 w-80 bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 p-6 animate-in fade-in slide-in-from-top-4 duration-200">
