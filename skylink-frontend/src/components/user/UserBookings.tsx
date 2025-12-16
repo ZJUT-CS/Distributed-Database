@@ -22,7 +22,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack }) => {
   };
 
   return (
-    <div className="animate-fade-in-up mt-8 max-w-6xl mx-auto mb-20 px-4 sm:px-6">
+    <div className="animate-fade-in-up mt-8 max-w-7xl mx-auto mb-20 px-4 sm:px-8">
       <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-blue-50 blur-3xl" />
         <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-indigo-50 blur-3xl" />

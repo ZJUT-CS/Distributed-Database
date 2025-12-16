@@ -45,7 +45,7 @@ const FlightResultPage: React.FC = () => {
     arrivalTime: [],
     originAirports: [],
     destinationAirports: [],
-    durationMax: 1200
+    durationMax: 1440
   });
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);

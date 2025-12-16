@@ -17,7 +17,8 @@ import {
   Sunset,
   Moon,
   ArrowRight,
-  Shuffle
+  Shuffle,
+  Clock3
 } from 'lucide-react';
 import { AIRLINES, POPULAR_AIRPORTS } from '../../constants';
 
@@ -93,7 +94,8 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
     filters.priceMax < 10000 || 
     filters.departureTime.length > 0 ||
     filters.originAirports.length > 0 ||
-    filters.destinationAirports.length > 0;
+    filters.destinationAirports.length > 0 ||
+    filters.durationMax < 1440;
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden sticky top-24">
@@ -115,31 +117,116 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
 
       <div className="px-5 max-h-[calc(100vh-140px)] overflow-y-auto custom-scrollbar">
         
+        {/* Price Range */}
+        <FilterSection title="价格区间" icon={<Tag className="w-4 h-4" />}>
+          <div className="px-2 pb-2">
+            <div className="flex justify-between text-sm font-bold text-gray-800 mb-4">
+              <span>¥0</span>
+              <span className="text-blue-600">¥{filters.priceMax.toLocaleString()}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="10000"
+              step="100"
+              value={filters.priceMax}
+              onChange={(e) => updateFilter('priceMax', Number(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+          </div>
+        </FilterSection>
+
+        {/* Flight Duration */}
+        <FilterSection title="飞行时长" icon={<Clock3 className="w-4 h-4" />}>
+          <div className="px-2 pb-2">
+            <div className="flex justify-between items-center text-xs mb-3">
+              <span className="text-gray-500">≤ 飞行总时长</span>
+              <span className="font-bold text-blue-600">
+                {Math.floor(filters.durationMax / 60)} 小时 {filters.durationMax % 60} 分
+              </span>
+            </div>
+            <input
+              type="range"
+              min={60}
+              max={1440}
+              step={15}
+              value={filters.durationMax}
+              onChange={(e) => updateFilter('durationMax', Number(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+            />
+          </div>
+        </FilterSection>
+
+        {/* Airports - Dynamic based on popular airports for now, ideally strictly from search results */}
+        <FilterSection title="出发/到达机场" icon={<MapPin className="w-4 h-4" />}>
+             <div className="mb-4">
+                 <div className="text-xs font-bold text-gray-500 uppercase mb-2">出发机场</div>
+                 <div className="space-y-1">
+                     {POPULAR_AIRPORTS.slice(0, 4).map(a => (
+                         <label key={`dep-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.originAirports.includes(a.code) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
+                                {filters.originAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
+                              </div>
+                              <input type="checkbox" checked={filters.originAirports.includes(a.code)} onChange={() => handleArrayToggle('originAirports', a.code)} className="hidden" />
+                              <span className="text-sm text-gray-700">{a.name}</span>
+                            </div>
+                            <span className="text-xs text-gray-400 font-mono">{a.code}</span>
+                         </label>
+                     ))}
+                 </div>
+             </div>
+             <div>
+                 <div className="text-xs font-bold text-gray-500 uppercase mb-2">到达机场</div>
+                 <div className="space-y-1">
+                     {POPULAR_AIRPORTS.slice(0, 4).map(a => (
+                         <label key={`arr-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.destinationAirports.includes(a.code) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
+                                {filters.destinationAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
+                              </div>
+                              <input type="checkbox" checked={filters.destinationAirports.includes(a.code)} onChange={() => handleArrayToggle('destinationAirports', a.code)} className="hidden" />
+                              <span className="text-sm text-gray-700">{a.name}</span>
+                            </div>
+                            <span className="text-xs text-gray-400 font-mono">{a.code}</span>
+                         </label>
+                     ))}
+                 </div>
+             </div>
+        </FilterSection>
+
         {/* Stops */}
         <FilterSection title="转机次数" icon={<Route className="w-4 h-4" />}>
-          <div className="space-y-2">
+          <div className="flex gap-2">
             {[
-              { id: 'all', label: '不限', icon: Route },
-              { id: 'direct', label: '直飞', icon: ArrowRight },
-              { id: '1stop', label: '1次转机', icon: Shuffle }
-            ].map((opt) => (
-              <label key={opt.id} className="flex items-center gap-3 cursor-pointer group p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${filters.stops === opt.id ? 'border-blue-600 bg-blue-600' : 'border-gray-300 group-hover:border-blue-400'}`}>
-                  {filters.stops === opt.id && <div className="w-2 h-2 bg-white rounded-full" />}
-                </div>
-                <input
-                  type="radio"
-                  name="stops"
-                  className="hidden"
-                  checked={filters.stops === opt.id}
-                  onChange={() => updateFilter('stops', opt.id)}
-                />
-                <span className={`text-sm ${filters.stops === opt.id ? 'text-gray-900 font-medium' : 'text-gray-600'} flex items-center gap-2`}>
-                  <opt.icon className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
-                  {opt.label}
-                </span>
-              </label>
-            ))}
+              { id: 'all', label: '不限', desc: '不限定转机', icon: Route },
+              { id: 'direct', label: '直飞', desc: '无经停', icon: ArrowRight },
+              { id: '1stop', label: '1 次转机', desc: '最多 1 次', icon: Shuffle }
+            ].map((opt) => {
+              const active = filters.stops === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => updateFilter('stops', opt.id as FilterState['stops'])}
+                  className={`flex-1 min-w-[0] px-3 py-2.5 rounded-2xl border text-left text-xs transition-all ${
+                    active
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm shadow-blue-500/10'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <opt.icon
+                      className={`w-3.5 h-3.5 ${
+                        active ? 'text-blue-600' : 'text-gray-400'
+                      }`}
+                    />
+                    <span className="font-bold">{opt.label}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-400">{opt.desc}</div>
+                </button>
+              );
+            })}
           </div>
         </FilterSection>
 
@@ -196,63 +283,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
                 </label>
               );
             })}
-          </div>
-        </FilterSection>
-
-        {/* Airports - Dynamic based on popular airports for now, ideally strictly from search results */}
-        <FilterSection title="出发/到达机场" icon={<MapPin className="w-4 h-4" />} isOpenDefault={false}>
-             <div className="mb-4">
-                 <div className="text-xs font-bold text-gray-500 uppercase mb-2">出发机场</div>
-                 <div className="space-y-1">
-                     {POPULAR_AIRPORTS.slice(0, 4).map(a => (
-                         <label key={`dep-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.originAirports.includes(a.code) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
-                                {filters.originAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
-                              </div>
-                              <input type="checkbox" checked={filters.originAirports.includes(a.code)} onChange={() => handleArrayToggle('originAirports', a.code)} className="hidden" />
-                              <span className="text-sm text-gray-700">{a.name}</span>
-                            </div>
-                            <span className="text-xs text-gray-400 font-mono">{a.code}</span>
-                         </label>
-                     ))}
-                 </div>
-             </div>
-             <div>
-                 <div className="text-xs font-bold text-gray-500 uppercase mb-2">到达机场</div>
-                 <div className="space-y-1">
-                     {POPULAR_AIRPORTS.slice(0, 4).map(a => (
-                         <label key={`arr-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.destinationAirports.includes(a.code) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
-                                {filters.destinationAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
-                              </div>
-                              <input type="checkbox" checked={filters.destinationAirports.includes(a.code)} onChange={() => handleArrayToggle('destinationAirports', a.code)} className="hidden" />
-                              <span className="text-sm text-gray-700">{a.name}</span>
-                            </div>
-                            <span className="text-xs text-gray-400 font-mono">{a.code}</span>
-                         </label>
-                     ))}
-                 </div>
-             </div>
-        </FilterSection>
-
-        {/* Price Range */}
-        <FilterSection title="价格区间" icon={<Tag className="w-4 h-4" />}>
-          <div className="px-2 pb-2">
-            <div className="flex justify-between text-sm font-bold text-gray-800 mb-4">
-              <span>¥0</span>
-              <span className="text-blue-600">¥{filters.priceMax.toLocaleString()}</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="10000"
-              step="100"
-              value={filters.priceMax}
-              onChange={(e) => updateFilter('priceMax', Number(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-            />
           </div>
         </FilterSection>
 
