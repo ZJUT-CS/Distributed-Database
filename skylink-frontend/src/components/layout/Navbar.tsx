@@ -87,7 +87,7 @@ const Navbar: React.FC = () => {
               <div className="bg-blue-600 p-1.5 rounded-lg text-white">
                 <Plane className="w-5 h-5" />
               </div>
-              <span className={`font-bold text-xl tracking-tight ${isResultsPage ? 'text-white' : 'text-gray-900'}`}>SkyLink AI</span>
+              <span className={`font-bold text-xl tracking-tight ${isResultsPage ? 'text-white' : 'text-gray-900'}`}>SkyLink</span>
             </Link>
             
             <div className="flex items-center gap-4">

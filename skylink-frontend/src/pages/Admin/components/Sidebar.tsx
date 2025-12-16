@@ -27,8 +27,8 @@ const Sidebar: React.FC = () => {
       items: [
         { id: 'users', icon: Users, label: '用户管理', path: '/admin/users' },
         { id: 'admins', icon: Shield, label: '管理员管理', path: '/admin/admins' },
-        { id: 'settings', icon: Settings, label: '系统配置', path: '/admin/system/config' },
-        { id: 'logs', icon: FileText, label: '操作日志', path: '/admin/system/logs' }
+        { id: 'logs', icon: FileText, label: '操作日志', path: '/admin/system/logs' },
+        { id: 'settings', icon: Settings, label: '系统配置', path: '/admin/system/config' }
       ]
     }
   ];
@@ -91,13 +91,13 @@ const Sidebar: React.FC = () => {
 
          <Link
            to="/"
-           className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-slate-200 bg-slate-800/60 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 p-2.5 rounded-xl transition-all mb-3"
+           className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-slate-200 bg-slate-800/60 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 p-3 rounded-xl transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] mb-3"
          >
            <Home className="w-4 h-4" /> 返回主页面
          </Link>
          <button 
            onClick={logout}
-           className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-400 p-3 rounded-xl transition-all border border-slate-700 hover:border-red-500/30"
+           className="w-full flex items-center justify-center gap-2 text-sm font-semibold bg-slate-800/60 hover:bg-red-500/10 text-slate-200 hover:text-red-300 p-3 rounded-xl transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] border border-slate-700 hover:border-red-500/30"
          >
            <LogOut className="w-4 h-4" /> 退出登录
          </button>
