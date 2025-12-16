@@ -26,7 +26,7 @@ const UsersMgmt: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
            <h2 className="text-2xl font-bold text-gray-800">用户管理</h2>
-           <p className="text-gray-500 mt-1">管理系统用户、角色与权限</p>
+           <p className="text-gray-500 mt-1 text-sm">管理系统用户、角色与权限</p>
         </div>
         <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
             <Plus className="w-4 h-4" /> 添加用户

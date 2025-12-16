@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Eye, Filter, Download, MoreHorizontal, FileText, XCircle, CheckCircle2, Clock } from 'lucide-react';
+import { Search, Eye, Filter, Download, XCircle } from 'lucide-react';
 import { INITIAL_BOOKINGS } from '../../services/mockData';
 import Pagination from './components/Pagination';
 import TableActionMenu from './components/TableActionMenu';
@@ -26,7 +26,7 @@ const BookingsMgmt: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
            <h2 className="text-2xl font-bold text-gray-800">订单管理</h2>
-           <p className="text-gray-500 mt-1">查看与管理所有航班预订订单</p>
+           <p className="text-gray-500 mt-1 text-sm">查看与管理所有航班预订订单</p>
         </div>
         <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
             <Download className="w-4 h-4" /> 导出列表
@@ -69,29 +69,6 @@ const BookingsMgmt: React.FC = () => {
               ))}
            </div>
         </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
-              <div>
-                  <div className="text-gray-500 text-xs uppercase font-bold tracking-wider">今日订单</div>
-                  <div className="text-2xl font-bold text-gray-800 mt-1">24</div>
-              </div>
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                  <FileText className="w-5 h-5" />
-              </div>
-          </div>
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
-               <div>
-                  <div className="text-gray-500 text-xs uppercase font-bold tracking-wider">待处理</div>
-                  <div className="text-2xl font-bold text-gray-800 mt-1">5</div>
-              </div>
-              <div className="p-3 bg-yellow-50 text-yellow-600 rounded-lg">
-                  <FileText className="w-5 h-5" />
-              </div>
-          </div>
-          {/* ... more stats */}
       </div>
 
       {/* Bookings Table */}

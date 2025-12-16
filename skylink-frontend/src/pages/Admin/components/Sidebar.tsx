@@ -1,6 +1,6 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Plane, Ticket, Users, CreditCard, Settings, LogOut, ChevronRight, Shield, FileText } from 'lucide-react';
+import { Link, NavLink } from 'react-router-dom';
+import { LayoutDashboard, Plane, Ticket, Users, CreditCard, Settings, LogOut, ChevronRight, Shield, FileText, Home } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 
 const Sidebar: React.FC = () => {
@@ -88,6 +88,13 @@ const Sidebar: React.FC = () => {
                <p className="text-xs text-slate-500">System Administrator</p>
             </div>
          </div>
+
+         <Link
+           to="/"
+           className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-slate-200 bg-slate-800/60 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 p-2.5 rounded-xl transition-all mb-3"
+         >
+           <Home className="w-4 h-4" /> 返回主页面
+         </Link>
          <button 
            onClick={logout}
            className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-400 p-3 rounded-xl transition-all border border-slate-700 hover:border-red-500/30"

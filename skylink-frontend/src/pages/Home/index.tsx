@@ -39,7 +39,7 @@ const HomePage: React.FC = () => {
             探索世界，智享旅程
           </h1>
           <p className="text-lg md:text-xl opacity-90 font-light">
-            AI 驱动的智能航班搜索平台
+            智能航班搜索平台
           </p>
         </div>
       </div>
