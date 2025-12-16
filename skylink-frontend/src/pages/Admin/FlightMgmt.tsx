@@ -1,9 +1,10 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Download, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Users, MoreVertical, Edit2, Ban, Trash2, X, Save } from 'lucide-react';
+import React, { useState } from 'react';
+import { Download, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X } from 'lucide-react';
 import { INITIAL_FLIGHTS } from '../../services/mockData';
 import { FlightStatus } from '../../types';
 import Pagination from './components/Pagination';
+import TableActionMenu from './components/TableActionMenu';
 
 const FlightMgmt: React.FC = () => {
   const [flights, setFlights] = useState(INITIAL_FLIGHTS);
@@ -14,17 +15,6 @@ const FlightMgmt: React.FC = () => {
   const [isFlightModalOpen, setIsFlightModalOpen] = useState(false);
   const [editingFlight, setEditingFlight] = useState<any | null>(null);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
-  const actionMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
-        setActiveActionId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const handleOpenCreateFlight = () => {
     setEditingFlight(null);
@@ -107,25 +97,28 @@ const FlightMgmt: React.FC = () => {
       </div>
 
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-             <input type="text" placeholder="搜索航班号、航线..." className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-          </div>
-          <button className="p-2 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">
-             <Filter className="w-4 h-4" />
-          </button>
+        <div className="relative flex-1 md:max-w-md w-full">
+           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+           <input type="text" placeholder="搜索航班号、航线..." className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
-        <div className="flex bg-gray-100 p-1 rounded-lg w-full md:w-auto">
-          {['all', 'active', 'delayed', 'cancelled'].map(status => (
-            <button 
-             key={status}
-             onClick={() => { setFlightStatusFilter(status); setFlightPage(1); }}
-             className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${flightStatusFilter === status ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              {status === 'all' ? '全部状态' : status}
-            </button>
-          ))}
+        
+        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+           <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 text-sm whitespace-nowrap">
+             <Filter className="w-4 h-4" />
+             <span className="hidden sm:inline">筛选</span>
+           </button>
+           <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
+           <div className="flex bg-gray-100 p-1 rounded-lg">
+              {['all', 'active', 'delayed', 'cancelled'].map(status => (
+                <button 
+                 key={status}
+                 onClick={() => { setFlightStatusFilter(status); setFlightPage(1); }}
+                 className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${flightStatusFilter === status ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  {status === 'all' ? '全部状态' : status}
+                </button>
+              ))}
+           </div>
         </div>
       </div>
 
@@ -182,16 +175,12 @@ const FlightMgmt: React.FC = () => {
                   <td className="px-6 py-4">
                     {getStatusBadge(flight.status)}
                   </td>
-                  <td className="px-6 py-4 text-right relative">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === flight.id ? null : flight.id); }}
-                      className={`p-1.5 rounded-lg transition-colors ${activeActionId === flight.id ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
+                  <td className="px-6 py-4 text-right">
+                    <TableActionMenu
+                      isOpen={activeActionId === flight.id}
+                      onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === flight.id ? null : flight.id); }}
+                      onClose={() => setActiveActionId(null)}
                     >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-
-                    {activeActionId === flight.id && (
-                      <div ref={actionMenuRef} className="absolute right-8 top-8 w-36 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                         <button 
                           onClick={() => handleOpenEditFlight(flight)}
                           className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
@@ -211,8 +200,7 @@ const FlightMgmt: React.FC = () => {
                         >
                           <Trash2 className="w-3.5 h-3.5" /> 删除记录
                         </button>
-                      </div>
-                    )}
+                    </TableActionMenu>
                   </td>
                 </tr>
               );
