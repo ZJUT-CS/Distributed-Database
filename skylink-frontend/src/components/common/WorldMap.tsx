@@ -8,6 +8,7 @@ interface WorldMapProps {
   className?: string;
   showGrid?: boolean;
   theme?: 'light' | 'dark';
+  preserveAspectRatio?: string;
 }
 
 const WorldMap: React.FC<WorldMapProps> = ({ 
@@ -15,7 +16,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
   routes, 
   className = "", 
   showGrid = true,
-  theme = 'light'
+  theme = 'light',
+  preserveAspectRatio = 'xMidYMid slice'
 }) => {
   const [hoveredPoint, setHoveredPoint] = useState<MapPoint | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -84,9 +86,9 @@ const WorldMap: React.FC<WorldMapProps> = ({
           这样可以确保顶部（北极圈）和底部（澳大利亚/新西兰）都包含在视口内。
       */}
       <svg 
-        viewBox="-150 -120 1250 800" 
+        viewBox="-150 -20 1250 800" 
         className="w-full h-full block"
-        preserveAspectRatio="xMidYMid slice"
+        preserveAspectRatio={preserveAspectRatio}
       >
         <defs>
             <linearGradient id="routeGradientDark" x1="0%" y1="0%" x2="100%" y2="0%">

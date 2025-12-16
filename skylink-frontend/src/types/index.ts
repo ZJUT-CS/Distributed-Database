@@ -9,6 +9,7 @@ export interface Flight {
   departureTime: string; // ISO String
   arrivalTime: string; // ISO String
   price: number;
+  remainingSeats?: number;
   duration: string;
   stops: number;
   baggageWeight: number; // Added: Baggage allowance in kg
