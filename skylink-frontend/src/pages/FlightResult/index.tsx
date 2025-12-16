@@ -7,7 +7,7 @@ import FlightList from '../../components/flight/FlightList';
 import TripSummary from '../../components/flight/TripSummary';
 import WorldMap from '../../components/common/WorldMap';
 import { Flight, SearchParams, FilterState, MapPoint } from '../../types';
-import { generateMockFlights } from '../../services/mockData';
+import api from '../../services/api';
 import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '../../constants';
 import { Plane, Filter, MoveRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -41,6 +41,57 @@ const FlightResultPage: React.FC = () => {
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
+  // Helper: map IATA code to city name (for backend search)
+  const toCity = (loc: string) => {
+    const byCode = AIRPORTS_CONST.find(a => a.code === loc);
+    if (byCode) return byCode.city;
+    const byCity = AIRPORTS_CONST.find(a => a.city === loc);
+    return byCity ? byCity.city : loc;
+  };
+
+  // Helper: fetch flights from backend and adapt to frontend Flight type
+  const fetchFlights = async (orig: string, dest: string, dt: string) => {
+    try {
+      const resp = await api.get('/flights/search', {
+        params: {
+          departurePlace: toCity(orig),
+          destination: toCity(dest),
+          departureDate: dt,
+        }
+      });
+      const data = (resp.data?.data || []) as Array<{
+        flightNo: string;
+        departurePlace: string;
+        destination: string;
+        departureTime: string;
+        arrivalTime: string;
+        duration: string;
+        price?: number;
+        remainingSeats?: number;
+        airlineCompany?: string;
+      }>;
+      const mapped: Flight[] = data.map((r) => ({
+        id: r.flightNo || `${r.departurePlace}-${r.destination}-${r.departureTime}`,
+        airline: r.airlineCompany || '',
+        airlineCode: (r.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
+        flightNumber: r.flightNo || '',
+        origin: r.departurePlace,
+        destination: r.destination,
+        departureTime: r.departureTime,
+        arrivalTime: r.arrivalTime,
+        price: Number(r.price ?? 0),
+        duration: r.duration || '',
+        stops: 0,
+        baggageWeight: 23,
+        amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+        aircraft: undefined,
+      }));
+      setFlights(mapped);
+    } catch (e) {
+      setFlights([]);
+    }
+  };
+
   // Initialize from location state or URL
   useEffect(() => {
       const stateParams = location.state?.searchParams as SearchParams;
@@ -51,15 +102,12 @@ const FlightResultPage: React.FC = () => {
           setOrigin(firstLeg.origin);
           setDestination(firstLeg.destination);
           setDate(firstLeg.date);
-          
-          const results = generateMockFlights(firstLeg.origin, firstLeg.destination, firstLeg.date);
-          setFlights(results);
+          fetchFlights(firstLeg.origin, firstLeg.destination, firstLeg.date);
       } else {
           // Fallback to URL params for single leg
           const segs = [{ origin, destination, date }];
           setTripSegments(segs);
-          const results = generateMockFlights(origin, destination, date);
-          setFlights(results);
+          fetchFlights(origin, destination, date);
       }
   }, [location.state, urlParams]); // Re-run if URL changes (e.g. from Navbar search)
 
@@ -73,9 +121,7 @@ const FlightResultPage: React.FC = () => {
       setOrigin(firstLeg.origin);
       setDestination(firstLeg.destination);
       setDate(firstLeg.date);
-
-      const results = generateMockFlights(firstLeg.origin, firstLeg.destination, firstLeg.date);
-      setFlights(results);
+      fetchFlights(firstLeg.origin, firstLeg.destination, firstLeg.date);
       
       // Update URL without reload
       const newParams = new URLSearchParams();
@@ -98,9 +144,7 @@ const FlightResultPage: React.FC = () => {
           setOrigin(nextLeg.origin);
           setDestination(nextLeg.destination);
           setDate(nextLeg.date);
-          
-          const results = generateMockFlights(nextLeg.origin, nextLeg.destination, nextLeg.date);
-          setFlights(results);
+          fetchFlights(nextLeg.origin, nextLeg.destination, nextLeg.date);
           window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
           // Complete
@@ -119,8 +163,7 @@ const FlightResultPage: React.FC = () => {
           setOrigin(leg.origin);
           setDestination(leg.destination);
           setDate(leg.date);
-          const results = generateMockFlights(leg.origin, leg.destination, leg.date);
-          setFlights(results);
+          fetchFlights(leg.origin, leg.destination, leg.date);
           
           // Truncate selection
           setSelectedFlights(prev => prev.slice(0, index));
