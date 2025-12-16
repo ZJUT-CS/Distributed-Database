@@ -173,3 +173,4 @@ rules:
 - !BROADCAST
   tables:
     - admins # 管理员表（广播表，所有分片同步数据，适配全局查询）
+    - temp_cabin_data  # 新增：将临时表设为广播表
