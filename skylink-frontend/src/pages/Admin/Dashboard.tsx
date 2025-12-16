@@ -1,19 +1,41 @@
 
 import React from 'react';
-import { DollarSign, TrendingUp, CalendarCheck, Plane, Users, Globe, ArrowRightLeft } from 'lucide-react';
+import { DollarSign, TrendingUp, CalendarCheck, Plane, Users, Globe, ArrowRightLeft, AlertCircle } from 'lucide-react';
 import WorldMap from '../../components/common/WorldMap';
 import { INITIAL_FLIGHTS, INITIAL_BOOKINGS, INITIAL_USERS } from '../../services/mockData';
 
 const Dashboard: React.FC = () => {
-  // Calculate dynamic stats
-  const totalRev = INITIAL_BOOKINGS.filter(b => b.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
-  const totalBookings = INITIAL_BOOKINGS.length;
-  const activeFlights = INITIAL_FLIGHTS.filter(f => f.status === 'active').length;
-  const totalUsers = INITIAL_USERS.length;
+  const bookingDates = INITIAL_BOOKINGS.map((b) => b.date).sort();
+  const todayBookingDate = bookingDates[bookingDates.length - 1];
 
-  // Mock data for charts
-  const revenueData = [12000, 15000, 11000, 18000, 22000, 19000, 25000]; // Last 7 days
-  const maxRevenue = Math.max(...revenueData);
+  const todayBookings = INITIAL_BOOKINGS.filter((b) => b.date === todayBookingDate);
+  const todayOrderCount = todayBookings.length;
+  const todayGmv = todayBookings
+    .filter((b) => b.status === 'paid')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  const totalRev = INITIAL_BOOKINGS.filter((b) => b.status === 'paid').reduce(
+    (acc, curr) => acc + curr.amount,
+    0
+  );
+  const totalBookings = INITIAL_BOOKINGS.length;
+
+  const userLoginDates = INITIAL_USERS.map((u) => u.lastLogin.split(' ')[0]).sort();
+  const todayUserDate = userLoginDates[userLoginDates.length - 1];
+  const todayNewUsers = INITIAL_USERS.filter((u) => u.lastLogin.startsWith(todayUserDate)).length;
+
+  const upcomingFlights = INITIAL_FLIGHTS.filter(
+    (f) => f.status === 'active' || f.status === 'delayed'
+  ).length;
+
+  const pendingRefundAudits = 3;
+
+  const orderedDates = Array.from(new Set(bookingDates));
+  const ordersTrendData = orderedDates.map((d) => ({
+    date: d,
+    count: INITIAL_BOOKINGS.filter((b) => b.date === d).length,
+  }));
+  const maxOrders = Math.max(...ordersTrendData.map((d) => d.count));
   
   const flightStatusCounts = {
     active: INITIAL_FLIGHTS.filter(f => f.status === 'active').length,
@@ -25,9 +47,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      {/* 1. Top Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Revenue Card */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
             <div className="relative z-10">
@@ -39,12 +59,15 @@ const Dashboard: React.FC = () => {
                     <TrendingUp className="w-3 h-3" /> +12.5%
                   </span>
                 </div>
-                <p className="text-gray-500 text-sm font-medium">总营收 (Total Revenue)</p>
-                <h3 className="text-3xl font-bold text-gray-800 mt-1">¥{totalRev.toLocaleString()}</h3>
+                <p className="text-gray-500 text-sm font-medium">今日订单与 GMV</p>
+                <h3 className="text-3xl font-bold text-gray-800 mt-1">{todayOrderCount}</h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  今日 GMV：<span className="font-semibold text-gray-700">¥{todayGmv.toLocaleString()}</span>，历史累计 GMV：¥
+                  {totalRev.toLocaleString()}
+                </p>
             </div>
           </div>
 
-          {/* Bookings Card */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
             <div className="relative z-10">
@@ -56,12 +79,14 @@ const Dashboard: React.FC = () => {
                     <TrendingUp className="w-3 h-3" /> +8.2%
                   </span>
                 </div>
-                <p className="text-gray-500 text-sm font-medium">总订单数 (Bookings)</p>
-                <h3 className="text-3xl font-bold text-gray-800 mt-1">{totalBookings.toLocaleString()}</h3>
+                <p className="text-gray-500 text-sm font-medium">今日新增用户数</p>
+                <h3 className="text-3xl font-bold text-gray-800 mt-1">{todayNewUsers}</h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  当前用户总数：<span className="font-semibold text-gray-700">{INITIAL_USERS.length}</span>
+                </p>
             </div>
           </div>
 
-          {/* Flights Card */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
             <div className="relative z-10">
@@ -73,46 +98,49 @@ const Dashboard: React.FC = () => {
                     持平
                   </span>
                 </div>
-                <p className="text-gray-500 text-sm font-medium">执飞航班 (Active Flights)</p>
-                <h3 className="text-3xl font-bold text-gray-800 mt-1">{activeFlights}</h3>
+                <p className="text-gray-500 text-sm font-medium">24 小时内起飞航班数</p>
+                <h3 className="text-3xl font-bold text-gray-800 mt-1">{upcomingFlights}</h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  当前计划航班总数：<span className="font-semibold text-gray-700">{INITIAL_FLIGHTS.length}</span>
+                </p>
             </div>
           </div>
 
-          {/* Users Card */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
             <div className="relative z-10">
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
-                    <Users className="w-6 h-6" />
+                    <AlertCircle className="w-6 h-6" />
                   </div>
                   <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">
                     <TrendingUp className="w-3 h-3" /> +24%
                   </span>
                 </div>
-                <p className="text-gray-500 text-sm font-medium">注册用户 (Total Users)</p>
-                <h3 className="text-3xl font-bold text-gray-800 mt-1">{totalUsers.toLocaleString()}</h3>
+                <p className="text-gray-500 text-sm font-medium">待处理退改签申请数</p>
+                <h3 className="text-3xl font-bold text-gray-800 mt-1">{pendingRefundAudits}</h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  退改签审核模块中处于待审核状态的申请数量
+                </p>
             </div>
           </div>
       </div>
 
-      {/* 2. Middle Row: Revenue Chart & Flight Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-96">
-          {/* Revenue Trend (Bar Chart) */}
           <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
             <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-800">营收趋势 (近7日)</h3>
-                  <p className="text-sm text-gray-400">Revenue Trends</p>
+                  <h3 className="text-lg font-bold text-gray-800">订单趋势 (近 7 日)</h3>
+                  <p className="text-sm text-gray-400">Orders Volume Last 7 Days</p>
                 </div>
                 <div className="flex gap-2">
                   <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-                  <span className="text-xs text-gray-500">日收入</span>
+                  <span className="text-xs text-gray-500">每日订单数</span>
                 </div>
             </div>
             <div className="flex-1 flex items-end justify-between gap-4 px-4 pb-2">
-                {revenueData.map((val, idx) => {
-                  const height = (val / maxRevenue) * 100;
+                {ordersTrendData.map((item, idx) => {
+                  const height = maxOrders ? (item.count / maxOrders) * 100 : 0;
                   return (
                     <div key={idx} className="flex flex-col items-center gap-2 flex-1 group">
                         <div className="relative w-full bg-gray-100 rounded-t-lg h-full overflow-hidden">
@@ -120,12 +148,11 @@ const Dashboard: React.FC = () => {
                             className="absolute bottom-0 left-0 w-full bg-blue-500 rounded-t-lg transition-all duration-1000 ease-out group-hover:bg-blue-600" 
                             style={{ height: `${height}%` }}
                           ></div>
-                          {/* Tooltip */}
                           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                              ¥{val.toLocaleString()}
+                              {item.count} 单
                           </div>
                         </div>
-                        <span className="text-xs text-gray-400 font-medium">{['周一','周二','周三','周四','周五','周六','周日'][idx]}</span>
+                        <span className="text-xs text-gray-400 font-medium">{item.date}</span>
                     </div>
                   );
                 })}

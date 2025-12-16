@@ -18,6 +18,9 @@ import BookingsMgmt from '../pages/Admin/BookingsMgmt';
 import UsersMgmt from '../pages/Admin/UsersMgmt';
 import PaymentsMgmt from '../pages/Admin/PaymentsMgmt';
 import AdminSettings from '../pages/Admin/Settings';
+import OrderAudit from '../pages/Admin/OrderAudit';
+import AdminsMgmt from '../pages/Admin/AdminsMgmt';
+import SystemLogs from '../pages/Admin/SystemLogs';
 
 export const router = createBrowserRouter([
   {
@@ -41,10 +44,13 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'flights', element: <FlightMgmt /> },
-      { path: 'bookings', element: <BookingsMgmt /> },
+      { path: 'orders', element: <BookingsMgmt /> },
+      { path: 'orders/audit', element: <OrderAudit /> },
       { path: 'users', element: <UsersMgmt /> },
+      { path: 'admins', element: <AdminsMgmt /> },
       { path: 'payments', element: <PaymentsMgmt /> },
-      { path: 'settings', element: <AdminSettings /> },
+      { path: 'system/config', element: <AdminSettings /> },
+      { path: 'system/logs', element: <SystemLogs /> },
     ]
   }
 ]);

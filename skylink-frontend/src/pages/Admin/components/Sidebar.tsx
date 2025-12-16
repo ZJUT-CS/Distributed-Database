@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Plane, Ticket, Users, CreditCard, Settings, LogOut, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Plane, Ticket, Users, CreditCard, Settings, LogOut, ChevronRight, Shield, FileText } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 
 const Sidebar: React.FC = () => {
@@ -17,15 +17,18 @@ const Sidebar: React.FC = () => {
       title: 'BUSINESS',
       items: [
         { id: 'flights', icon: Plane, label: '航班管理', path: '/admin/flights' },
-        { id: 'bookings', icon: Ticket, label: '订单管理', path: '/admin/bookings' },
-        { id: 'payments', icon: CreditCard, label: '支付网关', path: '/admin/payments' }
+        { id: 'orders', icon: Ticket, label: '订单管理', path: '/admin/orders' },
+        { id: 'order-audit', icon: Ticket, label: '退改签审核', path: '/admin/orders/audit' },
+        { id: 'payments', icon: CreditCard, label: '支付流水', path: '/admin/payments' }
       ]
     },
     {
       title: 'SYSTEM',
       items: [
         { id: 'users', icon: Users, label: '用户管理', path: '/admin/users' },
-        { id: 'settings', icon: Settings, label: '系统设置', path: '/admin/settings' }
+        { id: 'admins', icon: Shield, label: '管理员管理', path: '/admin/admins' },
+        { id: 'settings', icon: Settings, label: '系统配置', path: '/admin/system/config' },
+        { id: 'logs', icon: FileText, label: '操作日志', path: '/admin/system/logs' }
       ]
     }
   ];
@@ -63,7 +66,7 @@ const Sidebar: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <item.icon className={`w-4 h-4 ${({ isActive }: { isActive: boolean }) => isActive ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                    <item.icon className="w-4 h-4" />
                     <span className="text-sm font-medium">{item.label}</span>
                   </div>
                   <ChevronRight className={`w-3 h-3 opacity-0 -translate-x-2 transition-all group-hover:opacity-50 group-hover:translate-x-0`} />
