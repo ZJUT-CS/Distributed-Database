@@ -1,20 +1,12 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import UserSettings from '../../components/user/UserSettings';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 const SettingsPage: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
-  if (!user) {
-    navigate('/login');
-    return null;
-  }
-
-  return (
-    <UserSettings onBack={() => navigate('/')} />
-  );
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to="/user-center?tab=security" replace />;
 };
 
 export default SettingsPage;

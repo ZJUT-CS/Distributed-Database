@@ -117,84 +117,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
 
       <div className="px-5 max-h-[calc(100vh-140px)] overflow-y-auto custom-scrollbar">
         
-        {/* Price Range */}
-        <FilterSection title="价格区间" icon={<Tag className="w-4 h-4" />}>
-          <div className="px-2 pb-2">
-            <div className="flex justify-between text-sm font-bold text-gray-800 mb-4">
-              <span>¥0</span>
-              <span className="text-blue-600">¥{filters.priceMax.toLocaleString()}</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="10000"
-              step="100"
-              value={filters.priceMax}
-              onChange={(e) => updateFilter('priceMax', Number(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-            />
-          </div>
-        </FilterSection>
-
-        {/* Flight Duration */}
-        <FilterSection title="飞行时长" icon={<Clock3 className="w-4 h-4" />}>
-          <div className="px-2 pb-2">
-            <div className="flex justify-between items-center text-xs mb-3">
-              <span className="text-gray-500">≤ 飞行总时长</span>
-              <span className="font-bold text-blue-600">
-                {Math.floor(filters.durationMax / 60)} 小时 {filters.durationMax % 60} 分
-              </span>
-            </div>
-            <input
-              type="range"
-              min={60}
-              max={1440}
-              step={15}
-              value={filters.durationMax}
-              onChange={(e) => updateFilter('durationMax', Number(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
-            />
-          </div>
-        </FilterSection>
-
-        {/* Airports - Dynamic based on popular airports for now, ideally strictly from search results */}
-        <FilterSection title="出发/到达机场" icon={<MapPin className="w-4 h-4" />}>
-             <div className="mb-4">
-                 <div className="text-xs font-bold text-gray-500 uppercase mb-2">出发机场</div>
-                 <div className="space-y-1">
-                     {POPULAR_AIRPORTS.slice(0, 4).map(a => (
-                         <label key={`dep-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.originAirports.includes(a.code) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
-                                {filters.originAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
-                              </div>
-                              <input type="checkbox" checked={filters.originAirports.includes(a.code)} onChange={() => handleArrayToggle('originAirports', a.code)} className="hidden" />
-                              <span className="text-sm text-gray-700">{a.name}</span>
-                            </div>
-                            <span className="text-xs text-gray-400 font-mono">{a.code}</span>
-                         </label>
-                     ))}
-                 </div>
-             </div>
-             <div>
-                 <div className="text-xs font-bold text-gray-500 uppercase mb-2">到达机场</div>
-                 <div className="space-y-1">
-                     {POPULAR_AIRPORTS.slice(0, 4).map(a => (
-                         <label key={`arr-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.destinationAirports.includes(a.code) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
-                                {filters.destinationAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
-                              </div>
-                              <input type="checkbox" checked={filters.destinationAirports.includes(a.code)} onChange={() => handleArrayToggle('destinationAirports', a.code)} className="hidden" />
-                              <span className="text-sm text-gray-700">{a.name}</span>
-                            </div>
-                            <span className="text-xs text-gray-400 font-mono">{a.code}</span>
-                         </label>
-                     ))}
-                 </div>
-             </div>
-        </FilterSection>
-
         {/* Stops */}
         <FilterSection title="转机次数" icon={<Route className="w-4 h-4" />}>
           <div className="flex gap-2">
@@ -255,6 +177,88 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
               );
             })}
           </div>
+        </FilterSection>
+
+        {/* Price Range */}
+        <FilterSection title="价格区间" icon={<Tag className="w-4 h-4" />}>
+          <div className="px-2 pb-2">
+            <div className="flex justify-between text-sm font-bold text-gray-800 mb-4">
+              <span>¥0</span>
+              <span className="text-blue-600">¥{filters.priceMax.toLocaleString()}</span>
+            </div>
+            <div className="mx-auto w-[92%]">
+              <input
+                type="range"
+                min="0"
+                max="10000"
+                step="100"
+                value={filters.priceMax}
+                onChange={(e) => updateFilter('priceMax', Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+            </div>
+          </div>
+        </FilterSection>
+
+        {/* Flight Duration */}
+        <FilterSection title="飞行时长" icon={<Clock3 className="w-4 h-4" />}>
+          <div className="px-2 pb-2">
+            <div className="flex justify-between items-center text-xs mb-3">
+              <span className="text-gray-500">≤ 飞行总时长</span>
+              <span className="font-bold text-blue-600">
+                {Math.floor(filters.durationMax / 60)} 小时 {filters.durationMax % 60} 分
+              </span>
+            </div>
+            <div className="mx-auto w-[92%]">
+              <input
+                type="range"
+                min={60}
+                max={1440}
+                step={15}
+                value={filters.durationMax}
+                onChange={(e) => updateFilter('durationMax', Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              />
+            </div>
+          </div>
+        </FilterSection>
+
+        {/* Airports - Dynamic based on popular airports for now, ideally strictly from search results */}
+        <FilterSection title="出发/到达机场" icon={<MapPin className="w-4 h-4" />}>
+             <div className="mb-4">
+                 <div className="text-xs font-bold text-gray-500 uppercase mb-2">出发机场</div>
+                 <div className="space-y-1">
+                     {POPULAR_AIRPORTS.slice(0, 4).map(a => (
+                         <label key={`dep-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.originAirports.includes(a.code) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
+                                {filters.originAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
+                              </div>
+                              <input type="checkbox" checked={filters.originAirports.includes(a.code)} onChange={() => handleArrayToggle('originAirports', a.code)} className="hidden" />
+                              <span className="text-sm text-gray-700">{a.name}</span>
+                            </div>
+                            <span className="text-xs text-gray-400 font-mono">{a.code}</span>
+                         </label>
+                     ))}
+                 </div>
+             </div>
+             <div>
+                 <div className="text-xs font-bold text-gray-500 uppercase mb-2">到达机场</div>
+                 <div className="space-y-1">
+                     {POPULAR_AIRPORTS.slice(0, 4).map(a => (
+                         <label key={`arr-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.destinationAirports.includes(a.code) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
+                                {filters.destinationAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
+                              </div>
+                              <input type="checkbox" checked={filters.destinationAirports.includes(a.code)} onChange={() => handleArrayToggle('destinationAirports', a.code)} className="hidden" />
+                              <span className="text-sm text-gray-700">{a.name}</span>
+                            </div>
+                            <span className="text-xs text-gray-400 font-mono">{a.code}</span>
+                         </label>
+                     ))}
+                 </div>
+             </div>
         </FilterSection>
 
         {/* Airlines */}

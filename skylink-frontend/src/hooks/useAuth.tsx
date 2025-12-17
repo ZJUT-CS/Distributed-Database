@@ -4,6 +4,7 @@ import { User } from '../types';
 interface AuthContextType {
   user: User | null;
   login: (user: User) => void;
+  updateUser: (updates: Partial<User>) => void;
   logout: () => void;
 }
 
@@ -16,7 +17,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsed = JSON.parse(storedUser) as User;
+        if (!parsed.createdAt) {
+          const next = { ...parsed, createdAt: new Date().toISOString() };
+          localStorage.setItem('user', JSON.stringify(next));
+          setUser(next);
+        } else {
+          setUser(parsed);
+        }
       } catch (e) {
         console.error("Failed to parse user from local storage", e);
       }
@@ -24,8 +32,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    const next = { ...userData, createdAt: userData.createdAt || new Date().toISOString() };
+    setUser(next);
+    localStorage.setItem('user', JSON.stringify(next));
+  };
+
+  const updateUser = (updates: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...updates };
+      localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    });
   };
 
   const logout = () => {
@@ -35,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

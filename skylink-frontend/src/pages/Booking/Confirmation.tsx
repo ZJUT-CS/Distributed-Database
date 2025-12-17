@@ -33,7 +33,7 @@ const ConfirmationPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-10">
+    <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-10">
         <div className="mt-10 max-w-3xl mx-auto animate-fade-in-up">
               <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-green-100">
                 <div className="bg-green-50 p-8 text-center border-b border-green-100">

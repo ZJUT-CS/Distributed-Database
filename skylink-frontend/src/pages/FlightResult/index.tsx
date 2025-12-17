@@ -12,6 +12,12 @@ import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '../../constants';
 import { Plane, Filter, MoveRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+const formatLocalYmd = (d: Date) => {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+
 const FlightResultPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,7 +27,7 @@ const FlightResultPage: React.FC = () => {
   // State
   const [origin, setOrigin] = useState(urlParams.get('origin') || 'PEK');
   const [destination, setDestination] = useState(urlParams.get('destination') || 'SHA');
-  const [date, setDate] = useState(urlParams.get('date') || new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(urlParams.get('date') || formatLocalYmd(new Date()));
   const [passengers, setPassengers] = useState(() => {
     const raw = Number(urlParams.get('passengers') || 1);
     return Number.isFinite(raw) && raw > 0 ? raw : 1;
@@ -277,7 +283,7 @@ const FlightResultPage: React.FC = () => {
              </div>
        </div>
 
-       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
             <SearchForm 
               onSearch={handleSearch} 
               onAiRequest={handleAiRequest}

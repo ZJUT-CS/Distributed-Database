@@ -1,20 +1,12 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import UserProfile from '../../components/user/UserProfile';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 const ProfilePage: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
-  if (!user) {
-    navigate('/login');
-    return null;
-  }
-
-  return (
-    <UserProfile user={user} onBack={() => navigate('/')} />
-  );
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to="/user-center?tab=profile" replace />;
 };
 
 export default ProfilePage;

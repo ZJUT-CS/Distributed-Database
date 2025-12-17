@@ -9,7 +9,9 @@ import Login from '../pages/User/Login';
 import AdminApply from '../pages/User/AdminApply';
 import Profile from '../pages/User/Profile';
 import Settings from '../pages/User/Settings';
-import UserBookings from '../pages/User/Bookings';
+import UserBookings, { BookingDetailsPage } from '../pages/User/Bookings';
+import UserCenter from '../pages/User/UserCenter';
+import RefundsHelp from '../pages/User/RefundsHelp';
 
 import AdminLayout from '../pages/Admin';
 import Dashboard from '../pages/Admin/Dashboard';
@@ -36,6 +38,9 @@ export const router = createBrowserRouter([
       { path: 'profile', element: <Profile /> },
       { path: 'settings', element: <Settings /> },
       { path: 'my-bookings', element: <UserBookings /> },
+      { path: 'my-bookings/:bookingId', element: <BookingDetailsPage /> },
+      { path: 'user-center', element: <UserCenter /> },
+      { path: 'refunds-help', element: <RefundsHelp /> },
     ]
   },
   {

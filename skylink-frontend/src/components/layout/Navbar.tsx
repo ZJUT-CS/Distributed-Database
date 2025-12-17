@@ -1,10 +1,16 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Plane, Sparkles, User as UserIcon, LayoutDashboard, Ticket, UserCog, Settings, LogOut } from 'lucide-react';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Plane, Sparkles, User as UserIcon, LayoutDashboard, Ticket, RefreshCw, LogOut } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import AiAssistantModal from '../common/AiAssistantModal';
 import { AIRecommendation } from '../../types';
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+const formatLocalYmd = (d: Date) => {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -12,6 +18,7 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -56,17 +63,39 @@ const Navbar: React.FC = () => {
     return () => window.removeEventListener('open-ai-modal', handler as EventListener);
   }, []);
 
-  const handleLogout = () => {
+  useEffect(() => {
+    setIsUserMenuOpen(false);
+    setIsLogoutConfirmOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setIsLogoutConfirmOpen(false);
+      setIsUserMenuOpen(false);
+      setIsAiModalOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleLogoutClick = () => {
+    setIsUserMenuOpen(false);
+    setIsLogoutConfirmOpen(true);
+  };
+
+  const handleConfirmLogout = () => {
+    setIsLogoutConfirmOpen(false);
+    setIsUserMenuOpen(false);
     logout();
     navigate('/');
-    setIsUserMenuOpen(false);
   };
 
   const handleAiRecommendation = (rec: AIRecommendation) => {
     setIsAiModalOpen(false);
     // Navigate to results with destination. 
     // Note: This is a simple redirect. The Results page will need to parse query params.
-    navigate(`/results?origin=PEK&destination=${rec.airportCode}&date=${new Date().toISOString().split('T')[0]}`); 
+    navigate(`/results?origin=PEK&destination=${rec.airportCode}&date=${formatLocalYmd(new Date())}`); 
   };
 
   return (
@@ -78,7 +107,7 @@ const Navbar: React.FC = () => {
           isResultsPage ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/90 border-gray-200 text-slate-800'
         }`}
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <Link 
               to="/"
@@ -138,43 +167,67 @@ const Navbar: React.FC = () => {
                     
                     <div className="p-2 space-y-1">
                       {user.role === 'admin' ? (
-                        <Link 
+                        <NavLink
                           to="/admin"
                           onClick={() => setIsUserMenuOpen(false)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-purple-600 rounded-xl transition-colors text-left"
+                          className={({ isActive }) =>
+                            `w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors text-left ${
+                              isActive
+                                ? 'bg-purple-50 text-purple-700'
+                                : 'text-gray-700 hover:bg-gray-50 hover:text-purple-600'
+                            }`
+                          }
                         >
                           <LayoutDashboard className="w-4 h-4" /> 管理后台
-                        </Link>
+                        </NavLink>
                       ) : (
-                        <Link 
+                        <NavLink
                           to="/my-bookings"
                           onClick={() => setIsUserMenuOpen(false)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 rounded-xl transition-colors text-left"
+                          className={({ isActive }) =>
+                            `w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors text-left ${
+                              isActive
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
+                            }`
+                          }
                         >
                           <Ticket className="w-4 h-4" /> 我的订单
-                        </Link>
+                        </NavLink>
                       )}
-                      
-                      <Link 
-                        to="/profile"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 rounded-xl transition-colors text-left"
-                      >
-                        <UserCog className="w-4 h-4" /> 个人信息管理
-                      </Link>
 
-                      <Link 
-                        to="/settings"
+                      <NavLink
+                        to="/refunds-help"
                         onClick={() => setIsUserMenuOpen(false)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 rounded-xl transition-colors text-left"
+                        className={({ isActive }) =>
+                          `w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors text-left ${
+                            isActive
+                              ? 'bg-red-50 text-red-700'
+                              : 'text-gray-700 hover:bg-gray-50 hover:text-red-600'
+                          }`
+                        }
                       >
-                        <Settings className="w-4 h-4" /> 账户设置
-                      </Link>
+                        <RefreshCw className="w-4 h-4" /> 退改/售后
+                      </NavLink>
+
+                      <NavLink
+                        to="/user-center"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className={({ isActive }) =>
+                          `w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors text-left ${
+                            isActive
+                              ? 'bg-indigo-50 text-indigo-700'
+                              : 'text-gray-700 hover:bg-gray-50 hover:text-indigo-600'
+                          }`
+                        }
+                      >
+                        <UserIcon className="w-4 h-4" /> 个人中心
+                      </NavLink>
                     </div>
 
                     <div className="p-2 border-t border-gray-100 bg-gray-50/30">
                       <button 
-                        onClick={handleLogout}
+                        onClick={handleLogoutClick}
                         className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors text-left"
                       >
                         <LogOut className="w-4 h-4" /> 退出登录
@@ -187,6 +240,39 @@ const Navbar: React.FC = () => {
           </div>
         </div>
       </nav>
+
+      {isLogoutConfirmOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setIsLogoutConfirmOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-5 border-b border-gray-100">
+              <div className="text-lg font-bold text-gray-900">确认退出登录</div>
+              <div className="text-sm text-gray-500 mt-1">退出后需要重新登录才能继续管理行程</div>
+            </div>
+            <div className="px-6 py-5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLogout}
+                className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+              >
+                退出登录
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <AiAssistantModal 
         isOpen={isAiModalOpen} 

@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Shield, Bell, Globe, Save, Lock, Smartphone, Mail, ArrowLeft, DollarSign, Key, LogOut } from 'lucide-react';
 
 interface UserSettingsProps {
-  onBack: () => void;
+  onBack?: () => void;
+  mode?: 'page' | 'embedded';
 }
 
-const UserSettings: React.FC<UserSettingsProps> = ({ onBack }) => {
+const UserSettings: React.FC<UserSettingsProps> = ({ onBack, mode = 'page' }) => {
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState({
     emailOrder: true,
@@ -43,22 +44,23 @@ const UserSettings: React.FC<UserSettingsProps> = ({ onBack }) => {
   );
 
   return (
-    <div className="animate-fade-in-up mt-8 max-w-3xl mx-auto mb-20">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={onBack}
-            className="p-2.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 hover:shadow-sm text-gray-600 transition-all"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">账户设置</h2>
-            <p className="text-gray-500 text-sm">管理您的安全、语言及偏好</p>
+    <div className={mode === 'page' ? 'animate-fade-in-up mt-8 w-full max-w-screen-2xl mx-auto mb-20 px-4 sm:px-6 lg:px-8' : 'animate-fade-in-up'}>
+      {mode === 'page' && (
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="p-2.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 hover:shadow-sm text-gray-600 transition-all"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">账户设置</h2>
+              <p className="text-gray-500 text-sm">管理您的安全、语言及偏好</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="space-y-8">
         

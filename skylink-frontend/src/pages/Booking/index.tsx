@@ -42,7 +42,7 @@ const BookingPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-8">
+    <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-8">
         <BookingForm 
             flights={flights} 
             onConfirm={handleConfirm} 

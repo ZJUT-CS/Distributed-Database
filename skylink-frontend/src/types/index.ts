@@ -59,9 +59,23 @@ export interface ConfirmedBooking extends BookingDetails {
   id: string;
   flight: Flight; // For backward compatibility, maybe primarily used for display
   flights?: Flight[]; // Support multiple flights
-  status: 'confirmed' | 'cancelled';
+  status: 'pending_payment' | 'confirmed' | 'cancelled' | 'refunding' | 'refunded' | 'changed';
   bookingDate: string;
   totalPrice?: number;
+}
+
+export type AuditStatus = 'pending' | 'approved' | 'rejected';
+
+export interface RefundChangeRecord {
+  id: string;
+  orderId: string;
+  passenger: string;
+  type: '退票' | '改签';
+  oldFlight: string;
+  newFlight: string;
+  applyTime: string;
+  status: AuditStatus;
+  remark?: string;
 }
 
 export interface AIRecommendation {
@@ -74,6 +88,11 @@ export interface User {
   username: string;
   email?: string;
   avatarUrl?: string;
+  phoneNumber?: string;
+  realName?: string;
+  idCard?: string;
+  gender?: 0 | 1 | 2;
+  createdAt?: string;
   role: 'user' | 'admin';
 }
 

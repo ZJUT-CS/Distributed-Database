@@ -25,6 +25,28 @@ const CITY_GROUPS = {
   international: ['东京', '新加坡', '曼谷', '伦敦', '纽约', '悉尼']
 };
 
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+const formatLocalYmd = (d: Date) => {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+
+const parseYmdToLocalDate = (ymd: string) => {
+  const parts = ymd.split('-');
+  if (parts.length !== 3) return new Date(ymd);
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return new Date(ymd);
+  return new Date(year, month - 1, day);
+};
+
+const addDaysToYmd = (ymd: string, days: number) => {
+  const d = parseYmdToLocalDate(ymd);
+  d.setDate(d.getDate() + days);
+  return formatLocalYmd(d);
+};
+
 const SearchForm: React.FC<SearchFormProps> = ({ 
   onSearch, 
   onAiRequest, 
@@ -37,7 +59,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
   compact = false
 }) => {
   // Date State
-  const [date, setDate] = useState(initialValues?.segments?.[0]?.date || new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(initialValues?.segments?.[0]?.date || formatLocalYmd(new Date()));
   const [returnDate, setReturnDate] = useState(''); 
   
   // Trip Type State
@@ -156,9 +178,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                 destination: segments[0].origin,
                 date: returnDate || (() => {
                     // Default return date if not selected: +3 days
-                    const d = new Date(segments[0].date);
-                    d.setDate(d.getDate() + 3);
-                    return d.toISOString().split('T')[0];
+                    return addDaysToYmd(segments[0].date, 3);
                 })()
             }
         ];
@@ -211,7 +231,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
             if (!date && !returnDate) {
                 setDate(selectedDateStr);
             } else if (date && !returnDate) {
-                if (new Date(selectedDateStr) < new Date(date)) {
+                if (selectedDateStr < date) {
                     setDate(selectedDateStr);
                 } else {
                     setReturnDate(selectedDateStr);
@@ -303,11 +323,11 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
       const days = [];
       for (let i = 0; i < startDayOfWeek; i++) days.push(<div key={`empty-${offset}-${i}`} />);
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = formatLocalYmd(new Date());
 
       for (let d = 1; d <= daysInMonth; d++) {
         const currentDate = new Date(year, month, d);
-        const dateStr = currentDate.toISOString().split('T')[0];
+        const dateStr = formatLocalYmd(currentDate);
         const isPast = dateStr < todayStr;
         const selected = isSelectedDate(dateStr);
         const inRange = isInRange(dateStr);
@@ -433,7 +453,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
   const rowsToRender = tripType === 'multiCity' ? segments : [segments[0]];
 
   return (
-    <div className={`-mt-24 relative z-30 w-full max-w-7xl mx-auto px-4 ${compact ? 'max-w-6xl' : ''}`}>
+    <div className={`-mt-24 relative z-30 w-full`}>
       <div className={`bg-white/95 ${containerRadius} shadow-2xl border border-white/60 backdrop-blur-xl relative overflow-visible transition-all duration-300 ease-in-out`}>
         
         {/* Header: Tabs */}
@@ -565,11 +585,11 @@ const SearchForm: React.FC<SearchFormProps> = ({
                             <div className="flex items-center gap-3">
                               <div className="flex items-baseline gap-1">
                                   <span className={`${mainTextSize} font-bold text-gray-800 tracking-tight`}>
-                                    {new Date(segment.date).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}
+                                    {parseYmdToLocalDate(segment.date).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}
                                   </span>
                                   {!isRoundTripMain && (
                                      <span className={`${labelTextSize} text-gray-400 font-medium mt-1`}>
-                                       {new Date(segment.date).toLocaleDateString('zh-CN', { weekday: 'short' })}
+                                       {parseYmdToLocalDate(segment.date).toLocaleDateString('zh-CN', { weekday: 'short' })}
                                      </span>
                                   )}
                               </div>
@@ -579,7 +599,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                                   {returnDate ? (
                                     <div className="flex items-baseline gap-1">
                                         <span className={`${mainTextSize} font-bold text-gray-800 tracking-tight`}>
-                                          {new Date(returnDate).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}
+                                          {parseYmdToLocalDate(returnDate).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}
                                         </span>
                                     </div>
                                   ) : (
@@ -689,9 +709,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
                 <button className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
                 <div className="flex-1 flex justify-between gap-2 overflow-x-auto scrollbar-hide">
                    {[...Array(5)].map((_, i) => {
-                     const d = new Date(date);
-                     d.setDate(d.getDate() + i - 1);
-                     const dStr = d.toISOString().split('T')[0];
+                     const dStr = addDaysToYmd(date, i - 1);
+                     const d = parseYmdToLocalDate(dStr);
                      const isSelected = dStr === date;
                      const price = 180 + (d.getDate() % 5) * 50;
                      return (

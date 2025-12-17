@@ -58,6 +58,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
       onLogin({
         username: res.data.username || phoneNumber,
         email: isRegisterMode ? email : undefined,
+        phoneNumber: isAdminMode ? undefined : phoneNumber,
+        createdAt: new Date().toISOString(),
         role: res.data.role,
         avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(res.data.username || phoneNumber)}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`
       });
