@@ -1,11 +1,18 @@
 package com.team.skylink.common;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import jakarta.validation.ConstraintViolationException;
+
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -22,8 +29,19 @@ public class GlobalExceptionHandler {
         return Result.fail(HttpStatus.BAD_REQUEST.value(), msg);
     }
 
+    @ExceptionHandler({
+            ConstraintViolationException.class,
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class,
+            HttpMessageNotReadableException.class
+    })
+    public Result<Void> handleBadRequest(Exception ex) {
+        return Result.fail(HttpStatus.BAD_REQUEST.value(), "invalid request");
+    }
+
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception ex) {
+        log.error("Unhandled exception", ex);
         return Result.fail(HttpStatus.INTERNAL_SERVER_ERROR.value(), "internal error");
     }
 }

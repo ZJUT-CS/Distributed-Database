@@ -1,7 +1,9 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmedBooking } from '../../types';
-import { addRefundRecord } from '../../services/storage';
+import { applyRefundChange } from '../../services/refundChange';
+import { payOrder } from '../../services/payments';
+import { cancelOrder } from '../../services/orders';
 import { ArrowLeft, Plane, Calendar, CheckCircle, XCircle, Route, Ticket, CircleDollarSign, AlertCircle, Clock, RefreshCw } from 'lucide-react';
 
 interface UserBookingsProps {
@@ -16,6 +18,9 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'cancelled' | 'pending_payment' | 'refunding'>('all');
+
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selectedBooking, setSelectedBooking] = useState<ConfirmedBooking | null>(null);
@@ -88,16 +93,38 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
   };
 
   const handlePay = (booking: ConfirmedBooking) => {
-    if (window.confirm(`确认支付订单 ${booking.id} 吗？\n金额：¥${booking.totalPrice}`)) {
-      onUpdateBooking({ ...booking, status: 'confirmed' });
-      alert('支付成功！');
-    }
+    if (!window.confirm(`确认支付订单 ${booking.id} 吗？\n金额：¥${booking.totalPrice}`)) return;
+
+    setActionError(null);
+    setActionLoading(true);
+    payOrder({
+      orderNo: booking.id,
+      amount: Number(booking.totalPrice || 0),
+      method: 'CARD',
+    })
+      .then(() => {
+        onUpdateBooking(booking);
+        alert('支付成功！');
+      })
+      .catch((e: any) => {
+        setActionError(e?.message || '支付失败');
+      })
+      .finally(() => setActionLoading(false));
   };
 
   const handleCancelOrder = (booking: ConfirmedBooking) => {
-    if (window.confirm('确定要取消这个订单吗？取消后无法恢复。')) {
-      onUpdateBooking({ ...booking, status: 'cancelled' });
-    }
+    if (!window.confirm('确定要取消这个订单吗？取消后无法恢复。')) return;
+
+    setActionError(null);
+    setActionLoading(true);
+    cancelOrder(booking.id)
+      .then(() => {
+        onUpdateBooking(booking);
+      })
+      .catch((e: any) => {
+        setActionError(e?.message || '取消失败');
+      })
+      .finally(() => setActionLoading(false));
   };
 
   const openApplicationModal = (booking: ConfirmedBooking, type: 'refund' | 'change') => {
@@ -118,26 +145,25 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
       return;
     }
 
-    const flights = selectedBooking.flights || (selectedBooking.flight ? [selectedBooking.flight] : []);
-    const flightInfo = flights.length > 0 ? `${flights[0].origin} -> ${flights[flights.length-1].destination}` : '未知航班';
-
-    addRefundRecord({
-      id: `RC-${Date.now().toString().slice(-6)}`,
-      orderId: selectedBooking.id,
-      passenger: selectedBooking.passengerName,
-      type: modalType === 'refund' ? '退票' : '改签',
-      oldFlight: flightInfo,
-      newFlight: modalType === 'change' ? newFlight : '-',
-      applyTime: new Date().toLocaleString('zh-CN'),
-      status: 'pending',
-      remark: reason
-    });
-
-    onUpdateBooking({ ...selectedBooking, status: 'refunding' });
-
-    setModalType(null);
-    setSelectedBooking(null);
-    alert('申请已提交，请前往【退改/售后】页面查看进度。');
+    setActionError(null);
+    setActionLoading(true);
+    applyRefundChange({
+      orderNo: selectedBooking.id,
+      operType: modalType === 'refund' ? 1 : 2,
+      remark: reason,
+      newFlightNo: modalType === 'change' ? newFlight.trim() : undefined,
+      newCabinType: modalType === 'change' ? (selectedBooking.flight?.cabinType || 'economy') : undefined,
+    })
+      .then(() => {
+        onUpdateBooking(selectedBooking);
+        setModalType(null);
+        setSelectedBooking(null);
+        alert('申请已提交，请前往【退改/售后】页面查看进度。');
+      })
+      .catch((e: any) => {
+        setActionError(e?.message || '提交失败');
+      })
+      .finally(() => setActionLoading(false));
   };
 
   const renderStatusBadge = (booking: ConfirmedBooking) => {
@@ -151,7 +177,11 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
             <Countdown
               date={booking.bookingDate}
               onExpire={() => {
-                onUpdateBooking({ ...booking, status: 'cancelled' });
+                cancelOrder(booking.id)
+                  .then(() => onUpdateBooking(booking))
+                  .catch(() => {
+                    // ignore
+                  });
               }}
             />
             )
@@ -178,13 +208,14 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
           <div className="flex gap-3 mt-4 lg:mt-0 lg:ml-auto">
              <button
               onClick={() => handleCancelOrder(booking)}
+              disabled={actionLoading}
               className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-bold hover:bg-gray-50 transition-all"
             >
               取消订单
             </button>
             <button
               onClick={() => handlePay(booking)}
-              disabled={isExpired}
+              disabled={isExpired || actionLoading}
               className={`px-6 py-2 rounded-xl text-white text-sm font-bold transition-all shadow-lg shadow-orange-500/20 ${
                 isExpired
                   ? 'bg-gray-300 cursor-not-allowed shadow-none'
@@ -204,12 +235,13 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
               className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 hover:text-blue-600 transition-all"
             >
               申请改签
-            </button>
-            <button
-              onClick={() => openApplicationModal(booking, 'refund')}
-              className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 hover:text-red-600 transition-all"
-            >
-              申请退票
+                <button
+                  onClick={submitApplication}
+                  disabled={actionLoading}
+                  className="px-6 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 text-white text-sm font-bold shadow-lg shadow-sky-500/20 hover:from-sky-600 hover:to-indigo-600 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {actionLoading ? '提交中...' : '提交申请'}
+                </button>
             </button>
             <button
               onClick={() => navigate(`/my-bookings/${booking.id}`, { state: { booking } })}
@@ -257,6 +289,12 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
         <div className="absolute -top-44 -right-44 h-[520px] w-[520px] rounded-full bg-sky-200/25 blur-3xl" />
         <div className="absolute -bottom-56 -left-40 h-[560px] w-[560px] rounded-full bg-blue-200/20 blur-3xl" />
       </div>
+
+      {actionError && (
+        <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
 
       <div className="relative overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 text-white shadow-xl shadow-sky-500/15 mb-6">
         <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/15 blur-3xl" />

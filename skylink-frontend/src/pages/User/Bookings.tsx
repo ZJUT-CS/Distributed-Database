@@ -3,8 +3,10 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import UserBookings from '../../components/user/UserBookings';
 import { useAuth } from '../../hooks/useAuth';
 import { ConfirmedBooking } from '../../types';
-import { generateMockFlights } from '../../services/mockData';
 import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, RefreshCw, Clock } from 'lucide-react';
+import { listBookings } from '../../services/bookings';
+import { payOrder } from '../../services/payments';
+import { cancelOrder } from '../../services/orders';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -16,73 +18,31 @@ const getPaymentDeadlineMs = (bookingDate: string) => {
   return new Date(bookingDate).getTime() + 30 * 60 * 1000;
 };
 
-import { loadStoredBookings, saveStoredBookings } from '../../services/storage';
-
 const BookingsPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState<ConfirmedBooking[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-     if (user) {
-        const stored = loadStoredBookings();
-        if (stored.length > 0) {
-          setBookings(stored);
-          return;
-        }
-
-        const flights = generateMockFlights('PEK', 'SHA', formatLocalYmd(new Date()));
-        if (flights.length > 0) {
-          const next: ConfirmedBooking[] = [
-            {
-              id: 'ORD-DEMO-001',
-              passengerName: user.username,
-              passportNumber: '******',
-              contactEmail: 'user@skylink.com',
-              phone: '138****0000',
-              flight: flights[0],
-              flights: [flights[0]],
-              status: 'confirmed',
-              bookingDate: new Date().toISOString(),
-              totalPrice: flights[0].price,
-            },
-            {
-              id: 'ORD-DEMO-002',
-              passengerName: user.username,
-              passportNumber: '******',
-              contactEmail: 'user@skylink.com',
-              phone: '138****0000',
-              flight: flights[1],
-              flights: [flights[1]],
-              status: 'pending_payment',
-              bookingDate: new Date(Date.now() - 3600000).toISOString(),
-              totalPrice: flights[1].price,
-            },
-             {
-              id: 'ORD-DEMO-003',
-              passengerName: user.username,
-              passportNumber: '******',
-              contactEmail: 'user@skylink.com',
-              phone: '138****0000',
-              flight: flights[2],
-              flights: [flights[2]],
-              status: 'cancelled',
-              bookingDate: new Date(Date.now() - 86400000).toISOString(),
-              totalPrice: flights[2].price,
-            },
-          ];
-          setBookings(next);
-          saveStoredBookings(next);
-        }
-     }
+     if (!user?.id) return;
+     setLoading(true);
+     setError(null);
+     listBookings(user.id)
+       .then(setBookings)
+       .catch((e: any) => setError(e?.message || '加载订单失败'))
+       .finally(() => setLoading(false));
   }, [user]);
 
   const handleUpdateBooking = (updated: ConfirmedBooking) => {
-    setBookings((prev) => {
-      const next = prev.map((b) => (b.id === updated.id ? updated : b));
-      saveStoredBookings(next);
-      return next;
-    });
+    if (!user?.id) return;
+    setLoading(true);
+    setError(null);
+    listBookings(user.id)
+      .then(setBookings)
+      .catch((e: any) => setError(e?.message || '刷新订单失败'))
+      .finally(() => setLoading(false));
   };
 
   if (!user) {
@@ -91,7 +51,17 @@ const BookingsPage: React.FC = () => {
   }
 
   return (
-    <UserBookings bookings={bookings} onBack={() => navigate('/')} onUpdateBooking={handleUpdateBooking} />
+    <div>
+      {error && (
+        <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+      <UserBookings bookings={bookings} onBack={() => navigate('/')} onUpdateBooking={handleUpdateBooking} />
+      {loading && (
+        <div className="mt-4 text-sm text-gray-500">加载中...</div>
+      )}
+    </div>
   );
 };
 
@@ -104,6 +74,8 @@ export const BookingDetailsPage: React.FC = () => {
   const location = useLocation();
   const stateBooking = (location.state as { booking?: ConfirmedBooking } | null)?.booking;
   const [booking, setBooking] = useState<ConfirmedBooking | null>(stateBooking || null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [payTimeLeft, setPayTimeLeft] = useState('');
   const expireTriggeredRef = useRef(false);
 
@@ -120,11 +92,20 @@ export const BookingDetailsPage: React.FC = () => {
 
     const id = params.bookingId;
     if (!id) return;
-    const stored = loadStoredBookings();
-    const found = stored.find((b) => b.id === id);
-    if (found) {
-      setBooking(found);
-    }
+    if (!user.id) return;
+    setDetailLoading(true);
+    setDetailError(null);
+    listBookings(user.id)
+      .then((all) => {
+        const found = all.find((b) => b.id === id);
+        if (found) setBooking(found);
+        else setBooking(null);
+      })
+      .catch((e: any) => {
+        setDetailError(e?.message || '加载订单详情失败');
+        setBooking(null);
+      })
+      .finally(() => setDetailLoading(false));
   }, [navigate, params.bookingId, stateBooking, user]);
 
   useEffect(() => {
@@ -138,10 +119,18 @@ export const BookingDetailsPage: React.FC = () => {
         setPayTimeLeft('00:00');
         if (!expireTriggeredRef.current) {
           expireTriggeredRef.current = true;
-          const stored = loadStoredBookings();
-          const updated = stored.map((b) => (b.id === booking.id ? { ...b, status: 'cancelled' as const } : b));
-          saveStoredBookings(updated);
-          setBooking({ ...booking, status: 'cancelled' });
+          cancelOrder(booking.id)
+            .then(() => {
+              if (user?.id) {
+                return listBookings(user.id).then((all) => {
+                  const found = all.find((b) => b.id === booking.id);
+                  if (found) setBooking(found);
+                });
+              }
+            })
+            .catch(() => {
+              setBooking({ ...booking, status: 'cancelled' });
+            });
         }
         return;
       }
@@ -172,6 +161,8 @@ export const BookingDetailsPage: React.FC = () => {
             <div>
               <div className="text-xl font-bold text-gray-900">订单不存在或已过期</div>
               <div className="text-sm text-gray-500 mt-1">返回我的订单查看最新数据</div>
+              {detailError && <div className="text-sm text-red-600 mt-2">{detailError}</div>}
+              {detailLoading && <div className="text-sm text-gray-500 mt-2">加载中...</div>}
             </div>
           </div>
         </div>
@@ -226,19 +217,35 @@ export const BookingDetailsPage: React.FC = () => {
   const handlePay = () => {
     const expired = Date.now() >= getPaymentDeadlineMs(booking.bookingDate);
     if (expired) {
-      const stored = loadStoredBookings();
-      const updated = stored.map((b) => (b.id === booking.id ? { ...b, status: 'cancelled' as const } : b));
-      saveStoredBookings(updated);
-      setBooking({ ...booking, status: 'cancelled' });
+      cancelOrder(booking.id)
+        .then(() => {
+          if (user?.id) {
+            return listBookings(user.id).then((all) => {
+              const found = all.find((b) => b.id === booking.id);
+              if (found) setBooking(found);
+            });
+          }
+        })
+        .catch(() => setBooking({ ...booking, status: 'cancelled' }));
       alert('订单已超时，已自动取消');
       return;
     }
     if (window.confirm(`确认支付订单 ${booking.id} 吗？\n金额：¥${booking.totalPrice}`)) {
-      const stored = loadStoredBookings();
-      const updated = stored.map(b => b.id === booking.id ? { ...b, status: 'confirmed' as const } : b);
-      saveStoredBookings(updated);
-      setBooking({ ...booking, status: 'confirmed' });
-      alert('支付成功！');
+      payOrder({
+        orderNo: booking.id,
+        amount: Number(booking.totalPrice || 0),
+        method: 'CARD',
+      })
+        .then(() => {
+          if (user?.id) {
+            return listBookings(user.id).then((all) => {
+              const found = all.find((b) => b.id === booking.id);
+              if (found) setBooking(found);
+            });
+          }
+        })
+        .then(() => alert('支付成功！'))
+        .catch((e: any) => alert(e?.message || '支付失败'));
     }
   };
 

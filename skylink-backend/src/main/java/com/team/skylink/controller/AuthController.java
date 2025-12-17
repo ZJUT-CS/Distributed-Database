@@ -10,6 +10,7 @@ import com.team.skylink.entity.Admin;
 import com.team.skylink.entity.User;
 import com.team.skylink.mapper.AdminMapper;
 import com.team.skylink.mapper.UserMapper;
+import jakarta.validation.Valid;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,7 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping({"/auth", "/api/v1/auth"})
 public class AuthController {
     private final UserMapper userMapper;
     private final AdminMapper adminMapper;
@@ -34,12 +35,9 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public Result<LoginResponse> login(@RequestBody LoginRequest request) {
+    public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         String phoneNumber = request.getPhoneNumber();
         String password = request.getPassword();
-        if (phoneNumber == null || password == null) {
-            return Result.fail(400, "missing phoneNumber or password");
-        }
 
         User user = userMapper.selectOne(new QueryWrapper<User>().eq("phone_number", phoneNumber));
         if (user == null) {
@@ -66,12 +64,9 @@ public class AuthController {
     }
 
     @PostMapping("/admin/login")
-    public Result<LoginResponse> adminLogin(@RequestBody AdminLoginRequest request) {
+    public Result<LoginResponse> adminLogin(@Valid @RequestBody AdminLoginRequest request) {
         String username = request.getUsername();
         String password = request.getPassword();
-        if (username == null || password == null) {
-            return Result.fail(400, "missing username or password");
-        }
 
         Admin admin = adminMapper.selectOne(new QueryWrapper<Admin>().eq("username", username));
         if (admin == null) {
@@ -96,13 +91,10 @@ public class AuthController {
     }
 
     @PostMapping("/admin/register")
-    public Result<Boolean> adminRegister(@RequestBody AdminRegisterRequest request) {
+    public Result<Boolean> adminRegister(@Valid @RequestBody AdminRegisterRequest request) {
         String username = request.getUsername();
         String password = request.getPassword();
         Integer role = request.getRole();
-        if (username == null || password == null) {
-            return Result.fail(400, "missing username or password");
-        }
 
         Admin existing = adminMapper.selectOne(new QueryWrapper<Admin>().eq("username", username));
         if (existing != null) {

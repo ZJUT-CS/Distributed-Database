@@ -7,6 +7,7 @@ import com.team.skylink.entity.Cabin;
 import com.team.skylink.entity.Flight;
 import com.team.skylink.mapper.CabinMapper;
 import com.team.skylink.mapper.FlightMapper;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,8 +25,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.cache.annotation.Cacheable;
+
 @RestController
-@RequestMapping("/flights")
+@RequestMapping({"/flights", "/api/v1/flights"})
 public class FlightController {
     private final FlightMapper flightMapper;
     private final CabinMapper cabinMapper;
@@ -36,6 +39,10 @@ public class FlightController {
     }
 
     @GetMapping("/search")
+        @Cacheable(
+            cacheNames = "flightSearch",
+            key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo)"
+        )
     public Result<List<FlightSearchResponse>> search(
             @RequestParam(required = false) String departurePlace,
             @RequestParam(required = false) String destination,
@@ -109,6 +116,7 @@ public class FlightController {
             if (cabin != null) {
                 r.setPrice(cabin.getPrice());
                 r.setRemainingSeats(cabin.getRemainingSeats());
+                r.setCabinType(cabin.getCabinType());
             }
             resp.add(r);
         }
@@ -116,12 +124,7 @@ public class FlightController {
     }
 
     @PostMapping("/create")
-    public Result<Boolean> createFlight(@RequestBody FlightCreateRequest req) {
-        if (req.getFlightNo() == null || req.getDeparturePlace() == null || req.getDestination() == null
-                || req.getDepartureTime() == null || req.getArrivalTime() == null || req.getAirlineCompany() == null
-                || req.getTotalSeats() == null || req.getStatus() == null) {
-            return Result.fail(400, "invalid params");
-        }
+    public Result<Boolean> createFlight(@Valid @RequestBody FlightCreateRequest req) {
         Flight exists = flightMapper.selectOne(new QueryWrapper<Flight>().eq("flight_no", req.getFlightNo()));
         if (exists != null) {
             return Result.fail(409, "flight already exists");
@@ -142,10 +145,7 @@ public class FlightController {
     }
 
     @PostMapping("/cabins/create")
-    public Result<Boolean> createCabin(@RequestBody CabinCreateRequest req) {
-        if (req.getFlightNo() == null || req.getCabinType() == null || req.getPrice() == null || req.getRemainingSeats() == null) {
-            return Result.fail(400, "invalid params");
-        }
+    public Result<Boolean> createCabin(@Valid @RequestBody CabinCreateRequest req) {
         Flight f = flightMapper.selectOne(new QueryWrapper<Flight>().eq("flight_no", req.getFlightNo()));
         if (f == null) {
             return Result.fail(404, "flight not found");

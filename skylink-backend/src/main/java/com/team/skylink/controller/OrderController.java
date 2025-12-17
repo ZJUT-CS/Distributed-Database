@@ -12,12 +12,14 @@ import com.team.skylink.mapper.CabinMapper;
 import com.team.skylink.mapper.FlightMapper;
 import com.team.skylink.mapper.OrderMapper;
 import com.team.skylink.mapper.UserMapper;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import org.springframework.web.bind.annotation.RequestBody;
 import java.time.LocalDateTime;
@@ -25,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/orders")
+@RequestMapping({"/orders", "/api/v1/orders"})
 public class OrderController {
     private final OrderMapper orderMapper;
     private final FlightMapper flightMapper;
@@ -104,10 +106,7 @@ public class OrderController {
     }
 
     @PostMapping("/create")
-    public Result<OrderSearchResponse> create(@RequestBody CreateOrderRequest req) {
-        if (req.getUserId() == null || req.getFlightNo() == null || req.getCabinType() == null || req.getTicketNum() == null || req.getTicketNum() <= 0) {
-            return Result.fail(400, "invalid params");
-        }
+    public Result<OrderSearchResponse> create(@Valid @RequestBody CreateOrderRequest req) {
         Flight f = flightMapper.selectOne(new QueryWrapper<Flight>().eq("flight_no", req.getFlightNo()));
         if (f == null) {
             return Result.fail(404, "flight not found");
@@ -142,5 +141,28 @@ public class OrderController {
         r.setRefundTime(o.getRefundTime());
         r.setChangeTime(o.getChangeTime());
         return Result.ok(r);
+    }
+
+    @PostMapping("/{orderId}/cancel")
+    public Result<Boolean> cancel(@PathVariable("orderId") Long orderId) {
+        if (orderId == null) {
+            return Result.fail(400, "orderId is required");
+        }
+        Order o = orderMapper.selectById(orderId);
+        if (o == null) {
+            return Result.fail(404, "order not found");
+        }
+        if (o.getOrderStatus() == null || o.getOrderStatus() != 0) {
+            return Result.fail(409, "order is not cancellable");
+        }
+
+        Cabin cabin = cabinMapper.selectById(o.getCabinId());
+        if (cabin != null && o.getTicketNum() != null) {
+            cabin.setRemainingSeats(cabin.getRemainingSeats() + o.getTicketNum());
+            cabinMapper.updateById(cabin);
+        }
+        o.setOrderStatus(2);
+        int rows = orderMapper.updateById(o);
+        return Result.ok(rows > 0);
     }
 }

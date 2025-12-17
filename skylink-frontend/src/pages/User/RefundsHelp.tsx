@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { loadStoredRefunds, deleteRefundRecord, updateRefundRecord, loadStoredBookings, saveStoredBookings, addRefundRecord } from '../../services/storage';
 import { RefundChangeRecord, AuditStatus } from '../../types';
+import { listRefundChanges, revokeRefundChange, updateRefundChange } from '../../services/refundChange';
 import { ArrowLeft, CheckCircle2, Filter, RefreshCw, Search, Ticket, XCircle, AlertCircle, Trash2, Edit } from 'lucide-react';
 
 const RefundsHelpPage: React.FC = () => {
@@ -11,22 +11,32 @@ const RefundsHelpPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AuditStatus | 'all'>('all');
   const [audits, setAudits] = useState<RefundChangeRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<RefundChangeRecord | null>(null);
   const [editReason, setEditReason] = useState('');
   const [editNewFlight, setEditNewFlight] = useState('');
 
-  const refreshData = () => {
-    if (user) {
-      const stored = loadStoredRefunds();
-      const userAudits = stored.filter(r => r.passenger === user.username);
-      setAudits(userAudits);
+  const refreshData = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      const records = await listRefundChanges({ userId: user.id });
+      setAudits(records);
+    } catch (e: any) {
+      setError(e?.message || '加载退改/售后记录失败');
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    refreshData();
+    void refreshData();
   }, [user]);
 
   const filteredAudits = useMemo(() => {
@@ -47,19 +57,20 @@ const RefundsHelpPage: React.FC = () => {
 
   const pendingCount = audits.filter((a) => a.status === 'pending').length;
 
-  const handleRevoke = (record: RefundChangeRecord) => {
-    if (window.confirm('确定要撤销这个申请吗？撤销后订单将恢复为正常状态。')) {
-      deleteRefundRecord(record.id);
-      
-      const bookings = loadStoredBookings();
-      const target = bookings.find(b => b.id === record.orderId);
-      if (target) {
-        target.status = 'confirmed';
-        saveStoredBookings(bookings);
-      }
+  const handleRevoke = async (record: RefundChangeRecord) => {
+    if (!window.confirm('确定要撤销这个申请吗？撤销后订单将恢复为正常状态。')) return;
 
+    try {
+      setActionLoading(record.id);
+      setError(null);
+      await revokeRefundChange(record.id);
       alert('申请已撤销');
-      refreshData();
+      await refreshData();
+    } catch (e: any) {
+      setError(e?.message || '撤销失败');
+      alert(e?.message || '撤销失败');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -70,24 +81,31 @@ const RefundsHelpPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const submitReApply = () => {
+  const submitReApply = async () => {
     if (!editingRecord) return;
     if (!editReason.trim()) {
       alert('请填写申请原因');
       return;
     }
-    
-    updateRefundRecord(editingRecord.id, {
-        status: 'pending',
-        remark: editReason,
-        newFlight: editingRecord.type === '改签' ? editNewFlight : '-',
-        applyTime: new Date().toLocaleString('zh-CN'),
-    });
 
-    setIsModalOpen(false);
-    setEditingRecord(null);
-    alert('重新申请已提交');
-    refreshData();
+    try {
+      setActionLoading('reapply');
+      setError(null);
+      await updateRefundChange(editingRecord.id, {
+        remark: editReason,
+        newFlightNo: editingRecord.type === '改签' ? editNewFlight.trim() : undefined,
+      });
+
+      setIsModalOpen(false);
+      setEditingRecord(null);
+      alert('重新申请已提交');
+      await refreshData();
+    } catch (e: any) {
+      setError(e?.message || '重新申请失败');
+      alert(e?.message || '重新申请失败');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const renderStatusBadge = (status: AuditStatus) => {
@@ -200,6 +218,12 @@ const RefundsHelpPage: React.FC = () => {
       </div>
 
       <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {loading && (
+          <div className="px-6 py-4 text-sm text-gray-500 border-b border-gray-100">加载中...</div>
+        )}
+        {error && (
+          <div className="px-6 py-4 text-sm text-red-600 border-b border-red-100 bg-red-50/50">{error}</div>
+        )}
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
             <tr>
@@ -240,10 +264,11 @@ const RefundsHelpPage: React.FC = () => {
                   {a.status === 'pending' && (
                     <button
                       onClick={() => handleRevoke(a)}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-red-600 transition-colors px-2 py-1 rounded-lg hover:bg-red-50"
+                      disabled={actionLoading === a.id}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-red-600 transition-colors px-2 py-1 rounded-lg hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <Trash2 className="w-3 h-3" />
-                      撤销
+                      {actionLoading === a.id ? '撤销中...' : '撤销'}
                     </button>
                   )}
                   {a.status === 'rejected' && (
@@ -325,9 +350,10 @@ const RefundsHelpPage: React.FC = () => {
               </button>
               <button
                 onClick={submitReApply}
+                disabled={actionLoading === 'reapply'}
                 className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
               >
-                提交
+                {actionLoading === 'reapply' ? '提交中...' : '提交'}
               </button>
             </div>
           </div>

@@ -21,47 +21,66 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phoneNumber || !password) return;
-    if (isRegisterMode && (!email || password !== confirmPassword)) {
-      alert('请检查输入信息，确保密码一致且邮箱不为空');
+
+    const account = phoneNumber.trim();
+    const pwd = password;
+    const mail = email.trim();
+
+    if (!account || !pwd) return;
+    if (!isAdminMode && !/^\d{11}$/.test(account)) {
+      alert('请输入正确的手机号（11位数字）');
       return;
+    }
+    if (pwd.length < 6) {
+      alert('密码长度至少 6 位');
+      return;
+    }
+
+    if (isRegisterMode) {
+      if (!mail) {
+        alert('请输入邮箱');
+        return;
+      }
+      if (!/^\S+@\S+\.\S+$/.test(mail)) {
+        alert('请输入正确的邮箱');
+        return;
+      }
+      if (pwd !== confirmPassword) {
+        alert('两次输入的密码不一致');
+        return;
+      }
     }
 
     setLoading(true);
     try {
       if (isRegisterMode) {
-        const registerRes = await registerApi({ phoneNumber, password, email });
-        if (registerRes.code !== 0 || !registerRes.data) {
-          throw new Error(registerRes.msg || '注册失败');
-        }
+        const ok = await registerApi({ phoneNumber: account, password: pwd, email: mail });
+        if (!ok) throw new Error('注册失败');
       }
 
       const res = isAdminMode
-        ? await adminLoginApi({ username: phoneNumber, password })
-        : await loginApi({ phoneNumber, password });
-      if (res.code !== 0) {
-        throw new Error(res.msg || '登录失败');
-      }
-
-      if (!res.data) {
+        ? await adminLoginApi({ username: account, password: pwd })
+        : await loginApi({ phoneNumber: account, password: pwd });
+      if (!res) {
         throw new Error('登录失败：服务端未返回用户信息');
       }
 
-      if (isAdminMode && res.data.role !== 'admin') {
+      if (isAdminMode && res.role !== 'admin') {
         throw new Error('该账号不是管理员，无法登录控制台');
       }
 
-      if (res.data.token) {
-        localStorage.setItem('token', res.data.token);
+      if (res.token) {
+        localStorage.setItem('token', res.token);
       }
 
       onLogin({
-        username: res.data.username || phoneNumber,
-        email: isRegisterMode ? email : undefined,
-        phoneNumber: isAdminMode ? undefined : phoneNumber,
+        id: res.userId,
+        username: res.username || account,
+        email: isRegisterMode ? mail : undefined,
+        phoneNumber: isAdminMode ? undefined : account,
         createdAt: new Date().toISOString(),
-        role: res.data.role,
-        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(res.data.username || phoneNumber)}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`
+        role: res.role,
+        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(res.username || account)}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`
       });
     } catch (err: any) {
       alert(err?.message || '请求失败，请稍后再试');

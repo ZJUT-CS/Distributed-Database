@@ -17,5 +17,6 @@ public class FlightSearchResponse {
     private BigDecimal price;
     private Integer remainingSeats;
     private String airlineCompany;
+    private String cabinType;
 }
 

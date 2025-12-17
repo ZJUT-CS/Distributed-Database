@@ -4,6 +4,7 @@ export interface Flight {
   airline: string;
   airlineCode: string;
   flightNumber: string;
+  cabinType?: string;
   origin: string;
   destination: string;
   departureTime: string; // ISO String
@@ -98,6 +99,7 @@ export interface AIRecommendation {
 }
 
 export interface User {
+  id?: number | string;
   username: string;
   email?: string;
   avatarUrl?: string;

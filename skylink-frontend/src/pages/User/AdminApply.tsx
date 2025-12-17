@@ -12,7 +12,17 @@ const AdminApplyPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) return;
+    const u = username.trim();
+    const p = password;
+    if (!u || !p) return;
+    if (u.length < 3) {
+      alert('账号长度至少 3 位');
+      return;
+    }
+    if (p.length < 6) {
+      alert('密码长度至少 6 位');
+      return;
+    }
     if (password !== confirmPassword) {
       alert('两次输入的密码不一致');
       return;
@@ -20,10 +30,8 @@ const AdminApplyPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await adminRegisterApi({ username, password });
-      if (res.code !== 0) {
-        throw new Error(res.msg || '提交失败');
-      }
+      const ok = await adminRegisterApi({ username: u, password: p });
+      if (!ok) throw new Error('提交失败');
 
       alert('入驻申请已提交（管理员账号已创建），请使用该账号在管理员登录入口登录');
       navigate('/login');

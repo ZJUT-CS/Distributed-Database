@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/trade")
+@RequestMapping({"/trade", "/api/v1/trade"})
 public class TradeController {
     private final OrderMapper orderMapper;
     private final PaymentMapper paymentMapper;

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/admin")
+@RequestMapping({"/admin", "/api/v1/admin"})
 public class AdminController {
     private final AdminMapper adminMapper;
     private final ConfigMapper configMapper;

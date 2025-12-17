@@ -7,7 +7,7 @@ import FlightList from '../../components/flight/FlightList';
 import TripSummary from '../../components/flight/TripSummary';
 import WorldMap from '../../components/common/WorldMap';
 import { Flight, SearchParams, FilterState, MapPoint } from '../../types';
-import api from '../../services/api';
+import { request } from '../../services/api';
 import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '../../constants';
 import { Plane, Filter, MoveRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -39,6 +39,8 @@ const FlightResultPage: React.FC = () => {
   });
   
   const [flights, setFlights] = useState<Flight[]>([]);
+  const [loadingFlights, setLoadingFlights] = useState(false);
+  const [flightError, setFlightError] = useState<string | null>(null);
   const [selectedFlights, setSelectedFlights] = useState<Flight[]>([]);
   const [currentLegIndex, setCurrentLegIndex] = useState(0);
   const [tripSegments, setTripSegments] = useState<any[]>([]); // Should be TripSegment[]
@@ -64,17 +66,20 @@ const FlightResultPage: React.FC = () => {
     return byCity ? byCity.city : loc;
   };
 
-  // Helper: fetch flights from backend and adapt to frontend Flight type
   const fetchFlights = async (orig: string, dest: string, dt: string) => {
+    const o = (orig || '').trim();
+    const d = (dest || '').trim();
+    const dateStr = (dt || '').trim();
+    if (!o || !d || !dateStr) {
+      setFlights([]);
+      setFlightError('查询参数不完整');
+      return;
+    }
+
+    setLoadingFlights(true);
+    setFlightError(null);
     try {
-      const resp = await api.get('/flights/search', {
-        params: {
-          departurePlace: toCity(orig),
-          destination: toCity(dest),
-          departureDate: dt,
-        }
-      });
-      const data = (resp.data?.data || []) as Array<{
+      const data = await request<Array<{
         flightNo: string;
         departurePlace: string;
         destination: string;
@@ -84,12 +89,23 @@ const FlightResultPage: React.FC = () => {
         price?: number;
         remainingSeats?: number;
         airlineCompany?: string;
-      }>;
+        cabinType?: string;
+      }>>({
+        method: 'GET',
+        url: '/flights/search',
+        params: {
+          departurePlace: toCity(o),
+          destination: toCity(d),
+          departureDate: dateStr,
+        },
+      });
+
       const mapped: Flight[] = data.map((r) => ({
         id: r.flightNo || `${r.departurePlace}-${r.destination}-${r.departureTime}`,
         airline: r.airlineCompany || '',
         airlineCode: (r.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
         flightNumber: r.flightNo || '',
+        cabinType: r.cabinType,
         origin: r.departurePlace,
         destination: r.destination,
         departureTime: r.departureTime,
@@ -103,8 +119,11 @@ const FlightResultPage: React.FC = () => {
         aircraft: undefined,
       }));
       setFlights(mapped);
-    } catch (e) {
+    } catch (e: any) {
       setFlights([]);
+      setFlightError(e?.message || '查询航班失败');
+    } finally {
+      setLoadingFlights(false);
     }
   };
 
@@ -336,6 +355,25 @@ const FlightResultPage: React.FC = () => {
                        {filteredFlights.length} / {flights.length} 结果
                     </span>
                   </div>
+
+                  {loadingFlights && (
+                    <div className="mb-4 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600">
+                      正在加载航班...
+                    </div>
+                  )}
+
+                  {!loadingFlights && flightError && (
+                    <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+                      <span>{flightError}</span>
+                      <button
+                        type="button"
+                        onClick={() => fetchFlights(origin, destination, date)}
+                        className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold"
+                      >
+                        重试
+                      </button>
+                    </div>
+                  )}
                   
                   <FlightList flights={filteredFlights} onSelect={handleFlightSelect} />
                 </div>

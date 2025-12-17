@@ -1,4 +1,4 @@
-import api from './api';
+import { request } from './api';
 
 export interface LoginResponse {
   userId: number | string;
@@ -25,15 +25,8 @@ export interface AdminRegisterRequest {
   role?: number;
 }
 
-export interface ApiResult<T> {
-  code: number;
-  msg: string;
-  data: T;
-}
-
-export async function loginApi(payload: LoginRequest): Promise<ApiResult<LoginResponse>> {
-  const response = await api.post('/auth/login', payload);
-  return response.data;
+export async function loginApi(payload: LoginRequest): Promise<LoginResponse> {
+  return request<LoginResponse>({ method: 'POST', url: '/auth/login', data: payload });
 }
 
 export interface AdminLoginRequest {
@@ -41,17 +34,14 @@ export interface AdminLoginRequest {
   password: string;
 }
 
-export async function adminLoginApi(payload: AdminLoginRequest): Promise<ApiResult<LoginResponse>> {
-  const response = await api.post('/auth/admin/login', payload);
-  return response.data;
+export async function adminLoginApi(payload: AdminLoginRequest): Promise<LoginResponse> {
+  return request<LoginResponse>({ method: 'POST', url: '/auth/admin/login', data: payload });
 }
 
-export async function registerApi(payload: RegisterRequest): Promise<ApiResult<boolean>> {
-  const response = await api.post('/auth/phone-register', payload);
-  return response.data;
+export async function registerApi(payload: RegisterRequest): Promise<boolean> {
+  return request<boolean>({ method: 'POST', url: '/auth/phone-register', data: payload });
 }
 
-export async function adminRegisterApi(payload: AdminRegisterRequest): Promise<ApiResult<boolean>> {
-  const response = await api.post('/auth/admin/register', payload);
-  return response.data;
+export async function adminRegisterApi(payload: AdminRegisterRequest): Promise<boolean> {
+  return request<boolean>({ method: 'POST', url: '/auth/admin/register', data: payload });
 }

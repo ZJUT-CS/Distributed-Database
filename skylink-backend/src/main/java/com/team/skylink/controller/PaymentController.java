@@ -8,6 +8,7 @@ import com.team.skylink.entity.Order;
 import com.team.skylink.entity.Payment;
 import com.team.skylink.mapper.OrderMapper;
 import com.team.skylink.mapper.PaymentMapper;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/payments")
+@RequestMapping({"/payments", "/api/v1/payments"})
 public class PaymentController {
     private final PaymentMapper paymentMapper;
     private final OrderMapper orderMapper;
@@ -85,10 +86,7 @@ public class PaymentController {
     }
 
     @PostMapping("/pay")
-    public Result<PaymentSearchResponse> pay(@RequestBody CreatePaymentRequest req) {
-        if (req.getOrderNo() == null || req.getAmount() == null || req.getMethod() == null) {
-            return Result.fail(400, "invalid params");
-        }
+    public Result<PaymentSearchResponse> pay(@Valid @RequestBody CreatePaymentRequest req) {
         Order o = orderMapper.selectById(req.getOrderNo());
         if (o == null) {
             return Result.fail(404, "order not found");
