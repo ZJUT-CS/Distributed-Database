@@ -48,11 +48,24 @@ export interface SearchParams {
   cabinClass?: 'economy' | 'business' | 'first';
 }
 
+export interface PassengerInfo {
+  name: string;
+  idCard: string;
+  type?: 'adult' | 'child';
+}
+
 export interface BookingDetails {
   passengerName: string;
   passportNumber: string;
+  passengers?: PassengerInfo[];
   contactEmail: string;
   phone: string; // Added phone number
+  cabinClass?: 'economy' | 'business' | 'first';
+  addons?: {
+    insurance: boolean;
+    fastTicket: boolean;
+  };
+  totalAmount?: number;
 }
 
 export interface ConfirmedBooking extends BookingDetails {

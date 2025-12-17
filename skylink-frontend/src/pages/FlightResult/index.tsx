@@ -173,7 +173,7 @@ const FlightResultPage: React.FC = () => {
           if (!user) {
               navigate('/login');
           } else {
-              navigate('/booking', { state: { flights: newSelected } });
+              navigate('/booking', { state: { flights: newSelected, passengers, cabinClass } });
           }
       }
   };

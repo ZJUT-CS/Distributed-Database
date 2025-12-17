@@ -42,7 +42,10 @@ const ConfirmationPage: React.FC = () => {
                   </div>
                   <h2 className="text-3xl font-bold text-green-800 mb-2">预订成功！</h2>
                   <p className="text-green-700">您的 {booking.flights?.length} 段航班行程已确认。</p>
-                  <p className="text-sm text-green-600 mt-2">乘客: {booking.passengerName}</p>
+                  <p className="text-sm text-green-600 mt-2">
+                    乘客: {booking.passengerName}
+                    {booking.passengers && booking.passengers.length > 1 ? ` 等 ${booking.passengers.length} 人` : ''}
+                  </p>
                   
                   <button 
                     onClick={() => navigate('/my-bookings')}
