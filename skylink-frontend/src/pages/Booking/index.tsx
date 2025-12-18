@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import BookingForm from '../../components/booking/BookingForm';
 import { Flight, BookingDetails, ConfirmedBooking } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import { loadStoredBookings, saveStoredBookings } from '../../services/storage';
+import { createOrder } from '../../services/orders';
 
 const BookingPage: React.FC = () => {
   const location = useLocation();
@@ -19,9 +19,9 @@ const BookingPage: React.FC = () => {
     return raw === 'economy' || raw === 'business' || raw === 'first' ? raw : 'economy';
   })();
 
-  if (!user) {
-     navigate('/login');
-     return null;
+  if (!user || user.id == null || String(user.id).trim() === '') {
+    navigate('/login', { state: { from: location.pathname, bookingState: location.state } });
+    return null;
   }
 
   if (flights.length === 0) {
@@ -29,31 +29,54 @@ const BookingPage: React.FC = () => {
       return null;
   }
 
-  const handleConfirm = (details: BookingDetails) => {
-     // Mock booking creation
-     const totalPrice = Number.isFinite(details.totalAmount || NaN)
-       ? (details.totalAmount as number)
-       : flights.reduce((sum, f) => sum + f.price, 0);
-     const newBooking: ConfirmedBooking = {
+  const handleConfirm = async (details: BookingDetails) => {
+    const flightNo = String(flights[0]?.flightNumber || flights[0]?.id || '').trim();
+    if (!flightNo) {
+      alert('缺少航班号，无法下单');
+      return;
+    }
+
+    const cabinType =
+      String(flights[0]?.cabinType || '').trim() ||
+      (cabinClass === 'first' ? 'F' : cabinClass === 'business' ? 'J' : 'Y');
+
+    try {
+      const created = await createOrder({
+        userId: user.id as any,
+        flightNo,
+        cabinType,
+        ticketNum: passengerCount,
+      });
+
+      const id = String(created?.orderNo ?? '').trim();
+      if (!id) throw new Error('创建订单失败：缺少订单号');
+
+      const totalPrice = Number.isFinite(Number(created?.totalAmount))
+        ? Number(created?.totalAmount)
+        : Number.isFinite(details.totalAmount || NaN)
+          ? (details.totalAmount as number)
+          : flights.reduce((sum, f) => sum + f.price, 0);
+
+      const bookingDate = (created?.orderTime as any) ? String(created.orderTime) : new Date().toISOString();
+
+      const newBooking: ConfirmedBooking = {
         ...details,
-        id: `ORD-${Math.floor(Math.random() * 1000000)}`,
+        id,
         flight: flights[0],
-        flights: flights,
-        status: 'confirmed',
-        bookingDate: new Date().toISOString(),
-        totalPrice: totalPrice,
+        flights,
+        status: 'pending_payment',
+        bookingDate,
+        totalPrice,
         passengerName: details.passengerName,
         passportNumber: details.passportNumber,
         contactEmail: details.contactEmail,
-        phone: details.phone
-     };
+        phone: details.phone,
+      };
 
-     const stored = loadStoredBookings();
-     const next = [newBooking, ...stored.filter((b) => b.id !== newBooking.id)];
-     saveStoredBookings(next);
-     
-     // Navigate to confirmation with booking data
-     navigate('/booking/confirmation', { state: { booking: newBooking } });
+      navigate(`/my-bookings/${encodeURIComponent(id)}`, { state: { booking: newBooking } });
+    } catch (e: any) {
+      alert(e?.message || '下单失败');
+    }
   };
 
   return (

@@ -6,6 +6,11 @@ export interface ApiResult<T> {
   data: T;
 }
 
+export interface PageResult<T> {
+  total: number;
+  items: T[];
+}
+
 export class ApiError extends Error {
   code?: number;
   status?: number;

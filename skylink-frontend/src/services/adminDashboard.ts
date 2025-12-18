@@ -9,6 +9,21 @@ export interface AdminDashboardMetrics {
   configCount: number;
   operationLogCount: number;
   userBehaviorStatCount: number;
+
+  userCount: number;
+
+  todayOrderCount: number;
+  todayGmv: number;
+  totalGmv: number;
+  todayNewUsers: number;
+
+  upcomingFlights: number;
+  pendingRefundAudits: number;
+
+  flightStatusNormalCount: number;
+  flightStatusCancelledCount: number;
+  flightStatusDelayedCount: number;
+  flightStatusDivertedCount: number;
 }
 
 export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics> {

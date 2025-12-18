@@ -73,14 +73,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
         localStorage.setItem('token', res.token);
       }
 
+      const resolvedUserId = (res as any).userId ?? (res as any).id;
+      const resolvedUsername = (res as any).username ?? (res as any).displayName ?? account;
+
       onLogin({
-        id: res.userId,
-        username: res.username || account,
+        id: resolvedUserId,
+        username: resolvedUsername,
         email: isRegisterMode ? mail : undefined,
         phoneNumber: isAdminMode ? undefined : account,
         createdAt: new Date().toISOString(),
         role: res.role,
-        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(res.username || account)}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`
+        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedUsername)}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`
       });
     } catch (err: any) {
       alert(err?.message || '请求失败，请稍后再试');

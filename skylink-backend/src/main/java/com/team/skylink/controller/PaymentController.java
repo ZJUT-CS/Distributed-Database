@@ -2,6 +2,9 @@ package com.team.skylink.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.team.skylink.common.Result;
+import com.team.skylink.dto.ConfirmPaymentRequest;
+import com.team.skylink.dto.CreatePaymentTokenRequest;
+import com.team.skylink.dto.CreatePaymentTokenResponse;
 import com.team.skylink.dto.PaymentSearchResponse;
 import com.team.skylink.dto.CreatePaymentRequest;
 import com.team.skylink.entity.Order;
@@ -17,10 +20,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.springframework.web.bind.annotation.RequestBody;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping({"/payments", "/api/v1/payments"})
@@ -32,6 +37,26 @@ public class PaymentController {
         this.paymentMapper = paymentMapper;
         this.orderMapper = orderMapper;
     }
+
+    private static final long PAYMENT_TOKEN_TTL_MS = 30L * 60L * 1000L;
+
+    private static final class PaymentTokenRecord {
+        private final Long orderNo;
+        private final BigDecimal amount;
+        private final long timestamp;
+        private final long expiresAt;
+        private volatile boolean used;
+
+        private PaymentTokenRecord(Long orderNo, BigDecimal amount, long timestamp, long expiresAt) {
+            this.orderNo = orderNo;
+            this.amount = amount;
+            this.timestamp = timestamp;
+            this.expiresAt = expiresAt;
+            this.used = false;
+        }
+    }
+
+    private static final ConcurrentHashMap<String, PaymentTokenRecord> PAYMENT_TOKENS = new ConcurrentHashMap<>();
 
     @GetMapping("/search")
     public Result<List<PaymentSearchResponse>> search(
@@ -83,6 +108,99 @@ public class PaymentController {
             resp.add(r);
         }
         return Result.ok(resp);
+    }
+
+    @PostMapping("/confirm-token")
+    public Result<CreatePaymentTokenResponse> createConfirmToken(@Valid @RequestBody CreatePaymentTokenRequest req) {
+        Order o = orderMapper.selectById(req.getOrderNo());
+        if (o == null) {
+            return Result.fail(404, "order not found");
+        }
+        if (o.getOrderStatus() != null && o.getOrderStatus() == 1) {
+            return Result.fail(409, "order already paid");
+        }
+        if (o.getTotalAmount() != null && req.getAmount() != null && o.getTotalAmount().compareTo(req.getAmount()) != 0) {
+            return Result.fail(400, "amount mismatch");
+        }
+
+        long now = System.currentTimeMillis();
+        long expiresAt = now + PAYMENT_TOKEN_TTL_MS;
+        String token = UUID.randomUUID().toString();
+        PAYMENT_TOKENS.put(token, new PaymentTokenRecord(req.getOrderNo(), req.getAmount(), now, expiresAt));
+        return Result.ok(new CreatePaymentTokenResponse(req.getOrderNo(), req.getAmount(), now, token, expiresAt));
+    }
+
+    @PostMapping("/confirm")
+    public Result<PaymentSearchResponse> confirmPay(@Valid @RequestBody ConfirmPaymentRequest req) {
+        PaymentTokenRecord record = PAYMENT_TOKENS.get(req.getToken());
+        if (record == null) {
+            return Result.fail(400, "invalid token");
+        }
+        long now = System.currentTimeMillis();
+        if (record.expiresAt < now) {
+            PAYMENT_TOKENS.remove(req.getToken());
+            return Result.fail(400, "token expired");
+        }
+        if (!record.orderNo.equals(req.getOrderNo())) {
+            return Result.fail(400, "orderNo mismatch");
+        }
+        if (record.amount != null && req.getAmount() != null && record.amount.compareTo(req.getAmount()) != 0) {
+            return Result.fail(400, "amount mismatch");
+        }
+        if (record.timestamp != req.getTimestamp()) {
+            return Result.fail(400, "timestamp mismatch");
+        }
+
+        synchronized (record) {
+            if (record.used) {
+                return Result.fail(409, "token already used");
+            }
+            record.used = true;
+        }
+        PAYMENT_TOKENS.remove(req.getToken());
+
+        Order o = orderMapper.selectById(req.getOrderNo());
+        if (o == null) {
+            return Result.fail(404, "order not found");
+        }
+        if (o.getOrderStatus() != null && o.getOrderStatus() == 1) {
+            return Result.fail(409, "order already paid");
+        }
+        if (o.getTotalAmount() != null && req.getAmount() != null && o.getTotalAmount().compareTo(req.getAmount()) != 0) {
+            return Result.fail(400, "amount mismatch");
+        }
+
+        Payment exists = paymentMapper.selectOne(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
+        if (exists != null) {
+            return Result.fail(409, "payment already exists");
+        }
+
+        LocalDateTime payTime = LocalDateTime.now();
+        Payment p = new Payment();
+        p.setOrderId(o.getOrderId());
+        p.setPaymentAmount(req.getAmount());
+        p.setPaymentMethod(req.getMethod());
+        p.setPaymentStatus(1);
+        p.setTradeNo(UUID.randomUUID().toString());
+        p.setPaymentTime(payTime);
+        p.setCreateTime(payTime);
+        p.setUpdateTime(payTime);
+        paymentMapper.insert(p);
+
+        o.setOrderStatus(1);
+        o.setPayTime(payTime);
+        orderMapper.updateById(o);
+
+        PaymentSearchResponse r = new PaymentSearchResponse();
+        r.setPaymentId(p.getPaymentId());
+        r.setOrderNo(p.getOrderId());
+        r.setPaymentAmount(p.getPaymentAmount());
+        r.setPaymentMethod(p.getPaymentMethod());
+        r.setPaymentStatus(p.getPaymentStatus());
+        r.setTradeNo(p.getTradeNo());
+        r.setPaymentTime(p.getPaymentTime());
+        r.setRefundTime(p.getRefundTime());
+        return Result.ok(r);
     }
 
     @PostMapping("/pay")

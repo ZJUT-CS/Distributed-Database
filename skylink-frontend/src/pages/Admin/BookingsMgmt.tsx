@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Eye, Filter, Download, XCircle } from 'lucide-react';
-import { INITIAL_BOOKINGS } from '../../services/mockData';
+import { cancelAdminOrder, listAdminOrders, type AdminOrderItem } from '../../services/adminOrders';
 import Pagination from './components/Pagination';
 import TableActionMenu from './components/TableActionMenu';
 
@@ -11,14 +11,58 @@ const BookingsMgmt: React.FC = () => {
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const ITEMS_PER_PAGE = 8;
 
-  const filteredBookings = INITIAL_BOOKINGS.filter(b => 
-    (statusFilter === 'all' || b.status === statusFilter) &&
-    (b.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.customer.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-  
-  const totalPages = Math.ceil(filteredBookings.length / ITEMS_PER_PAGE);
-  const paginatedBookings = filteredBookings.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<AdminOrderItem[]>([]);
+  const [total, setTotal] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+
+  const normalizedSearch = useMemo(() => searchTerm.trim(), [searchTerm]);
+
+  const load = async (nextPage: number) => {
+    setLoading(true);
+    try {
+      const orderNo = normalizedSearch && /^\d+$/.test(normalizedSearch) ? normalizedSearch : undefined;
+      const orderStatus =
+        statusFilter === 'paid' ? 1 : statusFilter === 'pending' ? 0 : statusFilter === 'cancelled' ? 2 : undefined;
+
+      const res = await listAdminOrders({
+        page: nextPage,
+        size: ITEMS_PER_PAGE,
+        orderNo,
+        orderStatus,
+      });
+      setItems(res.items || []);
+      setTotal(res.total || 0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load(page);
+  }, [page, normalizedSearch, statusFilter]);
+
+  const mapStatusLabel = (s?: number | null) => {
+    if (s === 1) return { id: 'paid', label: '已支付' };
+    if (s === 0) return { id: 'pending', label: '待支付' };
+    if (s === 2) return { id: 'cancelled', label: '已取消' };
+    if (s === 3) return { id: 'refunded', label: '已退款' };
+    return { id: 'other', label: '其他' };
+  };
+
+  const handleCancel = async (orderNo: number) => {
+    if (!confirm('确定要取消该订单吗？')) return;
+    setLoading(true);
+    try {
+      await cancelAdminOrder(orderNo);
+      await load(page);
+    } catch (e: any) {
+      alert(e?.message || '取消失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -39,10 +83,13 @@ const BookingsMgmt: React.FC = () => {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input 
                 type="text" 
-                placeholder="搜索订单号、客户姓名..." 
+                placeholder="搜索订单号（数字）..." 
                 className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full transition-all"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
             />
         </div>
         
@@ -87,53 +134,72 @@ const BookingsMgmt: React.FC = () => {
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-                {paginatedBookings.map(b => (
-                <tr key={b.id} className="hover:bg-gray-50/80 transition-colors group">
-                    <td className="px-6 py-4 font-mono text-gray-600">{b.id}</td>
+                {items.map((b) => {
+                  const st = mapStatusLabel(b.orderStatus);
+                  const route = b.origin && b.destination ? `${b.origin} → ${b.destination}` : '-';
+                  const customerName = b.passengerName || (b.userId != null ? `用户#${b.userId}` : '-');
+                  return (
+                <tr key={String(b.orderNo)} className="hover:bg-gray-50/80 transition-colors group">
+                    <td className="px-6 py-4 font-mono text-gray-600">{b.orderNo}</td>
                     <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{b.customer.name}</div>
-                        <div className="text-xs text-gray-400">{b.customer.email}</div>
+                        <div className="font-medium text-gray-900">{customerName}</div>
+                        <div className="text-xs text-gray-400">{b.email || '-'}</div>
                     </td>
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                            <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-xs font-bold">{b.flight}</span>
+                            <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-xs font-bold">{b.flightNo || '-'}</span>
+                            <span className="text-xs text-gray-400">{route}</span>
                         </div>
                     </td>
-                    <td className="px-6 py-4 font-bold text-gray-900">¥{b.amount.toLocaleString()}</td>
+                    <td className="px-6 py-4 font-bold text-gray-900">¥{Number(b.totalAmount || 0).toLocaleString()}</td>
                     <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            b.status === 'paid' ? 'bg-green-50 text-green-700' : 
-                            b.status === 'pending' ? 'bg-yellow-50 text-yellow-700' : 
+                            st.id === 'paid' ? 'bg-green-50 text-green-700' : 
+                            st.id === 'pending' ? 'bg-yellow-50 text-yellow-700' : 
                             'bg-gray-100 text-gray-600'
                         }`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${
-                                b.status === 'paid' ? 'bg-green-500' : 
-                                b.status === 'pending' ? 'bg-yellow-500' : 
+                                st.id === 'paid' ? 'bg-green-500' : 
+                                st.id === 'pending' ? 'bg-yellow-500' : 
                                 'bg-gray-400'
                             }`}></span>
-                            {b.status === 'paid' ? '已支付' : b.status === 'pending' ? '待支付' : '已取消'}
+                            {st.label}
                         </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                         <TableActionMenu
-                          isOpen={activeActionId === b.id}
-                          onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === b.id ? null : b.id); }}
+                          isOpen={activeActionId === String(b.orderNo)}
+                          onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === String(b.orderNo) ? null : String(b.orderNo)); }}
                           onClose={() => setActiveActionId(null)}
                         >
-                            <button className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                            <button
+                              onClick={() => alert(`订单号：${b.orderNo}\n航班：${b.flightNo || '-'}\n金额：${b.totalAmount || 0}\n状态：${st.label}`)}
+                              className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
                                 <Eye className="w-3.5 h-3.5 text-blue-500" /> 查看详情
                             </button>
                             <button className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                                 <Download className="w-3.5 h-3.5 text-gray-500" /> 下载票据
                             </button>
                             <div className="h-px bg-gray-100 my-0"></div>
-                            <button className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2">
+                            <button
+                              onClick={() => handleCancel(b.orderNo)}
+                              disabled={b.orderStatus !== 0}
+                              className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-40"
+                            >
                                 <XCircle className="w-3.5 h-3.5" /> 取消订单
                             </button>
                         </TableActionMenu>
                     </td>
                 </tr>
-                ))}
+                )})}
+                {!loading && items.length === 0 && (
+                  <tr>
+                    <td className="px-6 py-10 text-center text-sm text-gray-400" colSpan={6}>
+                      暂无数据
+                    </td>
+                  </tr>
+                )}
             </tbody>
             </table>
         </div>
@@ -143,7 +209,7 @@ const BookingsMgmt: React.FC = () => {
           currentPage={page}
           totalPages={totalPages}
           setPage={setPage}
-          totalItems={filteredBookings.length}
+          totalItems={total}
           itemsPerPage={ITEMS_PER_PAGE}
         />
       </div>

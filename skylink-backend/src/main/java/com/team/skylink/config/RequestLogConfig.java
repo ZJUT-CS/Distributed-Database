@@ -170,8 +170,14 @@ public class RequestLogConfig implements WebMvcConfigurer {
             int q = normalized.indexOf('?');
             if (q >= 0) normalized = normalized.substring(0, q);
             if (normalized.startsWith("/")) normalized = normalized.substring(1);
-            int slash = normalized.indexOf('/');
-            String first = slash >= 0 ? normalized.substring(0, slash) : normalized;
+            String[] parts = normalized.split("/");
+            if (parts.length == 0) return "unknown";
+
+            String first = parts[0];
+            if ("api".equals(first) && parts.length >= 3 && "v1".equals(parts[1])) {
+                first = parts[2];
+            }
+
             if (first.isBlank()) return "unknown";
             return switch (first) {
                 case "flights" -> "flight";

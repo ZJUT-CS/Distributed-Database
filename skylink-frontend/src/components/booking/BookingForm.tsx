@@ -8,7 +8,7 @@ interface BookingFormProps {
   flights: Flight[];
   passengerCount: number;
   cabinClass: 'economy' | 'business' | 'first';
-  onConfirm: (details: BookingDetails) => void;
+  onConfirm: (details: BookingDetails) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -146,8 +146,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
       totalAmount: pricing.totalAmount,
     };
     window.setTimeout(() => {
-      onConfirm(details);
-      setLoading(false);
+      Promise.resolve(onConfirm(details)).finally(() => setLoading(false));
     }, 1200);
   };
 

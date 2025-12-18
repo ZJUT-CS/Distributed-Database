@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmedBooking } from '../../types';
 import { applyRefundChange } from '../../services/refundChange';
-import { payOrder } from '../../services/payments';
+import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '../../services/payments';
 import { cancelOrder } from '../../services/orders';
 import { ArrowLeft, Plane, Calendar, CheckCircle, XCircle, Route, Ticket, CircleDollarSign, AlertCircle, Clock, RefreshCw } from 'lucide-react';
 
@@ -26,6 +26,12 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
   const [selectedBooking, setSelectedBooking] = useState<ConfirmedBooking | null>(null);
   const [reason, setReason] = useState('');
   const [newFlight, setNewFlight] = useState('');
+  const [payModalOpen, setPayModalOpen] = useState(false);
+  const [payBooking, setPayBooking] = useState<ConfirmedBooking | null>(null);
+  const [payPreparing, setPayPreparing] = useState(false);
+  const [payConfirming, setPayConfirming] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [payToken, setPayToken] = useState<PaymentConfirmToken | null>(null);
 
   const totalCount = bookings.length;
   const confirmedCount = bookings.filter((b) => b.status === 'confirmed').length;
@@ -93,23 +99,51 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
   };
 
   const handlePay = (booking: ConfirmedBooking) => {
-    if (!window.confirm(`确认支付订单 ${booking.id} 吗？\n金额：¥${booking.totalPrice}`)) return;
+    const isExpired = Date.now() >= getPaymentDeadlineMs(booking.bookingDate);
+    if (isExpired) {
+      setActionError('订单已超时，无法支付');
+      return;
+    }
 
-    setActionError(null);
-    setActionLoading(true);
-    payOrder({
-      orderNo: booking.id,
-      amount: Number(booking.totalPrice || 0),
+    setPayPreparing(true);
+    setPayConfirming(false);
+    setPayError(null);
+    setPayBooking(booking);
+    createPaymentConfirmToken({ orderNo: booking.id, amount: Number(booking.totalPrice || 0) })
+      .then((token) => {
+        setPayToken(token);
+        setPayModalOpen(true);
+      })
+      .catch((e: any) => setPayError(e?.message || '支付准备失败'))
+      .finally(() => setPayPreparing(false));
+  };
+
+  const closePayModal = () => {
+    if (payConfirming) return;
+    setPayModalOpen(false);
+    setPayToken(null);
+    setPayBooking(null);
+    setPayError(null);
+  };
+
+  const handleConfirmPay = () => {
+    if (!payToken || !payBooking) return;
+    setPayConfirming(true);
+    setPayError(null);
+    confirmPayment({
+      orderNo: payToken.orderNo,
+      amount: Number(payToken.amount),
+      timestamp: payToken.timestamp,
+      token: payToken.token,
       method: 'CARD',
     })
       .then(() => {
-        onUpdateBooking(booking);
+        onUpdateBooking(payBooking);
+        closePayModal();
         alert('支付成功！');
       })
-      .catch((e: any) => {
-        setActionError(e?.message || '支付失败');
-      })
-      .finally(() => setActionLoading(false));
+      .catch((e: any) => setPayError(e?.message || '支付失败'))
+      .finally(() => setPayConfirming(false));
   };
 
   const handleCancelOrder = (booking: ConfirmedBooking) => {
@@ -215,14 +249,14 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
             </button>
             <button
               onClick={() => handlePay(booking)}
-              disabled={isExpired || actionLoading}
+              disabled={isExpired || actionLoading || payPreparing}
               className={`px-6 py-2 rounded-xl text-white text-sm font-bold transition-all shadow-lg shadow-orange-500/20 ${
-                isExpired
+                isExpired || payPreparing
                   ? 'bg-gray-300 cursor-not-allowed shadow-none'
                   : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
               }`}
             >
-              去支付
+              {payPreparing ? '准备中...' : '去支付'}
             </button>
           </div>
         );
@@ -525,6 +559,85 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
                 className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
               >
                 提交申请
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {payModalOpen && payToken && payBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-scale-up">
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-5 flex items-start justify-between">
+              <div>
+                <div className="text-white text-lg font-extrabold">支付确认</div>
+                <div className="text-white/90 text-sm mt-1">请核对订单信息后完成支付</div>
+              </div>
+              <button
+                type="button"
+                onClick={closePayModal}
+                disabled={payConfirming}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {(payError || null) && (
+                <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {payError}
+                </div>
+              )}
+
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                <div className="text-xs text-gray-500">订单号</div>
+                <div className="font-mono text-sm text-gray-800 mt-1 break-all">{payBooking.id}</div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-500">支付金额</div>
+                    <div className="text-lg font-extrabold text-gray-900 mt-0.5">
+                      ¥{Number(payBooking.totalPrice || 0).toLocaleString()}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">支付方式</div>
+                    <div className="text-sm font-bold text-gray-900 mt-1">银行卡/信用卡</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-white p-4">
+                <div className="text-sm font-bold text-gray-900">行程摘要</div>
+                <div className="text-sm text-gray-600 mt-2">
+                  {(payBooking.flights?.[0]?.origin || payBooking.flight?.origin || '-') +
+                    ' → ' +
+                    (payBooking.flights?.[(payBooking.flights?.length ?? 0) - 1]?.destination || payBooking.flight?.destination || '-')}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">乘客：{payBooking.passengerName}</div>
+              </div>
+
+              <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 text-xs text-orange-800">
+                支付确认令牌有效期 30 分钟，且仅可使用一次。
+              </div>
+            </div>
+
+            <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={closePayModal}
+                disabled={payConfirming}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-100 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPay}
+                disabled={payConfirming}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-500/20 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {payConfirming ? '支付中...' : '确认支付'}
               </button>
             </div>
           </div>

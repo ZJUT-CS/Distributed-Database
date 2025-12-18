@@ -1,8 +1,10 @@
 import { request } from './api';
 
 export interface LoginResponse {
-  userId: number | string;
-  username: string;
+  id?: number | string;
+  displayName?: string;
+  userId?: number | string;
+  username?: string;
   role: 'user' | 'admin';
   token: string;
 }
