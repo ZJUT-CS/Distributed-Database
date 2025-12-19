@@ -25,10 +25,15 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping({"/auth", "/api/v1/auth"})
 public class AuthController {
+    private static final ConcurrentHashMap<String, SessionIdentity> SESSIONS = new ConcurrentHashMap<>();
+    private static final String REQ_ATTR_USER_ID = "auth.userId";
+    private static final String REQ_ATTR_USER_TYPE = "auth.userType";
+
     private final UserMapper userMapper;
     private final AdminMapper adminMapper;
     private final PasswordEncoder passwordEncoder;
@@ -59,11 +64,14 @@ public class AuthController {
 
         // 用户表不记录最后登录时间字段，直接返回登录结果
 
+        String token = UUID.randomUUID().toString();
+        SESSIONS.put(token, new SessionIdentity(user.getUserId(), 1, System.currentTimeMillis()));
+
         LoginResponse resp = new LoginResponse(
                 user.getUserId(),
                 user.getPhoneNumber(),
                 "user",
-                UUID.randomUUID().toString()
+                token
         );
         return Result.ok(resp);
     }
@@ -86,11 +94,14 @@ public class AuthController {
         admin.setLastLoginTime(now);
         adminMapper.updateById(admin);
 
+        String token = UUID.randomUUID().toString();
+        SESSIONS.put(token, new SessionIdentity(admin.getAdminId(), 2, System.currentTimeMillis()));
+
         LoginResponse resp = new LoginResponse(
                 admin.getAdminId(),
                 admin.getUsername(),
                 "admin",
-                UUID.randomUUID().toString()
+                token
         );
         return Result.ok(resp);
     }
@@ -173,7 +184,7 @@ public class AuthController {
         Result<?> userGuard = ensureUser(request);
         if (userGuard != null) return (Result<UserProfileResponse>) userGuard;
 
-        Long userId = parseLongHeader(request, "X-User-Id");
+        Long userId = getAuthedUserId(request);
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
 
@@ -185,7 +196,7 @@ public class AuthController {
         Result<?> userGuard = ensureUser(request);
         if (userGuard != null) return (Result<UserProfileResponse>) userGuard;
 
-        Long userId = parseLongHeader(request, "X-User-Id");
+        Long userId = getAuthedUserId(request);
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
 
@@ -242,7 +253,7 @@ public class AuthController {
         if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) return Result.fail(400, "invalid email");
         if (!"123456".equals(req.getCode().trim())) return Result.fail(400, "invalid verify code");
 
-        Long userId = parseLongHeader(request, "X-User-Id");
+        Long userId = getAuthedUserId(request);
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
         u.setEmail(email);
@@ -270,7 +281,7 @@ public class AuthController {
         if (!phone.matches("^1[3-9]\\d{9}$")) return Result.fail(400, "invalid phone");
         if (!"123456".equals(req.getCode().trim())) return Result.fail(400, "invalid verify code");
 
-        Long userId = parseLongHeader(request, "X-User-Id");
+        Long userId = getAuthedUserId(request);
         User exists = userMapper.selectOne(new QueryWrapper<User>().eq("phone_number", phone).ne("user_id", userId));
         if (exists != null) return Result.fail(409, "phone number already exists");
 
@@ -287,7 +298,7 @@ public class AuthController {
         Result<?> userGuard = ensureUser(request);
         if (userGuard != null) return (Result<Boolean>) userGuard;
 
-        Long userId = parseLongHeader(request, "X-User-Id");
+        Long userId = getAuthedUserId(request);
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
 
@@ -303,12 +314,79 @@ public class AuthController {
         return Result.ok(rows > 0);
     }
 
-    private static Result<?> ensureUser(HttpServletRequest request) {
-        Long userId = parseLongHeader(request, "X-User-Id");
-        if (userId == null || userId <= 0) return Result.fail(401, "login required");
+    private static final class SessionIdentity {
+        private final Long userId;
+        private final Integer userType;
+        private final Long issuedAtMs;
 
-        String t = request.getHeader("X-User-Type");
-        if (t == null || (!"1".equals(t.trim()))) return Result.fail(403, "user required");
+        private SessionIdentity(Long userId, Integer userType, Long issuedAtMs) {
+            this.userId = userId;
+            this.userType = userType;
+            this.issuedAtMs = issuedAtMs;
+        }
+    }
+
+    private static String parseBearerToken(HttpServletRequest request) {
+        String v = request.getHeader("Authorization");
+        if (v == null || v.isBlank()) return null;
+        String trimmed = v.trim();
+        if (trimmed.length() < 8) return null;
+        if (!trimmed.regionMatches(true, 0, "Bearer ", 0, 7)) return null;
+        String token = trimmed.substring(7).trim();
+        return token.isEmpty() ? null : token;
+    }
+
+    private static Long getAuthedUserId(HttpServletRequest request) {
+        Object v = request.getAttribute(REQ_ATTR_USER_ID);
+        if (v instanceof Long) return (Long) v;
+        if (v instanceof Integer) return ((Integer) v).longValue();
+        if (v instanceof String) {
+            try {
+                return Long.parseLong(((String) v).trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static Integer getAuthedUserType(HttpServletRequest request) {
+        Object v = request.getAttribute(REQ_ATTR_USER_TYPE);
+        if (v instanceof Integer) return (Integer) v;
+        if (v instanceof Long) return ((Long) v).intValue();
+        if (v instanceof String) {
+            try {
+                return Integer.parseInt(((String) v).trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static Result<?> ensureUser(HttpServletRequest request) {
+        String token = parseBearerToken(request);
+        if (token != null) {
+            SessionIdentity s = SESSIONS.get(token);
+            if (s != null) {
+                request.setAttribute(REQ_ATTR_USER_ID, s.userId);
+                request.setAttribute(REQ_ATTR_USER_TYPE, s.userType);
+            }
+        }
+
+        if (getAuthedUserId(request) == null) {
+            Long userId = parseLongHeader(request, "X-User-Id");
+            if (userId != null) request.setAttribute(REQ_ATTR_USER_ID, userId);
+        }
+        if (getAuthedUserType(request) == null) {
+            String t = request.getHeader("X-User-Type");
+            if (t != null && !t.isBlank()) request.setAttribute(REQ_ATTR_USER_TYPE, t.trim());
+        }
+
+        Long userId = getAuthedUserId(request);
+        if (userId == null || userId <= 0) return Result.fail(401, "login required");
+        Integer userType = getAuthedUserType(request);
+        if (userType == null || userType != 1) return Result.fail(403, "user required");
         return null;
     }
 
