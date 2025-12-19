@@ -25,6 +25,10 @@ public class Order {
     private Integer orderStatus;
     private Integer ticketNum;
     private BigDecimal totalAmount;
+    private String passengerName;
+    private String contactEmail;
+    private String contactPhone;
+    private String passengersJson;
     private LocalDateTime orderTime;
     private LocalDateTime payTime;
     private LocalDateTime refundTime;

@@ -1,18 +1,15 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmedBooking } from '../../types';
-import { applyRefundChange } from '../../services/refundChange';
 import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '../../services/payments';
 import { cancelOrder } from '../../services/orders';
-import { ArrowLeft, Plane, Calendar, CheckCircle, XCircle, Route, Ticket, CircleDollarSign, AlertCircle, Clock, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plane, Calendar, CheckCircle, XCircle, Route, Ticket, CircleDollarSign, Clock, RefreshCw } from 'lucide-react';
 
 interface UserBookingsProps {
   bookings: ConfirmedBooking[];
   onBack: () => void;
   onUpdateBooking: (booking: ConfirmedBooking) => void;
 }
-
-type ModalType = 'refund' | 'change' | null;
 
 const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateBooking }) => {
   const navigate = useNavigate();
@@ -21,11 +18,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
 
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  
-  const [modalType, setModalType] = useState<ModalType>(null);
-  const [selectedBooking, setSelectedBooking] = useState<ConfirmedBooking | null>(null);
-  const [reason, setReason] = useState('');
-  const [newFlight, setNewFlight] = useState('');
+
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payBooking, setPayBooking] = useState<ConfirmedBooking | null>(null);
   const [payPreparing, setPayPreparing] = useState(false);
@@ -161,45 +154,6 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
       .finally(() => setActionLoading(false));
   };
 
-  const openApplicationModal = (booking: ConfirmedBooking, type: 'refund' | 'change') => {
-    setSelectedBooking(booking);
-    setModalType(type);
-    setReason('');
-    setNewFlight('');
-  };
-
-  const submitApplication = () => {
-    if (!selectedBooking || !modalType) return;
-    if (!reason.trim()) {
-      alert('请填写申请原因');
-      return;
-    }
-    if (modalType === 'change' && !newFlight.trim()) {
-      alert('请填写期望变更的航班');
-      return;
-    }
-
-    setActionError(null);
-    setActionLoading(true);
-    applyRefundChange({
-      orderNo: selectedBooking.id,
-      operType: modalType === 'refund' ? 1 : 2,
-      remark: reason,
-      newFlightNo: modalType === 'change' ? newFlight.trim() : undefined,
-      newCabinType: modalType === 'change' ? (selectedBooking.flight?.cabinType || 'economy') : undefined,
-    })
-      .then(() => {
-        onUpdateBooking(selectedBooking);
-        setModalType(null);
-        setSelectedBooking(null);
-        alert('申请已提交，请前往【退改/售后】页面查看进度。');
-      })
-      .catch((e: any) => {
-        setActionError(e?.message || '提交失败');
-      })
-      .finally(() => setActionLoading(false));
-  };
-
   const renderStatusBadge = (booking: ConfirmedBooking) => {
     switch (booking.status) {
       case 'confirmed':
@@ -263,26 +217,16 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
       }
       case 'confirmed':
         return (
-          <div className="flex gap-3 mt-4 lg:mt-0 lg:ml-auto">
-            <button
-              onClick={() => openApplicationModal(booking, 'change')}
-              className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 hover:text-blue-600 transition-all"
-            >
-              申请改签
-                <button
-                  onClick={submitApplication}
-                  disabled={actionLoading}
-                  className="px-6 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 text-white text-sm font-bold shadow-lg shadow-sky-500/20 hover:from-sky-600 hover:to-indigo-600 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {actionLoading ? '提交中...' : '提交申请'}
-                </button>
-            </button>
-            <button
-              onClick={() => navigate(`/my-bookings/${booking.id}`, { state: { booking } })}
-              className="px-4 py-2 rounded-xl bg-sky-50 text-sky-700 text-sm font-bold hover:bg-sky-100 transition-all"
-            >
-              详情
-            </button>
+          <div className="mt-4 lg:mt-0 lg:ml-auto flex flex-col items-end gap-2">
+            <div className="text-xs text-gray-500">退改签入口在订单详情页</div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => navigate(`/my-bookings/${booking.id}`, { state: { booking } })}
+                className="px-4 py-2 rounded-xl bg-sky-50 text-sky-700 text-sm font-bold hover:bg-sky-100 transition-all"
+              >
+                详情
+              </button>
+            </div>
           </div>
         );
       case 'refunding':
@@ -500,70 +444,6 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
           </div>
         </div>
       </div>
-
-      {/* Refund/Change Modal */}
-      {modalType && selectedBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-6 sm:p-8 animate-scale-up">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
-              {modalType === 'refund' ? '申请退票' : '申请改签'}
-            </h3>
-            <p className="text-sm text-gray-500 mb-6">
-              订单号: <span className="font-mono text-gray-700">{selectedBooking.id}</span>
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  {modalType === 'refund' ? '退票原因' : '改签原因'}
-                </label>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="请详细描述您的原因..."
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm min-h-[100px]"
-                />
-              </div>
-
-              {modalType === 'change' && (
-                <div>
-                   <label className="block text-sm font-bold text-gray-700 mb-1">
-                    期望变更的航班
-                  </label>
-                  <input
-                    value={newFlight}
-                    onChange={(e) => setNewFlight(e.target.value)}
-                    placeholder="例如：2025-01-01 CA1234"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                  />
-                </div>
-              )}
-
-              <div className="bg-blue-50 text-blue-800 text-xs p-4 rounded-xl flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <p>
-                  提交申请后，您的订单将被锁定。请前往“退改/售后”页面查看审核进度。审核通过后，款项将原路退回或完成改签。
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 mt-8">
-              <button
-                onClick={() => setModalType(null)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-all"
-              >
-                取消
-              </button>
-              <button
-                onClick={submitApplication}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
-              >
-                提交申请
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {payModalOpen && payToken && payBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">

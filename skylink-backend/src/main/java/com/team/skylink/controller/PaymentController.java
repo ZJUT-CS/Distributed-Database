@@ -235,8 +235,8 @@ public class PaymentController {
         o.setPayTime(now);
         orderMapper.updateById(o);
         PaymentSearchResponse r = new PaymentSearchResponse();
-        r.setPaymentId(p.getPaymentId());
-        r.setOrderNo(p.getOrderId());
+        r.setPaymentId(String.valueOf(p.getPaymentId()));
+        r.setOrderNo(String.valueOf(p.getOrderId()));
         r.setPaymentAmount(p.getPaymentAmount());
         r.setPaymentMethod(p.getPaymentMethod());
         r.setPaymentStatus(p.getPaymentStatus());

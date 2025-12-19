@@ -20,5 +20,12 @@ public class CreateOrderRequest {
     @NotNull(message = "ticketNum is required")
     @Min(value = 1, message = "ticketNum must be >= 1")
     private Integer ticketNum;
+
+    @NotBlank(message = "passengerName is required")
+    private String passengerName;
+
+    private String contactEmail;
+    private String contactPhone;
+    private String passengersJson;
 }
 

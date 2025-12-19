@@ -47,3 +47,68 @@ export async function registerApi(payload: RegisterRequest): Promise<boolean> {
 export async function adminRegisterApi(payload: AdminRegisterRequest): Promise<boolean> {
   return request<boolean>({ method: 'POST', url: '/auth/admin/register', data: payload });
 }
+
+export interface UserProfileResponse {
+  userId: number | string;
+  phoneNumber?: string | null;
+  email?: string | null;
+  realName?: string | null;
+  idCard?: string | null;
+  gender?: 0 | 1 | 2 | number | null;
+  avatarUrl?: string | null;
+  createTime?: string | null;
+}
+
+export async function getMyProfile(): Promise<UserProfileResponse> {
+  return request<UserProfileResponse>({ method: 'GET', url: '/api/v1/auth/user/me' });
+}
+
+export async function updateMyProfile(payload: {
+  email?: string | null;
+  avatarUrl?: string | null;
+  gender?: 0 | 1 | 2 | number | null;
+  realName?: string | null;
+  idCard?: string | null;
+}): Promise<UserProfileResponse> {
+  return request<UserProfileResponse>({ method: 'PUT', url: '/api/v1/auth/user/profile', data: payload });
+}
+
+export async function sendEmailCode(targetEmail: string): Promise<boolean> {
+  return request<boolean>({
+    method: 'POST',
+    url: '/api/v1/auth/user/email/send-code',
+    data: { target: targetEmail },
+  });
+}
+
+export async function bindEmail(payload: { email: string; code: string }): Promise<UserProfileResponse> {
+  return request<UserProfileResponse>({
+    method: 'PUT',
+    url: '/api/v1/auth/user/email',
+    data: { value: payload.email, code: payload.code },
+  });
+}
+
+export async function sendPhoneCode(targetPhone: string): Promise<boolean> {
+  return request<boolean>({
+    method: 'POST',
+    url: '/api/v1/auth/user/phone/send-code',
+    data: { target: targetPhone },
+  });
+}
+
+export async function bindPhone(payload: { phone: string; code: string }): Promise<UserProfileResponse> {
+  return request<UserProfileResponse>({
+    method: 'PUT',
+    url: '/api/v1/auth/user/phone',
+    data: { value: payload.phone, code: payload.code },
+  });
+}
+
+export async function changePassword(payload: { oldPassword: string; newPassword: string }): Promise<boolean> {
+  return request<boolean>({
+    method: 'PUT',
+    url: '/api/v1/auth/user/password',
+    data: payload,
+  });
+}

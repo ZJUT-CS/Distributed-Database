@@ -2,6 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CalendarDays, Check, Lock, Mail, Phone, Shield, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import {
+  bindEmail,
+  bindPhone,
+  changePassword,
+  getMyProfile,
+  sendEmailCode as sendEmailCodeApi,
+  sendPhoneCode as sendPhoneCodeApi,
+  updateMyProfile,
+} from '../../services/auth';
 
 type TabKey = 'profile' | 'security';
 type ToastState = { type: 'success' | 'error'; message: string };
@@ -21,6 +30,8 @@ const UserCenterPage: React.FC = () => {
 
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [emailDraft, setEmailDraft] = useState('');
+  const [emailCodeDraft, setEmailCodeDraft] = useState('');
+  const [isEmailCodeSent, setIsEmailCodeSent] = useState(false);
 
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState('');
@@ -36,6 +47,10 @@ const UserCenterPage: React.FC = () => {
   const [idCardDraft, setIdCardDraft] = useState('');
   const [idCardError, setIdCardError] = useState('');
   const [genderDraft, setGenderDraft] = useState<0 | 1 | 2>(0);
+  const [syncing, setSyncing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [sendingPhone, setSendingPhone] = useState(false);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -50,6 +65,8 @@ const UserCenterPage: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     setEmailDraft(user.email || '');
+    setEmailCodeDraft('');
+    setIsEmailCodeSent(false);
     setPhoneDraft(user.phoneNumber || '');
     setRealNameDraft(user.realName || '');
     setIdCardDraft(user.idCard || '');
@@ -62,6 +79,34 @@ const UserCenterPage: React.FC = () => {
   const showToast = (type: ToastState['type'], message: string) => {
     setToast({ type, message });
   };
+
+  const applyProfileToLocalUser = (p: any) => {
+    const genderRaw = p?.gender;
+    const g: 0 | 1 | 2 = genderRaw === 1 || genderRaw === 2 ? genderRaw : 0;
+    updateUser({
+      id: p?.userId ?? user?.id,
+      phoneNumber: p?.phoneNumber ?? undefined,
+      email: p?.email ?? undefined,
+      realName: p?.realName ?? undefined,
+      idCard: p?.idCard ?? undefined,
+      gender: g,
+      avatarUrl: p?.avatarUrl ?? undefined,
+      createdAt: p?.createTime ? String(p.createTime) : user?.createdAt,
+    });
+  };
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setSyncing(true);
+    getMyProfile()
+      .then((p) => {
+        applyProfileToLocalUser(p);
+      })
+      .catch((e: any) => {
+        showToast('error', e?.message || '同步个人资料失败');
+      })
+      .finally(() => setSyncing(false));
+  }, [user?.id]);
 
   const maskPhone = (phone?: string) => {
     if (!phone) return '未绑定';
@@ -118,6 +163,7 @@ const UserCenterPage: React.FC = () => {
   };
 
   const handleSubmitRealName = () => {
+    if (saving) return;
     if (isVerified) {
       alert('实名信息无法直接修改，请联系客服人工审核。');
       return;
@@ -135,18 +181,54 @@ const UserCenterPage: React.FC = () => {
       return;
     }
     setIdCardError('');
-    updateUser({ realName: rn, idCard: id });
-    showToast('success', '✅ 个人资料已更新');
+    setSaving(true);
+    updateMyProfile({ realName: rn, idCard: id })
+      .then((p) => {
+        applyProfileToLocalUser(p);
+        showToast('success', '✅ 个人资料已更新');
+      })
+      .catch((e: any) => showToast('error', e?.message || '实名认证失败'))
+      .finally(() => setSaving(false));
   };
 
   const handleSaveProfile = () => {
-    updateUser({ gender: genderDraft });
-    showToast('success', '✅ 个人资料已更新');
+    if (saving) return;
+    setSaving(true);
+    updateMyProfile({ gender: genderDraft })
+      .then((p) => {
+        applyProfileToLocalUser(p);
+        showToast('success', '✅ 个人资料已更新');
+      })
+      .catch((e: any) => showToast('error', e?.message || '保存失败'))
+      .finally(() => setSaving(false));
   };
 
   const openEmailModal = () => {
     setEmailDraft(user?.email || '');
+    setEmailCodeDraft('');
+    setIsEmailCodeSent(false);
     setIsEmailModalOpen(true);
+  };
+
+  const sendEmailVerifyCode = () => {
+    const v = emailDraft.trim();
+    if (!v) {
+      showToast('error', '请输入邮箱');
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(v)) {
+      showToast('error', '邮箱格式不正确');
+      return;
+    }
+    if (sendingEmail) return;
+    setSendingEmail(true);
+    sendEmailCodeApi(v)
+      .then(() => {
+        setIsEmailCodeSent(true);
+        showToast('success', '验证码已发送');
+      })
+      .catch((e: any) => showToast('error', e?.message || '发送失败'))
+      .finally(() => setSendingEmail(false));
   };
 
   const saveEmail = () => {
@@ -159,9 +241,24 @@ const UserCenterPage: React.FC = () => {
       showToast('error', '邮箱格式不正确');
       return;
     }
-    updateUser({ email: v });
-    setIsEmailModalOpen(false);
-    showToast('success', '✅ 个人资料已更新');
+    if (!isEmailCodeSent) {
+      showToast('error', '请先发送验证码');
+      return;
+    }
+    if (!emailCodeDraft.trim()) {
+      showToast('error', '请输入验证码');
+      return;
+    }
+    if (saving) return;
+    setSaving(true);
+    bindEmail({ email: v, code: emailCodeDraft.trim() })
+      .then((p) => {
+        applyProfileToLocalUser(p);
+        setIsEmailModalOpen(false);
+        showToast('success', '✅ 个人资料已更新');
+      })
+      .catch((e: any) => showToast('error', e?.message || '保存失败'))
+      .finally(() => setSaving(false));
   };
 
   const openPhoneModal = () => {
@@ -177,9 +274,15 @@ const UserCenterPage: React.FC = () => {
       showToast('error', '手机号格式不正确');
       return;
     }
-    console.log('验证码：123456');
-    setIsPhoneCodeSent(true);
-    showToast('success', '验证码已发送');
+    if (sendingPhone) return;
+    setSendingPhone(true);
+    sendPhoneCodeApi(v)
+      .then(() => {
+        setIsPhoneCodeSent(true);
+        showToast('success', '验证码已发送');
+      })
+      .catch((e: any) => showToast('error', e?.message || '发送失败'))
+      .finally(() => setSendingPhone(false));
   };
 
   const savePhone = () => {
@@ -192,13 +295,20 @@ const UserCenterPage: React.FC = () => {
       showToast('error', '请先发送验证码');
       return;
     }
-    if (phoneCodeDraft.trim() !== '123456') {
-      showToast('error', '验证码错误');
+    if (!phoneCodeDraft.trim()) {
+      showToast('error', '请输入验证码');
       return;
     }
-    updateUser({ phoneNumber: v });
-    setIsPhoneModalOpen(false);
-    showToast('success', '✅ 个人资料已更新');
+    if (saving) return;
+    setSaving(true);
+    bindPhone({ phone: v, code: phoneCodeDraft.trim() })
+      .then((p) => {
+        applyProfileToLocalUser(p);
+        setIsPhoneModalOpen(false);
+        showToast('success', '✅ 个人资料已更新');
+      })
+      .catch((e: any) => showToast('error', e?.message || '保存失败'))
+      .finally(() => setSaving(false));
   };
 
   const openPasswordModal = () => {
@@ -209,6 +319,7 @@ const UserCenterPage: React.FC = () => {
   };
 
   const submitPasswordReset = () => {
+    if (saving) return;
     if (!oldPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
       showToast('error', '请完整填写密码信息');
       return;
@@ -217,12 +328,18 @@ const UserCenterPage: React.FC = () => {
       showToast('error', '两次输入的新密码不一致');
       return;
     }
-    setIsPasswordModalOpen(false);
-    showToast('success', '✅ 密码修改成功，请重新登录');
-    window.setTimeout(() => {
-      logout();
-      navigate('/login');
-    }, 600);
+    setSaving(true);
+    changePassword({ oldPassword: oldPassword.trim(), newPassword: newPassword.trim() })
+      .then(() => {
+        setIsPasswordModalOpen(false);
+        showToast('success', '✅ 密码修改成功，请重新登录');
+        window.setTimeout(() => {
+          logout();
+          navigate('/login');
+        }, 600);
+      })
+      .catch((e: any) => showToast('error', e?.message || '修改失败'))
+      .finally(() => setSaving(false));
   };
 
   if (!user) return <Navigate to="/login" replace />;
@@ -271,7 +388,7 @@ const UserCenterPage: React.FC = () => {
             </div>
 
             <div className="text-xs sm:text-sm font-semibold text-white/85">
-              注册 {getRegisterDays(user.createdAt)} 天
+              {syncing ? '同步中...' : `注册 ${getRegisterDays(user.createdAt)} 天`}
             </div>
           </div>
         </div>
@@ -438,9 +555,12 @@ const UserCenterPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleSubmitRealName}
-                        className="px-5 py-2.5 rounded-2xl bg-sky-600 text-white text-sm font-bold hover:bg-sky-700 transition-colors shadow-lg shadow-sky-500/20"
+                        disabled={saving}
+                        className={`px-5 py-2.5 rounded-2xl bg-sky-600 text-white text-sm font-bold transition-colors shadow-lg shadow-sky-500/20 ${
+                          saving ? 'opacity-60 cursor-not-allowed' : 'hover:bg-sky-700'
+                        }`}
                       >
-                        提交认证
+                        {saving ? '提交中...' : '提交认证'}
                       </button>
                     </div>
                   )}
@@ -502,9 +622,12 @@ const UserCenterPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleSaveProfile}
-                      className="px-6 py-2.5 rounded-2xl bg-sky-600 text-white text-sm font-bold hover:bg-sky-700 transition-colors shadow-lg shadow-sky-500/20"
+                      disabled={saving}
+                      className={`px-6 py-2.5 rounded-2xl bg-sky-600 text-white text-sm font-bold transition-colors shadow-lg shadow-sky-500/20 ${
+                        saving ? 'opacity-60 cursor-not-allowed' : 'hover:bg-sky-700'
+                      }`}
                     >
-                      保存基本资料
+                      {saving ? '保存中...' : '保存基本资料'}
                     </button>
                   </div>
                 </div>
@@ -578,9 +701,9 @@ const UserCenterPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 sm:p-8">
             <div className="text-lg font-bold text-gray-900">{user.email ? '修改邮箱' : '绑定邮箱'}</div>
-            <div className="mt-1 text-sm text-gray-500">用于接收出票与航班变动通知</div>
+            <div className="mt-1 text-sm text-gray-500">验证码为模拟发送（固定为 123456）</div>
 
-            <div className="mt-5">
+            <div className="mt-5 space-y-4">
               <div className="text-xs font-bold text-gray-500 mb-1">邮箱</div>
               <input
                 value={emailDraft}
@@ -588,6 +711,29 @@ const UserCenterPage: React.FC = () => {
                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-sky-500 outline-none text-sm"
                 placeholder="例如：name@example.com"
               />
+              <div className="grid grid-cols-[1fr_auto] gap-3">
+                <input
+                  value={emailCodeDraft}
+                  onChange={(e) => setEmailCodeDraft(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-sky-500 outline-none text-sm"
+                  placeholder="请输入验证码"
+                />
+                <button
+                  type="button"
+                  onClick={sendEmailVerifyCode}
+                  disabled={sendingEmail}
+                  className={`px-4 py-3 rounded-2xl border text-gray-700 text-sm font-bold transition-colors ${
+                    sendingEmail ? 'border-gray-200 opacity-60 cursor-not-allowed' : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {sendingEmail ? '发送中' : '发送'}
+                </button>
+              </div>
+              {isEmailCodeSent && (
+                <div className="text-xs text-gray-500 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-500" /> 已发送验证码
+                </div>
+              )}
             </div>
 
             <div className="mt-7 flex items-center gap-3">
@@ -601,9 +747,12 @@ const UserCenterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={saveEmail}
-                className="flex-1 px-4 py-2.5 rounded-2xl bg-sky-600 text-white font-bold hover:bg-sky-700 transition-colors"
+                disabled={saving}
+                className={`flex-1 px-4 py-2.5 rounded-2xl bg-sky-600 text-white font-bold transition-colors ${
+                  saving ? 'opacity-60 cursor-not-allowed' : 'hover:bg-sky-700'
+                }`}
               >
-                保存
+                {saving ? '保存中...' : '保存'}
               </button>
             </div>
           </div>
@@ -614,7 +763,7 @@ const UserCenterPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 sm:p-8">
             <div className="text-lg font-bold text-gray-900">修改手机号</div>
-            <div className="mt-1 text-sm text-gray-500">验证码为模拟发送，发送后请查看控制台输出</div>
+            <div className="mt-1 text-sm text-gray-500">验证码为模拟发送（固定为 123456）</div>
 
             <div className="mt-5 space-y-4">
               <div>
@@ -637,9 +786,12 @@ const UserCenterPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={sendPhoneCode}
-                  className="px-4 py-3 rounded-2xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors"
+                  disabled={sendingPhone}
+                  className={`px-4 py-3 rounded-2xl border text-gray-700 text-sm font-bold transition-colors ${
+                    sendingPhone ? 'border-gray-200 opacity-60 cursor-not-allowed' : 'border-gray-200 hover:bg-gray-50'
+                  }`}
                 >
-                  发送
+                  {sendingPhone ? '发送中' : '发送'}
                 </button>
               </div>
 
@@ -661,9 +813,12 @@ const UserCenterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={savePhone}
-                className="flex-1 px-4 py-2.5 rounded-2xl bg-sky-600 text-white font-bold hover:bg-sky-700 transition-colors"
+                disabled={saving}
+                className={`flex-1 px-4 py-2.5 rounded-2xl bg-sky-600 text-white font-bold transition-colors ${
+                  saving ? 'opacity-60 cursor-not-allowed' : 'hover:bg-sky-700'
+                }`}
               >
-                保存
+                {saving ? '保存中...' : '保存'}
               </button>
             </div>
           </div>
@@ -720,9 +875,12 @@ const UserCenterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={submitPasswordReset}
-                className="flex-1 px-4 py-2.5 rounded-2xl bg-sky-600 text-white font-bold hover:bg-sky-700 transition-colors"
+                disabled={saving}
+                className={`flex-1 px-4 py-2.5 rounded-2xl bg-sky-600 text-white font-bold transition-colors ${
+                  saving ? 'opacity-60 cursor-not-allowed' : 'hover:bg-sky-700'
+                }`}
               >
-                确认修改
+                {saving ? '提交中...' : '确认修改'}
               </button>
             </div>
           </div>

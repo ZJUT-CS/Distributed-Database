@@ -12,6 +12,9 @@ public class OrderSearchResponse {
     private String orderNo;
     private String flightNo;
     private String passengerName;
+    private String contactEmail;
+    private String contactPhone;
+    private String passengersJson;
     private Integer orderStatus;
     private BigDecimal totalAmount;
     private LocalDateTime orderTime;

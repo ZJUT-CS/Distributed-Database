@@ -2,50 +2,90 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import UserBookings from '../../components/user/UserBookings';
 import { useAuth } from '../../hooks/useAuth';
-import { ConfirmedBooking } from '../../types';
+import { ConfirmedBooking, type PassengerInfo } from '../../types';
 import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, RefreshCw, Clock } from 'lucide-react';
 import { searchOrders, type OrderSearchResult } from '../../services/orders';
 import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '../../services/payments';
 import { cancelOrder } from '../../services/orders';
+import { loadOrderPassengers } from '../../services/storage';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
-const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => ({
-  id: String(o.orderNo),
+const parsePassengersJson = (raw?: string | null): PassengerInfo[] | undefined => {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as any;
+    if (!Array.isArray(parsed)) return undefined;
+    const next = parsed
+      .map((p) => ({
+        name: String(p?.name ?? '').trim(),
+        idCard: String(p?.idCard ?? p?.passportNumber ?? p?.id ?? '').trim(),
+        type: (String(p?.type ?? '').toLowerCase() === 'child' || p?.type === 1 ? 'child' : 'adult') as 'child' | 'adult',
+      }))
+      .filter((p) => !!p.name || !!p.idCard);
+    return next.length > 0 ? next : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const maskIdCard = (id?: string) => {
+  const v = String(id ?? '').trim();
+  if (!v) return '';
+  if (v.length < 8) return v;
+  return `${v.slice(0, 6)}********${v.slice(-4)}`;
+};
+
+const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
+  const id = String(o.orderNo);
+  const passengers = parsePassengersJson(o.passengersJson) ?? loadOrderPassengers(id) ?? [];
+
+  return {
+  id,
   flight: {
     id: o.flightNo || '',
+    airline: '',
+    airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
     flightNumber: o.flightNo || '',
+    cabinType: 'economy',
     origin: o.origin || '',
     destination: o.destination || '',
     departureTime: o.departureTime || '',
     arrivalTime: o.arrivalTime || '',
     price: Number(o.totalAmount || 0),
-    airline: '',
-    duration: '',
-    cabinType: '',
     remainingSeats: 0,
+    duration: '',
+    stops: 0,
+    baggageWeight: 23,
+    amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
   },
   flights: [{
     id: o.flightNo || '',
+    airline: '',
+    airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
     flightNumber: o.flightNo || '',
+    cabinType: 'economy',
     origin: o.origin || '',
     destination: o.destination || '',
     departureTime: o.departureTime || '',
     arrivalTime: o.arrivalTime || '',
     price: Number(o.totalAmount || 0),
-    airline: '',
-    duration: '',
-    cabinType: '',
     remainingSeats: 0,
+    duration: '',
+    stops: 0,
+    baggageWeight: 23,
+    amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
   }],
   status: o.orderStatus === 0 ? 'pending_payment' : o.orderStatus === 1 ? 'confirmed' : o.orderStatus === 2 ? 'cancelled' : 'cancelled',
   bookingDate: o.orderTime || new Date().toISOString(),
   totalPrice: Number(o.totalAmount || 0),
-  passengerName: o.passengerName || '',
+  passengerName: o.passengerName || passengers[0]?.name || '',
   passportNumber: '',
-  contactEmail: '',
-  phone: '',
-});
+  passengers,
+  contactEmail: o.contactEmail || '',
+  phone: o.contactPhone || '',
+  };
+};
 
 const formatLocalYmd = (d: Date) => {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -214,6 +254,7 @@ export const BookingDetailsPage: React.FC = () => {
   const first = flights[0];
   const last = flights[flights.length - 1];
   const isConfirmed = booking.status === 'confirmed';
+  const passengerList = Array.isArray(booking.passengers) && booking.passengers.length > 0 ? booking.passengers : [];
 
   const formatTime = (isoString?: string) => {
     if (!isoString) return '';
@@ -228,6 +269,10 @@ export const BookingDetailsPage: React.FC = () => {
     if (window.confirm('是否申请退改签服务？\n\n提交申请后，请在“退改/售后”页面查看进度。')) {
       navigate('/refunds-help');
     }
+  };
+
+  const openChangePage = () => {
+    navigate(`/booking/change?orderNo=${encodeURIComponent(booking.id)}`, { state: { booking } });
   };
 
   const renderStatusBadge = () => {
@@ -339,13 +384,22 @@ export const BookingDetailsPage: React.FC = () => {
 
         <div className="flex gap-3">
           {booking.status === 'confirmed' && (
-            <button
-              onClick={handleRefundChange}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 hover:text-red-600 transition-all shadow-sm"
-            >
-              <RefreshCw className="w-4 h-4" />
-              申请退改
-            </button>
+            <>
+              <button
+                onClick={openChangePage}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-50 text-sky-700 border border-sky-100 text-sm font-bold hover:bg-sky-100 transition-all shadow-sm"
+              >
+                <Plane className="w-4 h-4" />
+                申请改签
+              </button>
+              <button
+                onClick={handleRefundChange}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 hover:text-red-600 transition-all shadow-sm"
+              >
+                <RefreshCw className="w-4 h-4" />
+                退改/售后
+              </button>
+            </>
           )}
           {booking.status === 'pending_payment' && (
              <button
@@ -394,8 +448,11 @@ export const BookingDetailsPage: React.FC = () => {
                   <Ticket className="w-5 h-5" />
                 </div>
               </div>
-              <div className="mt-2 text-lg font-bold text-gray-900 truncate">{booking.passengerName}</div>
-              <div className="mt-1 text-xs text-gray-500">{booking.contactEmail || '-'}</div>
+              <div className="mt-2 text-lg font-bold text-gray-900 truncate">{booking.passengerName || '-'}</div>
+              <div className="mt-1 text-xs text-gray-500">
+                {(booking.contactEmail || booking.phone) ? `${booking.contactEmail || '-'} ${booking.phone ? `• ${booking.phone}` : ''}` : '-'}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">共 {Math.max(1, passengerList.length || 0)} 人</div>
             </div>
 
             <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-indigo-50 to-white p-5">
@@ -407,6 +464,28 @@ export const BookingDetailsPage: React.FC = () => {
               </div>
               <div className="mt-2 text-2xl font-bold text-gray-900">¥{(booking.totalPrice || 0).toLocaleString()}</div>
               <div className="mt-1 text-xs text-gray-500">含税总价</div>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-gray-100 bg-white overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between gap-4">
+              <div className="text-sm font-bold text-gray-900">乘客信息</div>
+              {detailLoading && <div className="text-xs text-gray-500">加载中...</div>}
+            </div>
+            <div className="p-6">
+              {passengerList.length === 0 ? (
+                <div className="text-sm text-gray-500">暂无乘客信息</div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {passengerList.map((p, idx) => (
+                    <div key={`${booking.id}-p-${idx}`} className="rounded-2xl border border-slate-100 bg-white p-4">
+                      <div className="text-sm font-bold text-gray-900 truncate">{p.name || '-'}</div>
+                      <div className="mt-1 text-xs text-gray-500 font-mono break-all">{maskIdCard(p.idCard) || '-'}</div>
+                      <div className="mt-2 text-xs text-gray-500">{p.type === 'child' ? '儿童' : '成人'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

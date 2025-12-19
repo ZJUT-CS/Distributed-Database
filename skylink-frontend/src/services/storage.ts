@@ -1,8 +1,9 @@
-import { ConfirmedBooking, RefundChangeRecord } from '../types';
+import { ConfirmedBooking, RefundChangeRecord, type PassengerInfo } from '../types';
 
 const STORAGE_KEYS = {
   BOOKINGS: 'skylink_user_bookings',
   REFUNDS: 'skylink_refund_change_records',
+  ORDER_PASSENGERS_PREFIX: 'skylink_order_passengers_',
 };
 
 // Bookings
@@ -23,6 +24,49 @@ export const saveStoredBookings = (items: ConfirmedBooking[]) => {
     localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(items));
   } catch {
     // ignore
+  }
+};
+
+const normalizePassengerList = (raw: unknown): PassengerInfo[] | undefined => {
+  if (!Array.isArray(raw)) return undefined;
+  const list = raw
+    .map((p) => {
+      const obj = p as any;
+      const name = String(obj?.name ?? '').trim();
+      const idCard = String(obj?.idCard ?? obj?.passportNumber ?? '').trim();
+      const type = obj?.type === 'child' ? 'child' : 'adult';
+      return { name, idCard, type } as PassengerInfo;
+    })
+    .filter((p) => !!p.name || !!p.idCard);
+  return list.length > 0 ? list : undefined;
+};
+
+export const saveOrderPassengers = (orderId: string | number, passengers?: PassengerInfo[]) => {
+  const id = String(orderId ?? '').trim();
+  if (!id) return;
+  try {
+    const sanitized = normalizePassengerList(passengers);
+    const key = `${STORAGE_KEYS.ORDER_PASSENGERS_PREFIX}${id}`;
+    if (!sanitized) {
+      localStorage.removeItem(key);
+      return;
+    }
+    localStorage.setItem(key, JSON.stringify(sanitized));
+  } catch {
+    // ignore
+  }
+};
+
+export const loadOrderPassengers = (orderId: string | number): PassengerInfo[] | undefined => {
+  const id = String(orderId ?? '').trim();
+  if (!id) return undefined;
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEYS.ORDER_PASSENGERS_PREFIX}${id}`);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as unknown;
+    return normalizePassengerList(parsed);
+  } catch {
+    return undefined;
   }
 };
 

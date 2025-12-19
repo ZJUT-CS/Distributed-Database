@@ -5,6 +5,7 @@ import Home from '../pages/Home';
 import FlightResult from '../pages/FlightResult';
 import Booking from '../pages/Booking';
 import Confirmation from '../pages/Booking/Confirmation';
+import ChangeFlight from '../pages/Booking/ChangeFlight';
 import Login from '../pages/User/Login';
 import AdminApply from '../pages/User/AdminApply';
 import Profile from '../pages/User/Profile';
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
       { path: 'results', element: <FlightResult /> },
       { path: 'booking', element: <Booking /> },
       { path: 'booking/confirmation', element: <Confirmation /> },
+      { path: 'booking/change', element: <ChangeFlight /> },
       { path: 'profile', element: <Profile /> },
       { path: 'settings', element: <Settings /> },
       { path: 'my-bookings', element: <UserBookings /> },

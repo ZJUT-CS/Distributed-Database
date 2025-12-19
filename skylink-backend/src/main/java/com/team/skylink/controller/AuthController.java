@@ -10,9 +10,14 @@ import com.team.skylink.entity.Admin;
 import com.team.skylink.entity.User;
 import com.team.skylink.mapper.AdminMapper;
 import com.team.skylink.mapper.UserMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -161,5 +166,215 @@ public class AuthController {
 
         int rows = userMapper.insert(user);
         return Result.ok(rows > 0);
+    }
+
+    @GetMapping("/user/me")
+    public Result<UserProfileResponse> me(HttpServletRequest request) {
+        Result<?> userGuard = ensureUser(request);
+        if (userGuard != null) return (Result<UserProfileResponse>) userGuard;
+
+        Long userId = parseLongHeader(request, "X-User-Id");
+        User u = userMapper.selectById(userId);
+        if (u == null) return Result.fail(404, "user not found");
+
+        return Result.ok(UserProfileResponse.from(u));
+    }
+
+    @PutMapping("/user/profile")
+    public Result<UserProfileResponse> updateProfile(HttpServletRequest request, @Valid @RequestBody UpdateProfileRequest req) {
+        Result<?> userGuard = ensureUser(request);
+        if (userGuard != null) return (Result<UserProfileResponse>) userGuard;
+
+        Long userId = parseLongHeader(request, "X-User-Id");
+        User u = userMapper.selectById(userId);
+        if (u == null) return Result.fail(404, "user not found");
+
+        if (req.getGender() != null) {
+            int g = req.getGender();
+            if (g != 0 && g != 1 && g != 2) return Result.fail(400, "invalid gender");
+            u.setGender(g);
+        }
+
+        if (req.getAvatarUrl() != null) {
+            String v = req.getAvatarUrl().trim();
+            if (v.length() > 512) return Result.fail(400, "avatarUrl too long");
+            if (!v.isEmpty() && !(v.startsWith("http://") || v.startsWith("https://"))) return Result.fail(400, "invalid avatarUrl");
+            u.setAvatarUrl(v.isEmpty() ? null : v);
+        }
+
+        if (req.getEmail() != null) {
+            String v = req.getEmail().trim();
+            if (!v.isEmpty() && !v.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) return Result.fail(400, "invalid email");
+            u.setEmail(v.isEmpty() ? null : v);
+        }
+
+        if (req.getRealName() != null || req.getIdCard() != null) {
+            if (u.getIdCard() != null && !u.getIdCard().isBlank()) return Result.fail(409, "already verified");
+            String rn = req.getRealName() != null ? req.getRealName().trim() : "";
+            String idc = req.getIdCard() != null ? req.getIdCard().trim() : "";
+            if (rn.isEmpty() || idc.isEmpty()) return Result.fail(400, "realName and idCard are required");
+            if (!idc.matches("^\\d{17}[\\dXx]$")) return Result.fail(400, "invalid idCard");
+            u.setRealName(rn);
+            u.setIdCard(idc.toUpperCase());
+        }
+
+        int rows = userMapper.updateById(u);
+        if (rows <= 0) return Result.fail(500, "update failed");
+        return Result.ok(UserProfileResponse.from(u));
+    }
+
+    @PostMapping("/user/email/send-code")
+    public Result<Boolean> sendEmailCode(HttpServletRequest request, @Valid @RequestBody SendCodeRequest req) {
+        Result<?> userGuard = ensureUser(request);
+        if (userGuard != null) return (Result<Boolean>) userGuard;
+
+        String target = req.getTarget().trim();
+        if (!target.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) return Result.fail(400, "invalid email");
+        return Result.ok(true);
+    }
+
+    @PutMapping("/user/email")
+    public Result<UserProfileResponse> bindEmail(HttpServletRequest request, @Valid @RequestBody BindContactRequest req) {
+        Result<?> userGuard = ensureUser(request);
+        if (userGuard != null) return (Result<UserProfileResponse>) userGuard;
+
+        String email = req.getValue().trim();
+        if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) return Result.fail(400, "invalid email");
+        if (!"123456".equals(req.getCode().trim())) return Result.fail(400, "invalid verify code");
+
+        Long userId = parseLongHeader(request, "X-User-Id");
+        User u = userMapper.selectById(userId);
+        if (u == null) return Result.fail(404, "user not found");
+        u.setEmail(email);
+        int rows = userMapper.updateById(u);
+        if (rows <= 0) return Result.fail(500, "update failed");
+        return Result.ok(UserProfileResponse.from(u));
+    }
+
+    @PostMapping("/user/phone/send-code")
+    public Result<Boolean> sendPhoneCode(HttpServletRequest request, @Valid @RequestBody SendCodeRequest req) {
+        Result<?> userGuard = ensureUser(request);
+        if (userGuard != null) return (Result<Boolean>) userGuard;
+
+        String target = req.getTarget().trim();
+        if (!target.matches("^1[3-9]\\d{9}$")) return Result.fail(400, "invalid phone");
+        return Result.ok(true);
+    }
+
+    @PutMapping("/user/phone")
+    public Result<UserProfileResponse> bindPhone(HttpServletRequest request, @Valid @RequestBody BindContactRequest req) {
+        Result<?> userGuard = ensureUser(request);
+        if (userGuard != null) return (Result<UserProfileResponse>) userGuard;
+
+        String phone = req.getValue().trim();
+        if (!phone.matches("^1[3-9]\\d{9}$")) return Result.fail(400, "invalid phone");
+        if (!"123456".equals(req.getCode().trim())) return Result.fail(400, "invalid verify code");
+
+        Long userId = parseLongHeader(request, "X-User-Id");
+        User exists = userMapper.selectOne(new QueryWrapper<User>().eq("phone_number", phone).ne("user_id", userId));
+        if (exists != null) return Result.fail(409, "phone number already exists");
+
+        User u = userMapper.selectById(userId);
+        if (u == null) return Result.fail(404, "user not found");
+        u.setPhoneNumber(phone);
+        int rows = userMapper.updateById(u);
+        if (rows <= 0) return Result.fail(500, "update failed");
+        return Result.ok(UserProfileResponse.from(u));
+    }
+
+    @PutMapping("/user/password")
+    public Result<Boolean> changePassword(HttpServletRequest request, @Valid @RequestBody ChangePasswordRequest req) {
+        Result<?> userGuard = ensureUser(request);
+        if (userGuard != null) return (Result<Boolean>) userGuard;
+
+        Long userId = parseLongHeader(request, "X-User-Id");
+        User u = userMapper.selectById(userId);
+        if (u == null) return Result.fail(404, "user not found");
+
+        if (u.getPasswordHash() == null || !passwordEncoder.matches(req.getOldPassword(), u.getPasswordHash())) {
+            return Result.fail(401, "invalid password");
+        }
+
+        String np = req.getNewPassword().trim();
+        if (np.length() < 6) return Result.fail(400, "password too short");
+
+        u.setPasswordHash(passwordEncoder.encode(np));
+        int rows = userMapper.updateById(u);
+        return Result.ok(rows > 0);
+    }
+
+    private static Result<?> ensureUser(HttpServletRequest request) {
+        Long userId = parseLongHeader(request, "X-User-Id");
+        if (userId == null || userId <= 0) return Result.fail(401, "login required");
+
+        String t = request.getHeader("X-User-Type");
+        if (t == null || (!"1".equals(t.trim()))) return Result.fail(403, "user required");
+        return null;
+    }
+
+    private static Long parseLongHeader(HttpServletRequest request, String name) {
+        String v = request.getHeader(name);
+        if (v == null || v.isBlank()) return null;
+        try {
+            return Long.parseLong(v.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    @Data
+    public static class UserProfileResponse {
+        private Long userId;
+        private String phoneNumber;
+        private String email;
+        private String realName;
+        private String idCard;
+        private Integer gender;
+        private String avatarUrl;
+        private LocalDateTime createTime;
+
+        public static UserProfileResponse from(User u) {
+            UserProfileResponse r = new UserProfileResponse();
+            r.setUserId(u.getUserId());
+            r.setPhoneNumber(u.getPhoneNumber());
+            r.setEmail(u.getEmail());
+            r.setRealName(u.getRealName());
+            r.setIdCard(u.getIdCard());
+            r.setGender(u.getGender());
+            r.setAvatarUrl(u.getAvatarUrl());
+            r.setCreateTime(u.getCreateTime());
+            return r;
+        }
+    }
+
+    @Data
+    public static class UpdateProfileRequest {
+        private String email;
+        private String avatarUrl;
+        private Integer gender;
+        private String realName;
+        private String idCard;
+    }
+
+    @Data
+    public static class SendCodeRequest {
+        @NotBlank
+        private String target;
+    }
+
+    @Data
+    public static class BindContactRequest {
+        @NotBlank
+        private String value;
+        @NotBlank
+        private String code;
+    }
+
+    @Data
+    public static class ChangePasswordRequest {
+        @NotBlank
+        private String oldPassword;
+        @NotBlank
+        private String newPassword;
     }
 }

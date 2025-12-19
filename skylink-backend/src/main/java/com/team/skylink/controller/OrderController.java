@@ -95,7 +95,10 @@ public class OrderController {
             OrderSearchResponse r = new OrderSearchResponse();
             r.setOrderNo(String.valueOf(o.getOrderId()));
             r.setFlightNo(f != null ? f.getFlightNo() : null);
-            r.setPassengerName(u != null ? u.getRealName() : null);
+            r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName() : (u != null ? u.getRealName() : null));
+            r.setContactEmail(o.getContactEmail());
+            r.setContactPhone(o.getContactPhone());
+            r.setPassengersJson(o.getPassengersJson());
             r.setOrderStatus(o.getOrderStatus());
             r.setTotalAmount(o.getTotalAmount());
             r.setOrderTime(o.getOrderTime());
@@ -156,6 +159,10 @@ public class OrderController {
             } else {
                  o.setTotalAmount(java.math.BigDecimal.ZERO);
             }
+            o.setPassengerName(req.getPassengerName());
+            o.setContactEmail(req.getContactEmail());
+            o.setContactPhone(req.getContactPhone());
+            o.setPassengersJson(req.getPassengersJson());
             o.setOrderTime(LocalDateTime.now());
             orderMapper.insert(o);
             
@@ -163,7 +170,10 @@ public class OrderController {
             OrderSearchResponse r = new OrderSearchResponse();
             r.setOrderNo(String.valueOf(o.getOrderId()));
             r.setFlightNo(f.getFlightNo());
-            r.setPassengerName(u != null ? u.getRealName() : null);
+            r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName() : (u != null ? u.getRealName() : null));
+            r.setContactEmail(o.getContactEmail());
+            r.setContactPhone(o.getContactPhone());
+            r.setPassengersJson(o.getPassengersJson());
             r.setOrderStatus(o.getOrderStatus());
             r.setTotalAmount(o.getTotalAmount());
             r.setOrderTime(o.getOrderTime());

@@ -4,6 +4,7 @@ import BookingForm from '../../components/booking/BookingForm';
 import { Flight, BookingDetails, ConfirmedBooking } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { createOrder } from '../../services/orders';
+import { saveOrderPassengers } from '../../services/storage';
 
 const BookingPage: React.FC = () => {
   const location = useLocation();
@@ -41,15 +42,21 @@ const BookingPage: React.FC = () => {
       (cabinClass === 'first' ? 'F' : cabinClass === 'business' ? 'J' : 'Y');
 
     try {
+      const passengersJson = JSON.stringify(Array.isArray(details.passengers) ? details.passengers : []);
       const created = await createOrder({
         userId: user.id as any,
         flightNo,
         cabinType,
         ticketNum: passengerCount,
+        passengerName: details.passengerName,
+        contactEmail: details.contactEmail,
+        contactPhone: details.phone,
+        passengersJson,
       });
 
       const id = String(created?.orderNo ?? '').trim();
       if (!id) throw new Error('创建订单失败：缺少订单号');
+      saveOrderPassengers(id, details.passengers);
 
       const totalPrice = Number.isFinite(Number(created?.totalAmount))
         ? Number(created?.totalAmount)

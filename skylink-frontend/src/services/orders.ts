@@ -4,6 +4,9 @@ export interface OrderSearchResult {
   orderNo: string;
   flightNo?: string | null;
   passengerName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  passengersJson?: string | null;
   orderStatus?: number | null;
   totalAmount?: number | null;
   orderTime?: string | null;
@@ -23,6 +26,10 @@ export async function createOrder(body: {
   flightNo: string;
   cabinType: string;
   ticketNum: number;
+  passengerName: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  passengersJson?: string;
 }): Promise<CreateOrderResult> {
   const userId = String(body.userId ?? '').trim();
   if (!userId) throw new Error('缺少 userId');
@@ -31,6 +38,8 @@ export async function createOrder(body: {
   const cabinType = String(body.cabinType ?? '').trim();
   if (!cabinType) throw new Error('缺少 cabinType');
   if (!Number.isFinite(body.ticketNum) || body.ticketNum <= 0) throw new Error('ticketNum 无效');
+  const passengerName = String(body.passengerName ?? '').trim();
+  if (!passengerName) throw new Error('缺少 passengerName');
 
   return request<CreateOrderResult>({
     method: 'POST',
@@ -40,6 +49,10 @@ export async function createOrder(body: {
       flightNo,
       cabinType,
       ticketNum: Math.floor(body.ticketNum),
+      passengerName,
+      contactEmail: body.contactEmail,
+      contactPhone: body.contactPhone,
+      passengersJson: body.passengersJson,
     },
   });
 }

@@ -5,9 +5,11 @@ import { Plane, ArrowRight, Luggage, Zap, Utensils, Wifi, MonitorPlay } from 'lu
 interface FlightListProps {
   flights: Flight[];
   onSelect: (flight: Flight) => void;
+  renderAction?: (flight: Flight) => React.ReactNode;
+  renderPrice?: (flight: Flight) => React.ReactNode;
 }
 
-const FlightList: React.FC<FlightListProps> = ({ flights, onSelect }) => {
+const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction, renderPrice }) => {
   const formatTime = (isoString: string) => {
     return new Date(isoString).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   };
@@ -108,16 +110,25 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect }) => {
 
           {/* Price & Action */}
           <div className="flex items-center gap-6 border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6 w-full md:w-auto justify-between md:justify-end">
-            <div className="text-right">
-              <p className="text-2xl font-bold text-orange-600">¥{flight.price.toLocaleString()}</p>
-              <p className="text-xs text-gray-400">含税总价</p>
-            </div>
-            <button
-              onClick={() => onSelect(flight)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2"
-            >
-              预订 <ArrowRight className="w-4 h-4" />
-            </button>
+            {renderPrice ? (
+              renderPrice(flight)
+            ) : (
+              <div className="text-right">
+                <p className="text-2xl font-bold text-orange-600">¥{flight.price.toLocaleString()}</p>
+                <p className="text-xs text-gray-400">含税总价</p>
+              </div>
+            )}
+
+            {renderAction ? (
+              renderAction(flight)
+            ) : (
+              <button
+                onClick={() => onSelect(flight)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                预订 <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       ))}

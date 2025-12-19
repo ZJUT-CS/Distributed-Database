@@ -103,6 +103,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
 
   const canUseSelfFill = !!user?.realName && !!user?.idCard && isIdCardValid(user.idCard);
 
+  const promptVerifyAccount = () => {
+    const ok = window.confirm('购票前请先完成实名认证，是否前往个人中心认证？');
+    if (!ok) return;
+    window.open('/user-center?tab=profile', '_blank');
+  };
+
   const updatePassenger = (index: number, patch: Partial<PassengerInfo>) => {
     setPassengers((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
   };
@@ -116,6 +122,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
 
   const handleNextStep = () => {
     setAttemptedNext(true);
+    if (!canUseSelfFill) {
+      promptVerifyAccount();
+      return;
+    }
     if (validation.hasErrors) {
       const firstPassengerErrorIndex = validation.passengerErrors.findIndex((e) => !!e.name || !!e.idCard);
       window.setTimeout(() => {
@@ -134,6 +144,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   };
 
   const handleFinalSubmit = () => {
+    if (!canUseSelfFill) {
+      promptVerifyAccount();
+      return;
+    }
     setLoading(true);
     const details: BookingDetails = {
       passengerName: normalizeName(passengers[0]?.name || ''),

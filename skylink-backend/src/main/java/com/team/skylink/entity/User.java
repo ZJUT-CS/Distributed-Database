@@ -17,6 +17,7 @@ public class User {
     private String passwordHash; // 加密密码
     private String realName; // 真实姓名
     private String email; // 邮箱
+    private String avatarUrl; // 头像URL
     private String idCard; // 身份证号
     private Integer gender; // 性别:0-未知,1-男,2-女
     private Integer userStatus; // 状态:1-正常,2-锁定,3-注销

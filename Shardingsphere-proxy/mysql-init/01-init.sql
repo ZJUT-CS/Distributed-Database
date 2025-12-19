@@ -1,11 +1,11 @@
 -- 1. 用户信息表（用户端登录/注册/个人信息管理）
-
 CREATE TABLE `users` (
   `user_id` bigint NOT NULL COMMENT '用户ID(雪花算法生成)',
   `phone_number` varchar(20) NOT NULL COMMENT '手机号',
   `password_hash` varchar(255) NOT NULL COMMENT '加密密码',
   `real_name` varchar(50) DEFAULT NULL COMMENT '真实姓名',
   `email` varchar(100) DEFAULT NULL COMMENT '邮箱',
+  `avatar_url` varchar(255) DEFAULT NULL COMMENT '头像URL',
   `id_card` varchar(20) DEFAULT NULL COMMENT '身份证号',
   `gender` tinyint DEFAULT '0' COMMENT '性别:0-未知,1-男,2-女',
   `user_status` tinyint DEFAULT '1' COMMENT '状态:1-正常,2-锁定,3-注销',
@@ -67,6 +67,10 @@ CREATE TABLE `orders` (
   `order_status` TINYINT NOT NULL DEFAULT 0 COMMENT '订单状态：0-待支付，1-已支付，2-已取消，3-已退票，4-改签中，5-改签完成',
   `ticket_num` INT NOT NULL DEFAULT 1 COMMENT '购票数量',
   `total_amount` DECIMAL(10,2) NOT NULL COMMENT '订单总金额（元）',
+  `passenger_name` VARCHAR(50) DEFAULT NULL COMMENT '乘客姓名(下单时记录)',
+  `contact_email` VARCHAR(100) DEFAULT NULL COMMENT '联系邮箱(下单时记录)',
+  `contact_phone` VARCHAR(20) DEFAULT NULL COMMENT '联系手机(下单时记录)',
+  `passengers_json` TEXT DEFAULT NULL COMMENT '乘客信息JSON(下单时记录)',
   `order_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
   `pay_time` DATETIME DEFAULT NULL COMMENT '支付完成时间',
   `refund_time` DATETIME DEFAULT NULL COMMENT '退票完成时间',
