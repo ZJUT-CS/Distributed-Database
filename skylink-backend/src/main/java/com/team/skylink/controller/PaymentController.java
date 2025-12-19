@@ -1,5 +1,6 @@
 package com.team.skylink.controller;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper; // 必须导入这个
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.team.skylink.common.Result;
 import com.team.skylink.dto.ConfirmPaymentRequest;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -97,8 +99,8 @@ public class PaymentController {
         List<PaymentSearchResponse> resp = new ArrayList<>();
         for (Payment p : payments) {
             PaymentSearchResponse r = new PaymentSearchResponse();
-            r.setPaymentId(p.getPaymentId());
-            r.setOrderNo(p.getOrderId());
+            r.setPaymentId(String.valueOf(p.getPaymentId()));
+            r.setOrderNo(String.valueOf(p.getOrderId()));
             r.setPaymentAmount(p.getPaymentAmount());
             r.setPaymentMethod(p.getPaymentMethod());
             r.setPaymentStatus(p.getPaymentStatus());
@@ -127,10 +129,11 @@ public class PaymentController {
         long expiresAt = now + PAYMENT_TOKEN_TTL_MS;
         String token = UUID.randomUUID().toString();
         PAYMENT_TOKENS.put(token, new PaymentTokenRecord(req.getOrderNo(), req.getAmount(), now, expiresAt));
-        return Result.ok(new CreatePaymentTokenResponse(req.getOrderNo(), req.getAmount(), now, token, expiresAt));
+        return Result.ok(new CreatePaymentTokenResponse(String.valueOf(req.getOrderNo()), req.getAmount(), now, token, expiresAt));
     }
 
     @PostMapping("/confirm")
+    @Transactional(rollbackFor = Exception.class)
     public Result<PaymentSearchResponse> confirmPay(@Valid @RequestBody ConfirmPaymentRequest req) {
         PaymentTokenRecord record = PAYMENT_TOKENS.get(req.getToken());
         if (record == null) {
@@ -187,13 +190,16 @@ public class PaymentController {
         p.setUpdateTime(payTime);
         paymentMapper.insert(p);
 
-        o.setOrderStatus(1);
-        o.setPayTime(payTime);
-        orderMapper.updateById(o);
+        // 使用 LambdaUpdateWrapper 仅更新状态和支付时间，避免更新分片键(userId)导致的错误
+        LambdaUpdateWrapper<Order> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Order::getOrderId, o.getOrderId())
+                     .set(Order::getOrderStatus, 1)
+                     .set(Order::getPayTime, payTime);
+        orderMapper.update(null, updateWrapper);
 
         PaymentSearchResponse r = new PaymentSearchResponse();
-        r.setPaymentId(p.getPaymentId());
-        r.setOrderNo(p.getOrderId());
+        r.setPaymentId(String.valueOf(p.getPaymentId()));
+        r.setOrderNo(String.valueOf(p.getOrderId()));
         r.setPaymentAmount(p.getPaymentAmount());
         r.setPaymentMethod(p.getPaymentMethod());
         r.setPaymentStatus(p.getPaymentStatus());
@@ -204,6 +210,7 @@ public class PaymentController {
     }
 
     @PostMapping("/pay")
+    @Transactional(rollbackFor = Exception.class)
     public Result<PaymentSearchResponse> pay(@Valid @RequestBody CreatePaymentRequest req) {
         Order o = orderMapper.selectById(req.getOrderNo());
         if (o == null) {

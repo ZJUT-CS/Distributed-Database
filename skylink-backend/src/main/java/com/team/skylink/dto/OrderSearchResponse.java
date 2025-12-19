@@ -1,13 +1,15 @@
 package com.team.skylink.dto;
 
 import lombok.Data;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 public class OrderSearchResponse {
-    private Long orderNo;
+    private String orderNo;
     private String flightNo;
     private String passengerName;
     private Integer orderStatus;
@@ -16,5 +18,10 @@ public class OrderSearchResponse {
     private LocalDateTime payTime;
     private LocalDateTime refundTime;
     private LocalDateTime changeTime;
+
+    private String origin;
+    private String destination;
+    private LocalDateTime departureTime;
+    private LocalDateTime arrivalTime;
 }
 

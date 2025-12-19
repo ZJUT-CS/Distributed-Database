@@ -1,7 +1,7 @@
 import { request } from './api';
 
 export interface PaymentConfirmToken {
-  orderNo: number;
+  orderNo: string;
   amount: number;
   timestamp: number;
   token: string;
@@ -19,7 +19,7 @@ export async function payOrder(body: { orderNo: string | number; amount: number;
     method: 'POST',
     url: '/api/v1/payments/pay',
     data: {
-      orderNo: Number(orderNo),
+      orderNo: orderNo,
       amount: body.amount,
       method,
     },
@@ -35,7 +35,7 @@ export async function createPaymentConfirmToken(body: { orderNo: string | number
     method: 'POST',
     url: '/api/v1/payments/confirm-token',
     data: {
-      orderNo: Number(orderNo),
+      orderNo: orderNo,
       amount: body.amount,
     },
   });
@@ -61,7 +61,7 @@ export async function confirmPayment(body: {
     method: 'POST',
     url: '/api/v1/payments/confirm',
     data: {
-      orderNo: Number(orderNo),
+      orderNo: orderNo,
       amount: body.amount,
       timestamp: body.timestamp,
       token,

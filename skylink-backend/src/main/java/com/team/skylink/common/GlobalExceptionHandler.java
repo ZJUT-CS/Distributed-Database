@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception ex) {
         log.error("Unhandled exception", ex);
-        return Result.fail(HttpStatus.INTERNAL_SERVER_ERROR.value(), "internal error");
+        return Result.fail(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal Error: " + ex.getClass().getName() + " - " + ex.getMessage());
     }
 }
 

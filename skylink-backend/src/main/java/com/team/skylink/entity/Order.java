@@ -3,6 +3,9 @@ package com.team.skylink.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -10,8 +13,10 @@ import java.time.LocalDateTime;
 
 @Data
 @TableName("orders")
+
 public class Order {
-    @TableId(value = "order_id", type = IdType.AUTO)
+   
+    @TableId(value = "order_id", type = IdType.ASSIGN_ID)
     private Long orderId;
 
     private Long userId;

@@ -4,11 +4,48 @@ import UserBookings from '../../components/user/UserBookings';
 import { useAuth } from '../../hooks/useAuth';
 import { ConfirmedBooking } from '../../types';
 import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, RefreshCw, Clock } from 'lucide-react';
-import { listBookings } from '../../services/bookings';
+import { searchOrders, type OrderSearchResult } from '../../services/orders';
 import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '../../services/payments';
 import { cancelOrder } from '../../services/orders';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
+
+const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => ({
+  id: String(o.orderNo),
+  flight: {
+    id: o.flightNo || '',
+    flightNumber: o.flightNo || '',
+    origin: o.origin || '',
+    destination: o.destination || '',
+    departureTime: o.departureTime || '',
+    arrivalTime: o.arrivalTime || '',
+    price: Number(o.totalAmount || 0),
+    airline: '',
+    duration: '',
+    cabinType: '',
+    remainingSeats: 0,
+  },
+  flights: [{
+    id: o.flightNo || '',
+    flightNumber: o.flightNo || '',
+    origin: o.origin || '',
+    destination: o.destination || '',
+    departureTime: o.departureTime || '',
+    arrivalTime: o.arrivalTime || '',
+    price: Number(o.totalAmount || 0),
+    airline: '',
+    duration: '',
+    cabinType: '',
+    remainingSeats: 0,
+  }],
+  status: o.orderStatus === 0 ? 'pending_payment' : o.orderStatus === 1 ? 'confirmed' : o.orderStatus === 2 ? 'cancelled' : 'cancelled',
+  bookingDate: o.orderTime || new Date().toISOString(),
+  totalPrice: Number(o.totalAmount || 0),
+  passengerName: o.passengerName || '',
+  passportNumber: '',
+  contactEmail: '',
+  phone: '',
+});
 
 const formatLocalYmd = (d: Date) => {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -29,8 +66,8 @@ const BookingsPage: React.FC = () => {
      if (!user?.id) return;
      setLoading(true);
      setError(null);
-     listBookings(user.id)
-       .then(setBookings)
+     searchOrders({ userId: user.id })
+       .then((res) => setBookings(res.map(mapOrderToBooking)))
        .catch((e: any) => setError(e?.message || '加载订单失败'))
        .finally(() => setLoading(false));
   }, [user]);
@@ -39,8 +76,8 @@ const BookingsPage: React.FC = () => {
     if (!user?.id) return;
     setLoading(true);
     setError(null);
-    listBookings(user.id)
-      .then(setBookings)
+    searchOrders({ userId: user.id })
+      .then((res) => setBookings(res.map(mapOrderToBooking)))
       .catch((e: any) => setError(e?.message || '刷新订单失败'))
       .finally(() => setLoading(false));
   };
@@ -100,10 +137,9 @@ export const BookingDetailsPage: React.FC = () => {
     if (!user.id) return;
     setDetailLoading(true);
     setDetailError(null);
-    listBookings(user.id)
-      .then((all) => {
-        const found = all.find((b) => b.id === id);
-        if (found) setBooking(found);
+    searchOrders({ userId: user.id, orderNo: id })
+      .then((res) => {
+        if (res.length > 0) setBooking(mapOrderToBooking(res[0]));
         else setBooking(null);
       })
       .catch((e: any) => {
@@ -127,9 +163,8 @@ export const BookingDetailsPage: React.FC = () => {
           cancelOrder(booking.id)
             .then(() => {
               if (user?.id) {
-                return listBookings(user.id).then((all) => {
-                  const found = all.find((b) => b.id === booking.id);
-                  if (found) setBooking(found);
+                return searchOrders({ userId: user.id, orderNo: booking.id }).then((res) => {
+                  if (res.length > 0) setBooking(mapOrderToBooking(res[0]));
                 });
               }
             })
@@ -225,9 +260,8 @@ export const BookingDetailsPage: React.FC = () => {
       cancelOrder(booking.id)
         .then(() => {
           if (user?.id) {
-            return listBookings(user.id).then((all) => {
-              const found = all.find((b) => b.id === booking.id);
-              if (found) setBooking(found);
+            return searchOrders({ userId: user.id, orderNo: booking.id }).then((res) => {
+              if (res.length > 0) setBooking(mapOrderToBooking(res[0]));
             });
           }
         })
@@ -242,7 +276,11 @@ export const BookingDetailsPage: React.FC = () => {
         setPayToken(token);
         setPayModalOpen(true);
       })
-      .catch((e: any) => setPayError(e?.message || '支付准备失败'))
+      .catch((e: any) => {
+        const msg = e?.message || '支付准备失败';
+        setPayError(msg);
+        alert(msg);
+      })
       .finally(() => setPayPreparing(false));
   };
 
@@ -266,9 +304,8 @@ export const BookingDetailsPage: React.FC = () => {
     })
       .then(() => {
         if (user?.id) {
-          return listBookings(user.id).then((all) => {
-            const found = all.find((b) => b.id === booking.id);
-            if (found) setBooking(found);
+          return searchOrders({ userId: user.id, orderNo: booking.id }).then((res) => {
+            if (res.length > 0) setBooking(mapOrderToBooking(res[0]));
           });
         }
       })

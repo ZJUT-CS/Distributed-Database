@@ -1,7 +1,7 @@
 import { request } from './api';
 
-export interface CreateOrderResult {
-  orderNo: number;
+export interface OrderSearchResult {
+  orderNo: string;
   flightNo?: string | null;
   passengerName?: string | null;
   orderStatus?: number | null;
@@ -10,7 +10,13 @@ export interface CreateOrderResult {
   payTime?: string | null;
   refundTime?: string | null;
   changeTime?: string | null;
+  origin?: string | null;
+  destination?: string | null;
+  departureTime?: string | null;
+  arrivalTime?: string | null;
 }
+
+export type CreateOrderResult = OrderSearchResult;
 
 export async function createOrder(body: {
   userId: string | number;
@@ -30,7 +36,7 @@ export async function createOrder(body: {
     method: 'POST',
     url: '/api/v1/orders/create',
     data: {
-      userId: Number(userId),
+      userId: userId,
       flightNo,
       cabinType,
       ticketNum: Math.floor(body.ticketNum),
@@ -45,5 +51,25 @@ export async function cancelOrder(orderId: string | number): Promise<void> {
   await request({
     method: 'POST',
     url: `/api/v1/orders/${encodeURIComponent(id)}/cancel`,
+  });
+}
+
+export async function searchOrders(params: {
+  userId?: string | number;
+  orderNo?: string | number;
+  orderStatus?: number;
+  createTimeStart?: string;
+  createTimeEnd?: string;
+  flightNo?: string;
+  cabinType?: string;
+}): Promise<OrderSearchResult[]> {
+  return request<OrderSearchResult[]>({
+    method: 'GET',
+    url: '/api/v1/orders/search',
+    params: {
+        ...params,
+        userId: params.userId ? String(params.userId) : undefined,
+        orderNo: params.orderNo ? String(params.orderNo) : undefined,
+    },
   });
 }

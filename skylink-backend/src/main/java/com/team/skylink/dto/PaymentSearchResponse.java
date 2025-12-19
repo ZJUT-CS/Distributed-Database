@@ -1,14 +1,16 @@
 package com.team.skylink.dto;
 
 import lombok.Data;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 public class PaymentSearchResponse {
-    private Long paymentId;
-    private Long orderNo;
+    private String paymentId;
+    private String orderNo;
     private BigDecimal paymentAmount;
     private String paymentMethod;
     private Integer paymentStatus;
