@@ -1,0 +1,28 @@
+target/
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Logs & temp
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# Trae IDE workspace
+.trae/
+
+# Windows batch leftovers
+*.bat
+!mvnw.cmd
+
+# Secrets & environment
+*.env
+*.pem
+*.crt
+*.key

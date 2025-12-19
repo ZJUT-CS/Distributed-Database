@@ -1,0 +1,5 @@
+{
+  "name": "SkyLink  - 航班预订",
+  "description": "基于 React 和 Gemini AI 的下一代航班预订系统。提供智能目的地推荐、实时航班查询模拟及 AI 旅行向导功能。",
+  "requestFramePermissions": []
+}
