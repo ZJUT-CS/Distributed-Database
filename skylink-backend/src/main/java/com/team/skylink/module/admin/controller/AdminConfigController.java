@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.team.skylink.common.PageResult;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.admin.dto.AdminConfigUpsertRequest;
+import com.team.skylink.module.admin.service.AdminConfigService;
 import com.team.skylink.module.system.entity.SystemConfig;
-import com.team.skylink.module.system.mapper.ConfigMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,16 +18,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1/admin/configs")
 public class AdminConfigController {
-    private final ConfigMapper configMapper;
+    private final AdminConfigService adminConfigService;
 
-    public AdminConfigController(ConfigMapper configMapper) {
-        this.configMapper = configMapper;
+    public AdminConfigController(AdminConfigService adminConfigService) {
+        this.adminConfigService = adminConfigService;
     }
 
     @GetMapping
@@ -39,39 +36,14 @@ public class AdminConfigController {
     ) {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<PageResult<SystemConfig>>) adminGuard;
-
-        int p = page != null && page > 0 ? page : 1;
-        int s = size != null && size > 0 ? Math.min(size, 100) : 10;
-        int offset = (p - 1) * s;
-
-        QueryWrapper<SystemConfig> qw = new QueryWrapper<>();
-        if (keyword != null && !keyword.isBlank()) {
-            String k = keyword.trim();
-            qw.and(w -> w.like("config_name", k).or().like("config_desc", k));
-        }
-        qw.orderByDesc("update_time").orderByDesc("config_id");
-
-        Long total = configMapper.selectCount(qw);
-        qw.last("limit " + offset + "," + s);
-        List<SystemConfig> items = configMapper.selectList(qw);
-        return Result.ok(new PageResult<>(total != null ? total : 0, items));
+        return adminConfigService.list(page, size, keyword);
     }
 
     @PostMapping
     public Result<SystemConfig> create(HttpServletRequest request, @Valid @RequestBody AdminConfigUpsertRequest body) {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<SystemConfig>) adminGuard;
-
-        SystemConfig c = new SystemConfig();
-        c.setConfigName(body.getConfigName());
-        c.setConfigValue(body.getConfigValue());
-        c.setConfigDesc(body.getConfigDesc());
-        c.setEffectiveTime(body.getEffectiveTime());
-        c.setOperAdminId(parseAdminId(request));
-        c.setUpdateTime(LocalDateTime.now());
-
-        configMapper.insert(c);
-        return Result.ok(c);
+        return adminConfigService.create(parseAdminId(request), body);
     }
 
     @PutMapping("/{configId}")
@@ -82,30 +54,14 @@ public class AdminConfigController {
     ) {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<Boolean>) adminGuard;
-
-        if (configId == null) return Result.fail(400, "configId is required");
-        SystemConfig c = configMapper.selectById(configId);
-        if (c == null) return Result.fail(404, "config not found");
-
-        c.setConfigName(body.getConfigName());
-        c.setConfigValue(body.getConfigValue());
-        c.setConfigDesc(body.getConfigDesc());
-        c.setEffectiveTime(body.getEffectiveTime());
-        c.setOperAdminId(parseAdminId(request));
-        c.setUpdateTime(LocalDateTime.now());
-
-        int rows = configMapper.updateById(c);
-        return Result.ok(rows > 0);
+        return adminConfigService.update(parseAdminId(request), configId, body);
     }
 
     @DeleteMapping("/{configId}")
     public Result<Boolean> delete(HttpServletRequest request, @PathVariable("configId") Long configId) {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<Boolean>) adminGuard;
-
-        if (configId == null) return Result.fail(400, "configId is required");
-        int rows = configMapper.deleteById(configId);
-        return Result.ok(rows > 0);
+        return adminConfigService.delete(configId);
     }
 
     private static Result<?> ensureAdmin(HttpServletRequest request) {

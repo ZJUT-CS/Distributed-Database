@@ -1,17 +1,9 @@
 package com.team.skylink.module.admin.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.team.skylink.common.PageResult;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.admin.dto.AdminOrderStatusRequest;
-import com.team.skylink.module.flight.entity.Cabin;
-import com.team.skylink.module.flight.entity.Flight;
-import com.team.skylink.module.order.entity.Order;
-import com.team.skylink.module.auth.entity.User;
-import com.team.skylink.module.flight.mapper.CabinMapper;
-import com.team.skylink.module.flight.mapper.FlightMapper;
-import com.team.skylink.module.order.mapper.OrderMapper;
-import com.team.skylink.module.auth.mapper.UserMapper;
+import com.team.skylink.module.admin.service.AdminOrderService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,22 +15,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1/admin/orders")
 public class AdminOrderController {
-    private final OrderMapper orderMapper;
-    private final FlightMapper flightMapper;
-    private final UserMapper userMapper;
-    private final CabinMapper cabinMapper;
+    private final AdminOrderService adminOrderService;
 
-    public AdminOrderController(OrderMapper orderMapper, FlightMapper flightMapper, UserMapper userMapper, CabinMapper cabinMapper) {
-        this.orderMapper = orderMapper;
-        this.flightMapper = flightMapper;
-        this.userMapper = userMapper;
-        this.cabinMapper = cabinMapper;
+    public AdminOrderController(AdminOrderService adminOrderService) {
+        this.adminOrderService = adminOrderService;
     }
 
     @GetMapping
@@ -53,65 +36,7 @@ public class AdminOrderController {
     ) {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<PageResult<AdminOrderItem>>) adminGuard;
-
-        int p = page != null && page > 0 ? page : 1;
-        int s = size != null && size > 0 ? Math.min(size, 100) : 10;
-        int offset = (p - 1) * s;
-
-        QueryWrapper<Order> qw = new QueryWrapper<>();
-        if (orderNo != null) {
-            qw.eq("order_id", orderNo);
-        }
-        if (userId != null) {
-            qw.eq("user_id", userId);
-        }
-        if (orderStatus != null) {
-            qw.eq("order_status", orderStatus);
-        }
-        if (flightNo != null && !flightNo.isBlank()) {
-            Flight f = flightMapper.selectOne(new QueryWrapper<Flight>().eq("flight_no", flightNo.trim()));
-            if (f == null) {
-                return Result.ok(new PageResult<>(0, new ArrayList<>()));
-            }
-            qw.eq("flight_id", f.getFlightId());
-        }
-        qw.orderByDesc("order_time");
-
-        Long total = orderMapper.selectCount(qw);
-        qw.last("limit " + offset + "," + s);
-        List<Order> orders = orderMapper.selectList(qw);
-
-        List<AdminOrderItem> items = new ArrayList<>();
-        for (Order o : orders) {
-            AdminOrderItem it = new AdminOrderItem();
-            it.setOrderNo(o.getOrderId());
-            it.setUserId(o.getUserId());
-            it.setOrderStatus(o.getOrderStatus());
-            it.setTicketNum(o.getTicketNum());
-            it.setTotalAmount(o.getTotalAmount());
-            it.setOrderTime(o.getOrderTime());
-            it.setPayTime(o.getPayTime());
-            it.setRefundTime(o.getRefundTime());
-            it.setChangeTime(o.getChangeTime());
-
-            User u = o.getUserId() != null ? userMapper.selectById(o.getUserId()) : null;
-            it.setPassengerName(u != null ? u.getRealName() : null);
-            it.setEmail(u != null ? u.getEmail() : null);
-            it.setPhoneNumber(u != null ? u.getPhoneNumber() : null);
-
-            Flight f = o.getFlightId() != null ? flightMapper.selectById(o.getFlightId()) : null;
-            it.setFlightNo(f != null ? f.getFlightNo() : null);
-            it.setOrigin(f != null ? f.getDeparturePlace() : null);
-            it.setDestination(f != null ? f.getDestination() : null);
-            it.setDepartureTime(f != null ? f.getDepartureTime() : null);
-            it.setArrivalTime(f != null ? f.getArrivalTime() : null);
-
-            it.setCabinId(o.getCabinId());
-            it.setFlightId(o.getFlightId());
-            items.add(it);
-        }
-
-        return Result.ok(new PageResult<>(total != null ? total : 0, items));
+        return adminOrderService.list(page, size, orderNo, userId, orderStatus, flightNo);
     }
 
     @PutMapping("/{orderId}/status")
@@ -122,67 +47,21 @@ public class AdminOrderController {
     ) {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<Boolean>) adminGuard;
-
-        if (orderId == null) return Result.fail(400, "orderId is required");
-        Order o = orderMapper.selectById(orderId);
-        if (o == null) return Result.fail(404, "order not found");
-
-        Integer from = o.getOrderStatus();
-        Integer to = body.getOrderStatus();
-        if (to == null) return Result.fail(400, "orderStatus is required");
-
-        if ((from == null || from != 2) && to == 2) {
-            Cabin cabin = cabinMapper.selectById(o.getCabinId());
-            if (cabin != null && o.getTicketNum() != null) {
-                cabin.setRemainingSeats(cabin.getRemainingSeats() + o.getTicketNum());
-                cabinMapper.updateById(cabin);
-            }
-        }
-
-        o.setOrderStatus(to);
-        int rows = orderMapper.updateById(o);
-        return Result.ok(rows > 0);
+        return adminOrderService.updateStatus(orderId, body.getOrderStatus());
     }
 
     @PutMapping("/{orderId}/cancel")
     public Result<Boolean> cancel(HttpServletRequest request, @PathVariable("orderId") Long orderId) {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<Boolean>) adminGuard;
-
-        if (orderId == null) {
-            return Result.fail(400, "orderId is required");
-        }
-        Order o = orderMapper.selectById(orderId);
-        if (o == null) {
-            return Result.fail(404, "order not found");
-        }
-        if (o.getOrderStatus() == null || o.getOrderStatus() != 0) {
-            return Result.fail(409, "order is not cancellable");
-        }
-
-        Cabin cabin = cabinMapper.selectById(o.getCabinId());
-        if (cabin != null && o.getTicketNum() != null) {
-            cabin.setRemainingSeats(cabin.getRemainingSeats() + o.getTicketNum());
-            cabinMapper.updateById(cabin);
-        }
-        o.setOrderStatus(2);
-        int rows = orderMapper.updateById(o);
-        return Result.ok(rows > 0);
+        return adminOrderService.cancel(orderId);
     }
 
     @DeleteMapping("/{orderId}")
     public Result<Boolean> delete(HttpServletRequest request, @PathVariable("orderId") Long orderId) {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<Boolean>) adminGuard;
-
-        if (orderId == null) return Result.fail(400, "orderId is required");
-        Order o = orderMapper.selectById(orderId);
-        if (o == null) return Result.fail(404, "order not found");
-        if (o.getOrderStatus() != null && o.getOrderStatus() == 0) {
-            return Result.fail(409, "pending order cannot be deleted");
-        }
-        int rows = orderMapper.deleteById(orderId);
-        return Result.ok(rows > 0);
+        return adminOrderService.delete(orderId);
     }
 
     private static Result<?> ensureAdmin(HttpServletRequest request) {

@@ -1,0 +1,240 @@
+package com.team.skylink.module.payment.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.team.skylink.common.Result;
+import com.team.skylink.module.order.entity.Order;
+import com.team.skylink.module.order.mapper.OrderMapper;
+import com.team.skylink.module.payment.dto.ConfirmPaymentRequest;
+import com.team.skylink.module.payment.dto.CreatePaymentRequest;
+import com.team.skylink.module.payment.dto.CreatePaymentTokenRequest;
+import com.team.skylink.module.payment.dto.CreatePaymentTokenResponse;
+import com.team.skylink.module.payment.dto.PaymentSearchResponse;
+import com.team.skylink.module.payment.entity.Payment;
+import com.team.skylink.module.payment.mapper.PaymentMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Service
+public class PaymentServiceImpl implements PaymentService {
+    private final PaymentMapper paymentMapper;
+    private final OrderMapper orderMapper;
+
+    private static final long PAYMENT_TOKEN_TTL_MS = 30L * 60L * 1000L;
+
+    private static final class PaymentTokenRecord {
+        private final Long orderNo;
+        private final BigDecimal amount;
+        private final long timestamp;
+        private final long expiresAt;
+        private volatile boolean used;
+
+        private PaymentTokenRecord(Long orderNo, BigDecimal amount, long timestamp, long expiresAt) {
+            this.orderNo = orderNo;
+            this.amount = amount;
+            this.timestamp = timestamp;
+            this.expiresAt = expiresAt;
+            this.used = false;
+        }
+    }
+
+    private static final ConcurrentHashMap<String, PaymentTokenRecord> PAYMENT_TOKENS = new ConcurrentHashMap<>();
+
+    public PaymentServiceImpl(PaymentMapper paymentMapper, OrderMapper orderMapper) {
+        this.paymentMapper = paymentMapper;
+        this.orderMapper = orderMapper;
+    }
+
+    @Override
+    public Result<List<PaymentSearchResponse>> search(
+            Long orderNo,
+            Long userId,
+            Integer paymentStatus,
+            String paymentMethod,
+            LocalDateTime paymentTimeStart,
+            LocalDateTime paymentTimeEnd
+    ) {
+        QueryWrapper<Payment> qw = new QueryWrapper<>();
+        if (orderNo != null) {
+            qw.eq("order_id", orderNo);
+        }
+        if (paymentStatus != null) {
+            qw.eq("payment_status", paymentStatus);
+        }
+        if (paymentMethod != null && !paymentMethod.isEmpty()) {
+            qw.eq("payment_method", paymentMethod);
+        }
+        if (paymentTimeStart != null && paymentTimeEnd != null) {
+            qw.between("payment_time", paymentTimeStart, paymentTimeEnd);
+        } else if (paymentTimeStart != null) {
+            qw.ge("payment_time", paymentTimeStart);
+        } else if (paymentTimeEnd != null) {
+            qw.le("payment_time", paymentTimeEnd);
+        }
+        if (userId != null) {
+            List<Order> orders = orderMapper.selectList(new QueryWrapper<Order>().eq("user_id", userId));
+            if (orders.isEmpty()) {
+                return Result.ok(new ArrayList<>());
+            }
+            List<Long> orderIds = orders.stream().map(Order::getOrderId).toList();
+            qw.in("order_id", orderIds);
+        }
+
+        List<Payment> payments = paymentMapper.selectList(qw);
+        List<PaymentSearchResponse> resp = new ArrayList<>();
+        for (Payment p : payments) {
+            PaymentSearchResponse r = new PaymentSearchResponse();
+            r.setPaymentId(String.valueOf(p.getPaymentId()));
+            r.setOrderNo(String.valueOf(p.getOrderId()));
+            r.setPaymentAmount(p.getPaymentAmount());
+            r.setPaymentMethod(p.getPaymentMethod());
+            r.setPaymentStatus(p.getPaymentStatus());
+            r.setTradeNo(p.getTradeNo());
+            r.setPaymentTime(p.getPaymentTime());
+            r.setRefundTime(p.getRefundTime());
+            resp.add(r);
+        }
+        return Result.ok(resp);
+    }
+
+    @Override
+    public Result<CreatePaymentTokenResponse> createConfirmToken(CreatePaymentTokenRequest req) {
+        Order o = orderMapper.selectById(req.getOrderNo());
+        if (o == null) {
+            return Result.fail(404, "order not found");
+        }
+        if (o.getOrderStatus() != null && o.getOrderStatus() == 1) {
+            return Result.fail(409, "order already paid");
+        }
+        if (o.getTotalAmount() != null && req.getAmount() != null && o.getTotalAmount().compareTo(req.getAmount()) != 0) {
+            return Result.fail(400, "amount mismatch");
+        }
+
+        long now = System.currentTimeMillis();
+        long expiresAt = now + PAYMENT_TOKEN_TTL_MS;
+        String token = UUID.randomUUID().toString();
+        PAYMENT_TOKENS.put(token, new PaymentTokenRecord(req.getOrderNo(), req.getAmount(), now, expiresAt));
+        return Result.ok(new CreatePaymentTokenResponse(String.valueOf(req.getOrderNo()), req.getAmount(), now, token, expiresAt));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<PaymentSearchResponse> confirmPay(ConfirmPaymentRequest req) {
+        PaymentTokenRecord record = PAYMENT_TOKENS.get(req.getToken());
+        if (record == null) {
+            return Result.fail(400, "invalid token");
+        }
+        long now = System.currentTimeMillis();
+        if (record.expiresAt < now) {
+            PAYMENT_TOKENS.remove(req.getToken());
+            return Result.fail(400, "token expired");
+        }
+        if (!record.orderNo.equals(req.getOrderNo())) {
+            return Result.fail(400, "orderNo mismatch");
+        }
+        if (record.amount != null && req.getAmount() != null && record.amount.compareTo(req.getAmount()) != 0) {
+            return Result.fail(400, "amount mismatch");
+        }
+        if (record.timestamp != req.getTimestamp()) {
+            return Result.fail(400, "timestamp mismatch");
+        }
+
+        synchronized (record) {
+            if (record.used) {
+                return Result.fail(409, "token already used");
+            }
+            record.used = true;
+        }
+        PAYMENT_TOKENS.remove(req.getToken());
+
+        Order o = orderMapper.selectById(req.getOrderNo());
+        if (o == null) {
+            return Result.fail(404, "order not found");
+        }
+        if (o.getOrderStatus() != null && o.getOrderStatus() == 1) {
+            return Result.fail(409, "order already paid");
+        }
+        if (o.getTotalAmount() != null && req.getAmount() != null && o.getTotalAmount().compareTo(req.getAmount()) != 0) {
+            return Result.fail(400, "amount mismatch");
+        }
+
+        Payment exists = paymentMapper.selectOne(new QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
+        if (exists != null) {
+            return Result.fail(409, "payment already exists");
+        }
+
+        LocalDateTime payTime = LocalDateTime.now();
+        Payment p = new Payment();
+        p.setOrderId(o.getOrderId());
+        p.setPaymentAmount(req.getAmount());
+        p.setPaymentMethod(req.getMethod());
+        p.setPaymentStatus(1);
+        p.setTradeNo(UUID.randomUUID().toString());
+        p.setPaymentTime(payTime);
+        p.setCreateTime(payTime);
+        p.setUpdateTime(payTime);
+        paymentMapper.insert(p);
+
+        LambdaUpdateWrapper<Order> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Order::getOrderId, o.getOrderId())
+                .set(Order::getOrderStatus, 1)
+                .set(Order::getPayTime, payTime);
+        orderMapper.update(null, updateWrapper);
+
+        PaymentSearchResponse r = new PaymentSearchResponse();
+        r.setPaymentId(String.valueOf(p.getPaymentId()));
+        r.setOrderNo(String.valueOf(p.getOrderId()));
+        r.setPaymentAmount(p.getPaymentAmount());
+        r.setPaymentMethod(p.getPaymentMethod());
+        r.setPaymentStatus(p.getPaymentStatus());
+        r.setTradeNo(p.getTradeNo());
+        r.setPaymentTime(p.getPaymentTime());
+        r.setRefundTime(p.getRefundTime());
+        return Result.ok(r);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<PaymentSearchResponse> pay(CreatePaymentRequest req) {
+        Order o = orderMapper.selectById(req.getOrderNo());
+        if (o == null) {
+            return Result.fail(404, "order not found");
+        }
+        Payment exists = paymentMapper.selectOne(new QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
+        if (exists != null) {
+            return Result.fail(409, "payment already exists");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        Payment p = new Payment();
+        p.setOrderId(o.getOrderId());
+        p.setPaymentAmount(req.getAmount());
+        p.setPaymentMethod(req.getMethod());
+        p.setPaymentStatus(1);
+        p.setTradeNo(UUID.randomUUID().toString());
+        p.setPaymentTime(now);
+        p.setCreateTime(now);
+        p.setUpdateTime(now);
+        paymentMapper.insert(p);
+        o.setOrderStatus(1);
+        o.setPayTime(now);
+        orderMapper.updateById(o);
+        PaymentSearchResponse r = new PaymentSearchResponse();
+        r.setPaymentId(String.valueOf(p.getPaymentId()));
+        r.setOrderNo(String.valueOf(p.getOrderId()));
+        r.setPaymentAmount(p.getPaymentAmount());
+        r.setPaymentMethod(p.getPaymentMethod());
+        r.setPaymentStatus(p.getPaymentStatus());
+        r.setTradeNo(p.getTradeNo());
+        r.setPaymentTime(p.getPaymentTime());
+        r.setRefundTime(p.getRefundTime());
+        return Result.ok(r);
+    }
+}
+
