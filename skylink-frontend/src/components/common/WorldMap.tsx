@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Minus, Plus, RotateCcw } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowUp, Minus, Plus, RotateCcw } from 'lucide-react';
 import { MapPoint } from '../../types';
 import worldMapSvg from '../../assets/images/Simplified_World_Map.svg';
 
@@ -12,66 +12,49 @@ interface WorldMapProps {
   preserveAspectRatio?: string;
   enableControls?: boolean;
   onReset?: () => void;
+  onViewChange?: (view: { scale: number; offset: { x: number; y: number } }) => void;
+  minScale?: number;
+  maxScale?: number;
+  defaultScale?: number;
   minZoomLevel?: number;
   maxZoomLevel?: number;
   defaultZoomLevel?: number;
 }
 
-const WorldMap: React.FC<WorldMapProps> = ({ 
-  points, 
-  routes, 
-  className = "", 
+const WorldMap: React.FC<WorldMapProps> = ({
+  points,
+  routes,
+  className = '',
   showGrid = true,
   theme = 'light',
-  preserveAspectRatio = 'xMidYMid slice',
+  preserveAspectRatio,
   enableControls = false,
   onReset,
-  minZoomLevel = 3,
-  maxZoomLevel = 18,
-  defaultZoomLevel = 10
+  onViewChange,
+  minScale,
+  maxScale,
+  defaultScale,
 }) => {
   const [hoveredPoint, setHoveredPoint] = useState<MapPoint | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const minZoomRef = useRef<number>(minZoomLevel);
-  const [effectiveMinZoom, setEffectiveMinZoom] = useState<number>(minZoomLevel);
-  const smoothTimerRef = useRef<number | null>(null);
-  const toastTimerRef = useRef<number | null>(null);
 
   const isDark = theme === 'dark';
+  const effectivePreserveAspectRatio = preserveAspectRatio ?? (enableControls ? 'xMidYMid meet' : 'xMidYMid slice');
+  const effectiveMinScale = minScale ?? 0.5;
+  const effectiveMaxScale = maxScale ?? 3;
+  const effectiveDefaultScale = defaultScale ?? 1;
 
-  const [zoomLevel, setZoomLevel] = useState<number>(defaultZoomLevel);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [smoothTransform, setSmoothTransform] = useState(false);
-  const [resetFlash, setResetFlash] = useState(false);
-  const [toastText, setToastText] = useState<string | null>(null);
-  const zoomLevelRef = useRef<number>(defaultZoomLevel);
   const offsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const viewRef = useRef<{ zoom: number; offset: { x: number; y: number } }>({
-    zoom: defaultZoomLevel,
-    offset: { x: 0, y: 0 },
-  });
-  const targetViewRef = useRef<{ zoom: number; offset: { x: number; y: number } }>({
-    zoom: defaultZoomLevel,
-    offset: { x: 0, y: 0 },
-  });
-  const rafRef = useRef<number | null>(null);
-  const rafModeRef = useRef<'spring' | 'tween' | null>(null);
-  const rafPrevMsRef = useRef<number>(0);
-  const tweenRef = useRef<{
-    startMs: number;
-    durationMs: number;
-    from: { zoom: number; offset: { x: number; y: number } };
-    to: { zoom: number; offset: { x: number; y: number } };
-    onDone?: () => void;
-  } | null>(null);
-  const springVelRef = useRef<{ zoomV: number; xV: number; yV: number }>({ zoomV: 0, xV: 0, yV: 0 });
+  const [scale, setScale] = useState<number>(() =>
+    Math.min(effectiveMaxScale, Math.max(effectiveMinScale, effectiveDefaultScale)),
+  );
+  const scaleRef = useRef<number>(Math.min(effectiveMaxScale, Math.max(effectiveMinScale, effectiveDefaultScale)));
 
-  const clampZoom = (z: number) => Math.min(maxZoomLevel, Math.max(minZoomRef.current, z));
-
-  const baseZoom = defaultZoomLevel;
-  const scaleFromZoom = (z: number) => Math.pow(2, (z - baseZoom) / 4);
-  const zoomFromScale = (s: number) => baseZoom + 4 * (Math.log(s) / Math.log(2));
+  const clampScale = (s: number) => Math.min(effectiveMaxScale, Math.max(effectiveMinScale, s));
+  const BUTTON_ZOOM_FACTOR = 1.1;
+  const DRAG_DECAY = 0.95;
 
   const clampOffset = (candidate: { x: number; y: number }, nextScale: number) => {
     const el = containerRef.current;
@@ -107,311 +90,128 @@ const WorldMap: React.FC<WorldMapProps> = ({
     return { x, y };
   };
 
-  const stopAnimation = () => {
-    rafModeRef.current = null;
-    tweenRef.current = null;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-    springVelRef.current = { zoomV: 0, xV: 0, yV: 0 };
-    rafPrevMsRef.current = 0;
-  };
-
-  const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-  const animateStep = (nowMs: number) => {
-    const mode = rafModeRef.current;
-    if (!mode) {
-      rafRef.current = null;
-      return;
-    }
-
-    const prevMs = rafPrevMsRef.current || nowMs;
-    rafPrevMsRef.current = nowMs;
-    const dt = Math.min(0.034, Math.max(0.001, (nowMs - prevMs) / 1000));
-
-    if (mode === 'tween') {
-      const tw = tweenRef.current;
-      if (!tw) {
-        stopAnimation();
-        return;
-      }
-      const tRaw = (nowMs - tw.startMs) / tw.durationMs;
-      const t = Math.max(0, Math.min(1, tRaw));
-      const k = easeInOutCubic(t);
-      const nextZoom = tw.from.zoom + (tw.to.zoom - tw.from.zoom) * k;
-      const nextOffset = {
-        x: tw.from.offset.x + (tw.to.offset.x - tw.from.offset.x) * k,
-        y: tw.from.offset.y + (tw.to.offset.y - tw.from.offset.y) * k,
-      };
-      zoomLevelRef.current = nextZoom;
-      offsetRef.current = nextOffset;
-      viewRef.current = { zoom: nextZoom, offset: nextOffset };
-      setZoomLevel(nextZoom);
-      setOffset(nextOffset);
-      if (t >= 1) {
-        stopAnimation();
-        tw.onDone?.();
-        return;
-      }
-      rafRef.current = requestAnimationFrame(animateStep);
-      return;
-    }
-
-    const v = viewRef.current;
-    const target = targetViewRef.current;
-    const vel = springVelRef.current;
-
-    const zStiff = 52;
-    const zDamp = 16;
-    const pStiff = 620;
-    const pDamp = 56;
-
-    const zErr = target.zoom - v.zoom;
-    vel.zoomV += (zStiff * zErr - zDamp * vel.zoomV) * dt;
-    let nextZoom = v.zoom + vel.zoomV * dt;
-    nextZoom = clampZoom(nextZoom);
-
-    const prevScale = scaleFromZoom(v.zoom);
-    const nextScale = scaleFromZoom(nextZoom);
-    const scaleRatio = prevScale > 0 ? nextScale / prevScale : 1;
-
-    const xErr = target.offset.x - v.offset.x;
-    const yErr = target.offset.y - v.offset.y;
-    vel.xV += (pStiff * xErr - pDamp * vel.xV) * dt;
-    vel.yV += (pStiff * yErr - pDamp * vel.yV) * dt;
-    const nextOffsetRaw = { x: v.offset.x + vel.xV * dt, y: v.offset.y + vel.yV * dt };
-    const nextOffset = clampOffset(nextOffsetRaw, nextScale);
-
-    zoomLevelRef.current = nextZoom;
-    offsetRef.current = nextOffset;
-    viewRef.current = { zoom: nextZoom, offset: nextOffset };
-    setZoomLevel(nextZoom);
-    setOffset(nextOffset);
-
-    const done =
-      Math.abs(target.zoom - nextZoom) < 0.002 &&
-      Math.abs(target.offset.x - nextOffset.x) < 0.2 &&
-      Math.abs(target.offset.y - nextOffset.y) < 0.2 &&
-      Math.abs(vel.zoomV) < 0.02 &&
-      Math.abs(vel.xV) < 5 &&
-      Math.abs(vel.yV) < 5 &&
-      Math.abs(scaleRatio - 1) < 0.04;
-
-    if (done) {
-      zoomLevelRef.current = target.zoom;
-      offsetRef.current = target.offset;
-      viewRef.current = { zoom: target.zoom, offset: target.offset };
-      setZoomLevel(target.zoom);
-      setOffset(target.offset);
-      stopAnimation();
-      return;
-    }
-    rafRef.current = requestAnimationFrame(animateStep);
-  };
-
-  const startSpringTo = (next: { zoom: number; offset: { x: number; y: number } }) => {
-    targetViewRef.current = next;
-    if (rafModeRef.current !== 'spring') {
-      tweenRef.current = null;
-      rafModeRef.current = 'spring';
-    }
-    if (!rafRef.current) {
-      rafPrevMsRef.current = 0;
-      rafRef.current = requestAnimationFrame(animateStep);
-    }
-  };
-
-  const startTweenTo = (next: { zoom: number; offset: { x: number; y: number } }, durationMs: number, onDone?: () => void) => {
-    stopAnimation();
-    tweenRef.current = {
-      startMs: performance.now(),
-      durationMs,
-      from: viewRef.current,
-      to: next,
-      onDone,
-    };
-    targetViewRef.current = next;
-    rafModeRef.current = 'tween';
-    rafRef.current = requestAnimationFrame(animateStep);
-  };
-
-  const showToast = (text: string) => {
-    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
-    setToastText(text);
-    toastTimerRef.current = window.setTimeout(() => setToastText(null), 1200);
-  };
-
-  const applySmoothTransform = (durationMs: number = 220) => {
-    if (smoothTimerRef.current) window.clearTimeout(smoothTimerRef.current);
-    setSmoothTransform(true);
-    smoothTimerRef.current = window.setTimeout(() => setSmoothTransform(false), durationMs);
-  };
-
-  const pushOpLog = (entry: {
-    at: number;
-    type: 'zoom_in' | 'zoom_out' | 'zoom' | 'reset' | 'pinch_end';
-    source: 'button' | 'wheel' | 'key' | 'gesture' | 'program';
-    zoomLevel: number;
-    scale: number;
-  }) => {
-    try {
-      const key = 'skylink_map_ops';
-      const raw = localStorage.getItem(key);
-      const existing = raw ? (JSON.parse(raw) as any[]) : [];
-      const next = Array.isArray(existing) ? existing.concat(entry).slice(-200) : [entry];
-      localStorage.setItem(key, JSON.stringify(next));
-    } catch {}
-    try {
-      window.dispatchEvent(new CustomEvent('skylink:map-op', { detail: entry }));
-    } catch {}
-  };
-
-  useEffect(() => {
-    return () => {
-      if (smoothTimerRef.current) window.clearTimeout(smoothTimerRef.current);
-      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
-    };
-  }, []);
-
-  const scale = useMemo(() => scaleFromZoom(zoomLevel), [zoomLevel]);
-
-  useEffect(() => {
-    zoomLevelRef.current = zoomLevel;
-    viewRef.current.zoom = zoomLevel;
-  }, [zoomLevel]);
-
-  useEffect(() => {
-    offsetRef.current = offset;
-    viewRef.current.offset = offset;
-  }, [offset]);
-
-  const computeEffectiveMinZoom = () => {
-    if (!enableControls) return minZoomLevel;
+  const getCenteredOffset = (nextScale: number) => {
     const el = containerRef.current;
-    if (!el) return minZoomLevel;
+    if (!el) return { x: 0, y: 0 };
     const rect = el.getBoundingClientRect();
     const w = rect.width;
     const h = rect.height;
-    if (!w || !h) return minZoomLevel;
-    const VIEWBOX_W = 1250;
-    const VIEWBOX_H = 800;
-    const unitPx = Math.min(w / VIEWBOX_W, h / VIEWBOX_H);
-    const minLabelPx = 10;
-    const labelFontSize = 14;
-    const minScaleForLabel = unitPx > 0 ? minLabelPx / (labelFontSize * unitPx) : 1;
-    const minZoomByLabel = zoomFromScale(Math.max(0.01, minScaleForLabel));
-    return Math.max(minZoomLevel, Math.min(defaultZoomLevel, minZoomByLabel));
+    if (!w || !h) return { x: 0, y: 0 };
+    return {
+      x: (w - w * nextScale) / 2,
+      y: (h - h * nextScale) / 2,
+    };
   };
 
   useEffect(() => {
-    if (!enableControls) {
-      minZoomRef.current = minZoomLevel;
-      setEffectiveMinZoom(minZoomLevel);
-      return;
-    }
+    offsetRef.current = offset;
+  }, [offset]);
 
-    const update = () => {
-      const next = computeEffectiveMinZoom();
-      minZoomRef.current = next;
-      setEffectiveMinZoom(next);
-      setZoomLevel((z) => {
-        const clamped = Math.min(maxZoomLevel, Math.max(next, z));
-        return clamped;
-      });
-      setOffset((prev) => clampOffset(prev, scaleFromZoom(zoomLevelRef.current)));
-    };
-
-    update();
+  useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    const update = () => setOffset((prev) => clampOffset(prev, scaleRef.current));
+    update();
     const ro = new ResizeObserver(() => update());
     ro.observe(el);
     return () => ro.disconnect();
-  }, [enableControls, maxZoomLevel, minZoomLevel, defaultZoomLevel]);
+  }, [enableControls]);
 
-  const updateZoomAtPoint = (nextZoomRaw: number, clientX: number, clientY: number, smooth?: boolean) => {
+  useEffect(() => {
+    const next = clampScale(effectiveDefaultScale);
+    scaleRef.current = next;
+    setScale(next);
+    setOffset((prev) => clampOffset(prev, next));
+  }, [effectiveDefaultScale, effectiveMinScale, effectiveMaxScale]);
+
+  const applyView = (nextScale: number, nextOffset: { x: number; y: number }) => {
+    scaleRef.current = nextScale;
+    offsetRef.current = nextOffset;
+    setScale(nextScale);
+    setOffset(nextOffset);
+  };
+
+  const inertiaRafRef = useRef<number | null>(null);
+  const inertiaVelRef = useRef<{ vx: number; vy: number }>({ vx: 0, vy: 0 });
+
+  const stopInertia = () => {
+    if (inertiaRafRef.current) cancelAnimationFrame(inertiaRafRef.current);
+    inertiaRafRef.current = null;
+    inertiaVelRef.current = { vx: 0, vy: 0 };
+  };
+
+  const startInertia = (vx: number, vy: number) => {
+    stopInertia();
+    inertiaVelRef.current = { vx, vy };
+
+    const step = () => {
+      const v = inertiaVelRef.current;
+      v.vx *= DRAG_DECAY;
+      v.vy *= DRAG_DECAY;
+
+      const prev = offsetRef.current;
+      const candidate = { x: prev.x + v.vx, y: prev.y + v.vy };
+      const clamped = clampOffset(candidate, scaleRef.current);
+      const movedX = clamped.x - prev.x;
+      const movedY = clamped.y - prev.y;
+
+      if (Math.abs(movedX - v.vx) > 0.01) v.vx = 0;
+      if (Math.abs(movedY - v.vy) > 0.01) v.vy = 0;
+
+      applyView(scaleRef.current, clamped);
+
+      if (Math.abs(v.vx) + Math.abs(v.vy) < 0.2) {
+        stopInertia();
+        onViewChange?.({ scale: scaleRef.current, offset: offsetRef.current });
+        return;
+      }
+      inertiaRafRef.current = requestAnimationFrame(step);
+    };
+
+    inertiaRafRef.current = requestAnimationFrame(step);
+  };
+
+  const zoomByFactor = (factor: number) => {
+    if (!enableControls) return;
+    stopInertia();
     const el = containerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const px = clientX - rect.left;
-    const py = clientY - rect.top;
-    const prevZoom = zoomLevelRef.current;
-    const prevOffset = offsetRef.current;
-    const prevScale = scaleFromZoom(prevZoom);
-    const nextZoom = clampZoom(nextZoomRaw);
-    const nextScale = scaleFromZoom(nextZoom);
-    const k = nextScale / prevScale;
+    if (!rect.width || !rect.height) return;
+    const px = rect.width / 2;
+    const py = rect.height / 2;
 
+    const prevScale = scaleRef.current;
+    const nextScale = clampScale(prevScale * factor);
+    const prevOffset = offsetRef.current;
+    const k = prevScale > 0 ? nextScale / prevScale : 1;
     const nextOffset = {
       x: px - (px - prevOffset.x) * k,
       y: py - (py - prevOffset.y) * k,
     };
-
     const clamped = clampOffset(nextOffset, nextScale);
-    const shouldCenter = Math.abs(nextZoom - minZoomRef.current) < 1e-6;
-    const finalOffset = shouldCenter ? clampOffset({ x: 0, y: 0 }, nextScale) : clamped;
-    if (smooth) {
-      startSpringTo({ zoom: nextZoom, offset: finalOffset });
-    } else {
-      stopAnimation();
-      zoomLevelRef.current = nextZoom;
-      offsetRef.current = finalOffset;
-      viewRef.current = { zoom: nextZoom, offset: finalOffset };
-      setZoomLevel(nextZoom);
-      setOffset(finalOffset);
-    }
+    applyView(nextScale, clamped);
+    onViewChange?.({ scale: nextScale, offset: clamped });
   };
 
-  const zoomTo = (nextZoom: number, smooth?: boolean) => {
+  const resetView = () => {
     const el = containerRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    updateZoomAtPoint(nextZoom, rect.left + rect.width / 2, rect.top + rect.height / 2, smooth);
-  };
-
-  const zoomByFactor = (factor: number, opts: { smooth?: boolean; source: 'button' | 'wheel' | 'key' | 'gesture' | 'program' }) => {
-    const el = containerRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const prevZoom = zoomLevelRef.current;
-    const prevScale = scaleFromZoom(prevZoom);
-    const nextScale = prevScale * factor;
-    const nextZoom = clampZoom(zoomFromScale(nextScale));
-    updateZoomAtPoint(nextZoom, rect.left + rect.width / 2, rect.top + rect.height / 2, opts.smooth);
-
-    const nextScaleApplied = scaleFromZoom(nextZoom);
-    pushOpLog({
-      at: Date.now(),
-      type: factor >= 1 ? 'zoom_in' : 'zoom_out',
-      source: opts.source,
-      zoomLevel: nextZoom,
-      scale: nextScaleApplied,
-    });
-  };
-
-  const resetView = (source: 'button' | 'key' | 'program' = 'button') => {
-    const el = containerRef.current;
-    if (!el) return;
-    const nextZoom = clampZoom(defaultZoomLevel);
-    const nextScale = scaleFromZoom(nextZoom);
-    const centered = clampOffset({ x: 0, y: 0 }, nextScale);
+    stopInertia();
+    const nextScale = clampScale(1);
+    const centered = clampOffset(getCenteredOffset(nextScale), nextScale);
     setHoveredPoint(null);
     setTooltipPos({ x: 0, y: 0 });
     pointersRef.current.clear();
     pinchBaseRef.current = null;
     onReset?.();
-    startTweenTo(
-      { zoom: nextZoom, offset: centered },
-      420,
-      () => {
-        setResetFlash(true);
-        window.setTimeout(() => setResetFlash(false), 160);
-        showToast('已复位');
-        pushOpLog({ at: Date.now(), type: 'reset', source, zoomLevel: nextZoom, scale: nextScale });
-        el.focus({ preventScroll: true });
-      },
-    );
+    applyView(nextScale, centered);
+    onViewChange?.({ scale: nextScale, offset: centered });
+    el.focus({ preventScroll: true });
   };
+
+  const wheelAccRef = useRef<number>(0);
+  const wheelRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!enableControls) return;
@@ -420,61 +220,79 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
     const onWheel = (ev: WheelEvent) => {
       ev.preventDefault();
-      const direction = ev.deltaY > 0 ? -1 : 1;
-      const prevZoom = zoomLevelRef.current;
-      const prevOffset = offsetRef.current;
-      const nextZoom = clampZoom(prevZoom + direction);
-      const prevScale = scaleFromZoom(prevZoom);
-      const nextScale = scaleFromZoom(nextZoom);
-      const k = nextScale / prevScale;
-
-      const rect = el.getBoundingClientRect();
-      const px = ev.clientX - rect.left;
-      const py = ev.clientY - rect.top;
-      const nextOffset = {
-        x: px - (px - prevOffset.x) * k,
-        y: py - (py - prevOffset.y) * k,
-      };
-      if (Math.abs(nextZoom - prevZoom) > 1e-6) {
-        setZoomLevel(nextZoom);
-        setOffset(clampOffset(nextOffset, nextScale));
-        applySmoothTransform();
-        pushOpLog({ at: Date.now(), type: 'zoom', source: 'wheel', zoomLevel: nextZoom, scale: nextScale });
-      }
+      const sensitivity = ev.ctrlKey ? 0.002 : 0.0012;
+      wheelAccRef.current += ev.deltaY * sensitivity;
+      if (wheelRafRef.current) return;
+      wheelRafRef.current = requestAnimationFrame(() => {
+        wheelRafRef.current = null;
+        const rawFactor = Math.exp(-wheelAccRef.current);
+        wheelAccRef.current = 0;
+        const factor = Math.min(1.6, Math.max(0.625, rawFactor));
+        zoomByFactor(factor);
+      });
     };
 
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [enableControls, minZoomLevel, maxZoomLevel, defaultZoomLevel]);
+  }, [enableControls]);
 
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchBaseRef = useRef<{
-    centerX: number;
-    centerY: number;
-    baseZoom: number;
+    baseScale: number;
     baseOffset: { x: number; y: number };
     baseDistance: number;
   } | null>(null);
 
+  const dragRef = useRef<{
+    pointerId: number;
+    lastX: number;
+    lastY: number;
+    lastTs: number;
+    vx: number;
+    vy: number;
+    dx: number;
+    dy: number;
+  } | null>(null);
+  const [dragIndicator, setDragIndicator] = useState<{ active: boolean; angle: number; strength: number }>({
+    active: false,
+    angle: 0,
+    strength: 0,
+  });
+
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!enableControls) return;
+    if ((e.target as HTMLElement | null)?.closest?.('[data-worldmap-controls]')) return;
     const el = containerRef.current;
     if (!el) return;
     el.setPointerCapture(e.pointerId);
+    stopInertia();
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointersRef.current.size === 2) {
       const arr = Array.from(pointersRef.current.values());
       const dx = arr[0].x - arr[1].x;
       const dy = arr[0].y - arr[1].y;
-      const centerX = (arr[0].x + arr[1].x) / 2;
-      const centerY = (arr[0].y + arr[1].y) / 2;
       pinchBaseRef.current = {
-        centerX,
-        centerY,
-        baseZoom: zoomLevel,
-        baseOffset: offset,
+        baseScale: scaleRef.current,
+        baseOffset: offsetRef.current,
         baseDistance: Math.max(1, Math.hypot(dx, dy)),
       };
+      dragRef.current = null;
+      setDragIndicator({ active: false, angle: 0, strength: 0 });
+      return;
+    }
+
+    if (pointersRef.current.size === 1) {
+      dragRef.current = {
+        pointerId: e.pointerId,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        lastTs: performance.now(),
+        vx: 0,
+        vy: 0,
+        dx: 0,
+        dy: 0,
+      };
+      setDragIndicator({ active: true, angle: 0, strength: 0 });
     }
   };
 
@@ -482,35 +300,55 @@ const WorldMap: React.FC<WorldMapProps> = ({
     if (!enableControls) return;
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointersRef.current.size !== 2) return;
-    const base = pinchBaseRef.current;
-    if (!base) return;
+    if (pointersRef.current.size === 2) {
+      const base = pinchBaseRef.current;
+      if (!base) return;
 
-    const arr = Array.from(pointersRef.current.values());
-    const dx = arr[0].x - arr[1].x;
-    const dy = arr[0].y - arr[1].y;
-    const distance = Math.max(1, Math.hypot(dx, dy));
-    const ratio = distance / base.baseDistance;
+      const arr = Array.from(pointersRef.current.values());
+      const dx = arr[0].x - arr[1].x;
+      const dy = arr[0].y - arr[1].y;
+      const distance = Math.max(1, Math.hypot(dx, dy));
+      const ratio = distance / base.baseDistance;
+      const nextScale = clampScale(base.baseScale * ratio);
 
-    const baseScale = scaleFromZoom(base.baseZoom);
-    const nextScale = baseScale * ratio;
-    const nextZoom = clampZoom(zoomFromScale(nextScale));
-    const appliedScale = scaleFromZoom(nextZoom);
-    const k = appliedScale / baseScale;
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const px = rect.width / 2;
+      const py = rect.height / 2;
+      const k = base.baseScale > 0 ? nextScale / base.baseScale : 1;
 
-    const el = containerRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const px = base.centerX - rect.left;
-    const py = base.centerY - rect.top;
+      const nextOffset = {
+        x: px - (px - base.baseOffset.x) * k,
+        y: py - (py - base.baseOffset.y) * k,
+      };
 
-    const nextOffset = {
-      x: px - (px - base.baseOffset.x) * k,
-      y: py - (py - base.baseOffset.y) * k,
-    };
+      applyView(nextScale, clampOffset(nextOffset, nextScale));
+      return;
+    }
 
-    setZoomLevel(nextZoom);
-    setOffset(clampOffset(nextOffset, appliedScale));
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const now = performance.now();
+    const dt = Math.max(1, now - drag.lastTs);
+    const dx = e.clientX - drag.lastX;
+    const dy = e.clientY - drag.lastY;
+    drag.lastX = e.clientX;
+    drag.lastY = e.clientY;
+    drag.lastTs = now;
+    drag.dx = dx;
+    drag.dy = dy;
+    drag.vx = (dx / dt) * (1000 / 60);
+    drag.vy = (dy / dt) * (1000 / 60);
+
+    const prev = offsetRef.current;
+    const next = clampOffset({ x: prev.x + dx, y: prev.y + dy }, scaleRef.current);
+    applyView(scaleRef.current, next);
+
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+    const strength = Math.min(1, Math.hypot(dx, dy) / 24);
+    setDragIndicator({ active: true, angle, strength });
   };
 
   const onPointerUpOrCancel = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -519,10 +357,21 @@ const WorldMap: React.FC<WorldMapProps> = ({
     pointersRef.current.delete(e.pointerId);
     if (pointersRef.current.size < 2) {
       pinchBaseRef.current = null;
-      if (wasPinching) {
-        const z = zoomLevelRef.current;
-        pushOpLog({ at: Date.now(), type: 'pinch_end', source: 'gesture', zoomLevel: z, scale: scaleFromZoom(z) });
-      }
+    }
+
+    const drag = dragRef.current;
+    if (drag && drag.pointerId === e.pointerId) {
+      dragRef.current = null;
+      setDragIndicator({ active: false, angle: 0, strength: 0 });
+      const vx = drag.vx;
+      const vy = drag.vy;
+      onViewChange?.({ scale: scaleRef.current, offset: offsetRef.current });
+      if (Math.abs(vx) + Math.abs(vy) >= 0.8) startInertia(vx, vy);
+    }
+
+    if (wasPinching && pointersRef.current.size < 2) {
+      setDragIndicator({ active: false, angle: 0, strength: 0 });
+      onViewChange?.({ scale: scaleRef.current, offset: offsetRef.current });
     }
   };
 
@@ -530,17 +379,17 @@ const WorldMap: React.FC<WorldMapProps> = ({
     if (!enableControls) return;
     if (e.key === '+' || e.key === '=' ) {
       e.preventDefault();
-      zoomByFactor(1.35, { smooth: true, source: 'key' });
+      zoomByFactor(BUTTON_ZOOM_FACTOR);
       return;
     }
     if (e.key === '-' || e.key === '_') {
       e.preventDefault();
-      zoomByFactor(1 / 1.35, { smooth: true, source: 'key' });
+      zoomByFactor(1 / BUTTON_ZOOM_FACTOR);
       return;
     }
     if (e.key === '0') {
       e.preventDefault();
-      resetView('key');
+      resetView();
     }
   };
 
@@ -599,7 +448,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
       ref={containerRef}
       tabIndex={enableControls ? 0 : undefined}
       aria-label={enableControls ? '地图（可缩放）' : undefined}
-      className={`relative w-full h-full rounded-xl overflow-hidden ${className} ${!className.includes('bg-') ? (isDark ? 'bg-transparent' : 'bg-slate-50') : ''} ${enableControls ? 'outline-none' : ''}`}
+      className={`relative w-full h-full rounded-xl overflow-hidden ${className} ${!className.includes('bg-') ? (isDark ? 'bg-transparent' : 'bg-slate-50') : ''} ${enableControls ? `outline-none ${dragIndicator.active ? 'cursor-grabbing' : 'cursor-grab'}` : ''}`}
       style={enableControls ? ({ touchAction: 'none' } as any) : undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -619,11 +468,11 @@ const WorldMap: React.FC<WorldMapProps> = ({
       <svg 
         viewBox="-150 -20 1250 800" 
         className="w-full h-full block"
-        preserveAspectRatio={enableControls && zoomLevel <= effectiveMinZoom + 1e-6 ? 'xMidYMid meet' : preserveAspectRatio}
+        preserveAspectRatio={effectivePreserveAspectRatio}
         style={{
-          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+          transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`,
           transformOrigin: '0 0',
-          transition: smoothTransform ? 'transform 220ms ease' : undefined,
+          willChange: enableControls ? 'transform' : undefined,
         }}
       >
         <defs>
@@ -649,7 +498,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
             width={MAP_WIDTH} 
             height={MAP_HEIGHT}
             opacity={colors.mapOpacity}
-            className="pointer-events-none transition-all duration-500"
+            className="pointer-events-none"
             style={{ filter: colors.mapFilter }}
         />
 
@@ -689,14 +538,17 @@ const WorldMap: React.FC<WorldMapProps> = ({
                  opacity="0.8"
                  filter={isDark ? "url(#glow)" : ""}
                >
-                  <animate attributeName="stroke-dashoffset" from="100" to="0" dur="2s" repeatCount="indefinite" />
+                  {!enableControls && (
+                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="2s" repeatCount="indefinite" />
+                  )}
                </path>
-               
-               <circle r="4" fill={colors.planeFill} filter={isDark ? "url(#glow)" : ""}>
-                  <animateMotion dur="3s" repeatCount="indefinite" path={pathD} rotate="auto">
-                    <mpath href={`#routePath-${idx}`} />
-                  </animateMotion>
-               </circle>
+               {!enableControls && (
+                 <circle r="4" fill={colors.planeFill} filter={isDark ? "url(#glow)" : ""}>
+                   <animateMotion dur="3s" repeatCount="indefinite" path={pathD} rotate="auto">
+                     <mpath href={`#routePath-${idx}`} />
+                   </animateMotion>
+                 </circle>
+               )}
                
                <path id={`routePath-${idx}`} d={pathD} fill="none" stroke="none" />
              </g>
@@ -718,7 +570,9 @@ const WorldMap: React.FC<WorldMapProps> = ({
                     strokeOpacity="0.2"
                     strokeDasharray="5,5"
                 >
-                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="3s" repeatCount="indefinite" />
+                    {!enableControls && (
+                      <animate attributeName="stroke-dashoffset" from="100" to="0" dur="3s" repeatCount="indefinite" />
+                    )}
                 </path>
             );
         })}
@@ -742,8 +596,12 @@ const WorldMap: React.FC<WorldMapProps> = ({
               style={{ cursor: 'pointer' }}
             >
               <circle cx={x} cy={y} r={isLarge ? 15 : 8} fill={pointColor} opacity={isDark ? 0.6 : 0.3}>
-                <animate attributeName="r" values={isLarge ? "10;25;10" : "5;12;5"} dur="3s" repeatCount="indefinite" />
-                <animate attributeName="opacity" values={isDark ? "0.6;0;0.6" : "0.3;0;0.3"} dur="3s" repeatCount="indefinite" />
+                {!enableControls && (
+                  <>
+                    <animate attributeName="r" values={isLarge ? "10;25;10" : "5;12;5"} dur="3s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values={isDark ? "0.6;0;0.6" : "0.3;0;0.3"} dur="3s" repeatCount="indefinite" />
+                  </>
+                )}
               </circle>
               
               <circle 
@@ -774,10 +632,29 @@ const WorldMap: React.FC<WorldMapProps> = ({
         })}
       </svg>
 
+      {enableControls && dragIndicator.active && dragIndicator.strength > 0.01 && (
+        <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
+          <div
+            className={`${isDark ? 'text-slate-200' : 'text-slate-700'}`}
+            style={{
+              transform: `rotate(${dragIndicator.angle}deg)`,
+              opacity: 0.25 + 0.55 * dragIndicator.strength,
+            }}
+          >
+            <ArrowUp className="w-7 h-7" />
+          </div>
+        </div>
+      )}
+
       {enableControls && (
         <div
           role="group"
           aria-label="地图缩放控制"
+          data-worldmap-controls
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onPointerMove={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
           className={`absolute bottom-4 right-4 z-20 flex flex-col gap-2 ${isDark ? '' : ''}`}
         >
           <div className="flex justify-end">
@@ -789,8 +666,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
             <button
               type="button"
               aria-label="放大"
-              disabled={zoomLevel >= maxZoomLevel}
-              onClick={() => zoomByFactor(1.35, { smooth: true, source: 'button' })}
+              disabled={scale >= effectiveMaxScale}
+              onClick={() => zoomByFactor(BUTTON_ZOOM_FACTOR)}
               className={`w-11 h-11 flex items-center justify-center transition-all select-none ${isDark ? 'text-slate-100 hover:bg-white/10 active:bg-white/15' : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'} disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-inset`}
             >
               <Plus className="w-5 h-5" />
@@ -799,8 +676,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
             <button
               type="button"
               aria-label="缩小"
-              disabled={zoomLevel <= effectiveMinZoom}
-              onClick={() => zoomByFactor(1 / 1.35, { smooth: true, source: 'button' })}
+              disabled={scale <= effectiveMinScale}
+              onClick={() => zoomByFactor(1 / BUTTON_ZOOM_FACTOR)}
               className={`w-11 h-11 flex items-center justify-center transition-all select-none ${isDark ? 'text-slate-100 hover:bg-white/10 active:bg-white/15' : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'} disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-inset`}
             >
               <Minus className="w-5 h-5" />
@@ -810,26 +687,11 @@ const WorldMap: React.FC<WorldMapProps> = ({
           <button
             type="button"
             aria-label="复位"
-            onClick={() => resetView('button')}
+            onClick={() => resetView()}
             className={`w-11 h-11 rounded-2xl border shadow-xl backdrop-blur-md flex items-center justify-center transition-all select-none focus:outline-none focus:ring-2 focus:ring-sky-400 ${isDark ? 'bg-slate-900/60 border-slate-700 text-slate-100 hover:bg-white/10 active:bg-white/15' : 'bg-white/70 border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100'}`}
           >
             <RotateCcw className="w-5 h-5" />
           </button>
-        </div>
-      )}
-
-      {(toastText || resetFlash) && (
-        <div className="absolute inset-0 pointer-events-none">
-          <div
-            className={`absolute inset-0 transition-opacity ${resetFlash ? 'opacity-100' : 'opacity-0'} ${isDark ? 'bg-white/10' : 'bg-slate-900/5'}`}
-          />
-          {toastText && (
-            <div className="absolute bottom-4 right-16">
-              <div className={`px-3 py-1.5 rounded-xl border shadow-xl backdrop-blur-md text-xs ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white/80 border-gray-200 text-gray-800'}`}>
-                {toastText}
-              </div>
-            </div>
-          )}
         </div>
       )}
 

@@ -17,7 +17,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ isVisible }) => {
     if (path.includes('flights')) return '航班管理';
     if (path.includes('bookings')) return '订单管理';
     if (path.includes('users')) return '用户管理';
-    if (path.includes('payments')) return '支付管理';
+    if (path.includes('payments')) return '支付管理';  
     if (path.includes('settings')) return '系统设置';
     return '管理后台';
   };

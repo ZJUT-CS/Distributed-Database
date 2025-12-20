@@ -234,6 +234,7 @@ const FlightResultPage: React.FC = () => {
                minZoomLevel={3}
                maxZoomLevel={18}
                defaultZoomLevel={10}
+               preserveAspectRatio="xMidYMid meet"
                onReset={() => {
                  setUserMapPoints([]);
                  setUserMapRoutes([]);
