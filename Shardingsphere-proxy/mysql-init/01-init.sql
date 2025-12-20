@@ -1,6 +1,6 @@
 -- 1. 用户信息表（用户端登录/注册/个人信息管理）
 CREATE TABLE `users` (
-  `user_id` bigint NOT NULL COMMENT '后端标识(雪花算法生成)',
+  `user_id` bigint NOT NULL COMMENT '用户ID(雪花算法生成)',
   `phone_number` varchar(20) NOT NULL COMMENT '手机号',
   `password_hash` varchar(255) NOT NULL COMMENT '加密密码',
   `real_name` varchar(50) DEFAULT NULL COMMENT '真实姓名',
@@ -16,7 +16,7 @@ CREATE TABLE `users` (
 
 -- 1. 管理员信息表
 CREATE TABLE `admins` (
-  `admin_id` bigint NOT NULL COMMENT '后端标识(雪花算法)',
+  `admin_id` bigint NOT NULL COMMENT '管理员ID(雪花算法)',
   `admin_account` varchar(50) NOT NULL COMMENT '管理员账号',
   `password_hash` varchar(255) NOT NULL COMMENT '加密密码',
   `role` tinyint DEFAULT '2' COMMENT '角色', -- 默认是普通管理员

@@ -6,7 +6,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.mybatis.spring.annotation.MapperScan;
 
 @SpringBootApplication
-@MapperScan("com.team.skylink.mapper")
+@MapperScan("com.team.skylink")
 @EnableCaching
 public class SkyLinkApplication {
     public static void main(String[] args) {
