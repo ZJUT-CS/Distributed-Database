@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { MapPoint } from '../../types';
 import worldMapSvg from '../../assets/images/Simplified_World_Map.svg';
 
@@ -9,6 +10,10 @@ interface WorldMapProps {
   showGrid?: boolean;
   theme?: 'light' | 'dark';
   preserveAspectRatio?: string;
+  enableControls?: boolean;
+  minZoomLevel?: number;
+  maxZoomLevel?: number;
+  defaultZoomLevel?: number;
 }
 
 const WorldMap: React.FC<WorldMapProps> = ({ 
@@ -17,12 +22,247 @@ const WorldMap: React.FC<WorldMapProps> = ({
   className = "", 
   showGrid = true,
   theme = 'light',
-  preserveAspectRatio = 'xMidYMid slice'
+  preserveAspectRatio = 'xMidYMid slice',
+  enableControls = false,
+  minZoomLevel = 3,
+  maxZoomLevel = 18,
+  defaultZoomLevel = 10
 }) => {
   const [hoveredPoint, setHoveredPoint] = useState<MapPoint | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const smoothTimerRef = useRef<number | null>(null);
 
   const isDark = theme === 'dark';
+
+  const [zoomLevel, setZoomLevel] = useState<number>(defaultZoomLevel);
+  const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [smoothTransform, setSmoothTransform] = useState(false);
+  const zoomLevelRef = useRef<number>(defaultZoomLevel);
+  const offsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const clampZoom = (z: number) => Math.min(maxZoomLevel, Math.max(minZoomLevel, z));
+
+  const baseZoom = defaultZoomLevel;
+  const scaleFromZoom = (z: number) => Math.pow(2, (z - baseZoom) / 4);
+  const zoomFromScale = (s: number) => baseZoom + 4 * (Math.log(s) / Math.log(2));
+
+  const clampOffset = (candidate: { x: number; y: number }, nextScale: number) => {
+    const el = containerRef.current;
+    if (!el) return candidate;
+    const rect = el.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    if (!w || !h) return candidate;
+
+    const scaledW = w * nextScale;
+    const scaledH = h * nextScale;
+
+    let minX = 0;
+    let maxX = 0;
+    if (scaledW <= w) {
+      minX = maxX = (w - scaledW) / 2;
+    } else {
+      minX = w - scaledW;
+      maxX = 0;
+    }
+
+    let minY = 0;
+    let maxY = 0;
+    if (scaledH <= h) {
+      minY = maxY = (h - scaledH) / 2;
+    } else {
+      minY = h - scaledH;
+      maxY = 0;
+    }
+
+    const x = Math.min(maxX, Math.max(minX, candidate.x));
+    const y = Math.min(maxY, Math.max(minY, candidate.y));
+    return { x, y };
+  };
+
+  const applySmoothTransform = () => {
+    if (smoothTimerRef.current) window.clearTimeout(smoothTimerRef.current);
+    setSmoothTransform(true);
+    smoothTimerRef.current = window.setTimeout(() => setSmoothTransform(false), 220);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (smoothTimerRef.current) window.clearTimeout(smoothTimerRef.current);
+    };
+  }, []);
+
+  const scale = useMemo(() => scaleFromZoom(zoomLevel), [zoomLevel]);
+
+  useEffect(() => {
+    zoomLevelRef.current = zoomLevel;
+  }, [zoomLevel]);
+
+  useEffect(() => {
+    offsetRef.current = offset;
+  }, [offset]);
+
+  const updateZoomAtPoint = (nextZoomRaw: number, clientX: number, clientY: number, smooth?: boolean) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+    const prevScale = scaleFromZoom(zoomLevel);
+    const nextZoom = clampZoom(nextZoomRaw);
+    const nextScale = scaleFromZoom(nextZoom);
+    const k = nextScale / prevScale;
+
+    const nextOffset = {
+      x: px - (px - offset.x) * k,
+      y: py - (py - offset.y) * k,
+    };
+
+    setZoomLevel(nextZoom);
+    setOffset(clampOffset(nextOffset, nextScale));
+    if (smooth) applySmoothTransform();
+  };
+
+  const zoomTo = (nextZoom: number, smooth?: boolean) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    updateZoomAtPoint(nextZoom, rect.left + rect.width / 2, rect.top + rect.height / 2, smooth);
+  };
+
+  const resetView = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const nextZoom = clampZoom(defaultZoomLevel);
+    const nextScale = scaleFromZoom(nextZoom);
+    const centered = clampOffset({ x: 0, y: 0 }, nextScale);
+    setZoomLevel(nextZoom);
+    setOffset(centered);
+    applySmoothTransform();
+    el.focus({ preventScroll: true });
+  };
+
+  useEffect(() => {
+    if (!enableControls) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onWheel = (ev: WheelEvent) => {
+      ev.preventDefault();
+      const direction = ev.deltaY > 0 ? -1 : 1;
+      const prevZoom = zoomLevelRef.current;
+      const prevOffset = offsetRef.current;
+      const nextZoom = clampZoom(prevZoom + direction);
+      const prevScale = scaleFromZoom(prevZoom);
+      const nextScale = scaleFromZoom(nextZoom);
+      const k = nextScale / prevScale;
+
+      const rect = el.getBoundingClientRect();
+      const px = ev.clientX - rect.left;
+      const py = ev.clientY - rect.top;
+      const nextOffset = {
+        x: px - (px - prevOffset.x) * k,
+        y: py - (py - prevOffset.y) * k,
+      };
+      setZoomLevel(nextZoom);
+      setOffset(clampOffset(nextOffset, nextScale));
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [enableControls, minZoomLevel, maxZoomLevel, defaultZoomLevel]);
+
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchBaseRef = useRef<{
+    centerX: number;
+    centerY: number;
+    baseZoom: number;
+    baseOffset: { x: number; y: number };
+    baseDistance: number;
+  } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!enableControls) return;
+    const el = containerRef.current;
+    if (!el) return;
+    el.setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2) {
+      const arr = Array.from(pointersRef.current.values());
+      const dx = arr[0].x - arr[1].x;
+      const dy = arr[0].y - arr[1].y;
+      const centerX = (arr[0].x + arr[1].x) / 2;
+      const centerY = (arr[0].y + arr[1].y) / 2;
+      pinchBaseRef.current = {
+        centerX,
+        centerY,
+        baseZoom: zoomLevel,
+        baseOffset: offset,
+        baseDistance: Math.max(1, Math.hypot(dx, dy)),
+      };
+    }
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!enableControls) return;
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size !== 2) return;
+    const base = pinchBaseRef.current;
+    if (!base) return;
+
+    const arr = Array.from(pointersRef.current.values());
+    const dx = arr[0].x - arr[1].x;
+    const dy = arr[0].y - arr[1].y;
+    const distance = Math.max(1, Math.hypot(dx, dy));
+    const ratio = distance / base.baseDistance;
+
+    const baseScale = scaleFromZoom(base.baseZoom);
+    const nextScale = baseScale * ratio;
+    const nextZoom = clampZoom(zoomFromScale(nextScale));
+    const appliedScale = scaleFromZoom(nextZoom);
+    const k = appliedScale / baseScale;
+
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = base.centerX - rect.left;
+    const py = base.centerY - rect.top;
+
+    const nextOffset = {
+      x: px - (px - base.baseOffset.x) * k,
+      y: py - (py - base.baseOffset.y) * k,
+    };
+
+    setZoomLevel(nextZoom);
+    setOffset(clampOffset(nextOffset, appliedScale));
+  };
+
+  const onPointerUpOrCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!enableControls) return;
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchBaseRef.current = null;
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!enableControls) return;
+    if (e.key === '+' || e.key === '=' ) {
+      e.preventDefault();
+      zoomTo(zoomLevel + 1, true);
+      return;
+    }
+    if (e.key === '-' || e.key === '_') {
+      e.preventDefault();
+      zoomTo(zoomLevel - 1, true);
+      return;
+    }
+    if (e.key === '0') {
+      e.preventDefault();
+      resetView();
+    }
+  };
 
   // 地图原始尺寸常量
   const MAP_WIDTH = 1016;
@@ -75,7 +315,18 @@ const WorldMap: React.FC<WorldMapProps> = ({
   };
 
   return (
-    <div className={`relative w-full h-full rounded-xl overflow-hidden ${className} ${!className.includes('bg-') ? (isDark ? 'bg-transparent' : 'bg-slate-50') : ''}`}>
+    <div
+      ref={containerRef}
+      tabIndex={enableControls ? 0 : undefined}
+      aria-label={enableControls ? '地图（可缩放）' : undefined}
+      className={`relative w-full h-full rounded-xl overflow-hidden ${className} ${!className.includes('bg-') ? (isDark ? 'bg-transparent' : 'bg-slate-50') : ''} ${enableControls ? 'outline-none' : ''}`}
+      style={enableControls ? ({ touchAction: 'none' } as any) : undefined}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUpOrCancel}
+      onPointerCancel={onPointerUpOrCancel}
+      onKeyDown={onKeyDown}
+    >
       {/* 
         ViewBox 调整说明:
         - 宽度 1250 / 高度 800: 保持放大效果 (1.5倍左右)。
@@ -89,6 +340,11 @@ const WorldMap: React.FC<WorldMapProps> = ({
         viewBox="-150 -20 1250 800" 
         className="w-full h-full block"
         preserveAspectRatio={preserveAspectRatio}
+        style={{
+          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+          transformOrigin: '0 0',
+          transition: smoothTransform ? 'transform 220ms ease' : undefined,
+        }}
       >
         <defs>
             <linearGradient id="routeGradientDark" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -237,6 +493,45 @@ const WorldMap: React.FC<WorldMapProps> = ({
           );
         })}
       </svg>
+
+      {enableControls && (
+        <div
+          role="group"
+          aria-label="地图缩放控制"
+          className={`absolute bottom-4 right-4 z-20 flex flex-col gap-2 ${isDark ? '' : ''}`}
+        >
+          <div className={`overflow-hidden rounded-2xl border shadow-xl backdrop-blur-md ${isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-white/70 border-gray-200'}`}>
+            <button
+              type="button"
+              aria-label="放大"
+              disabled={zoomLevel >= maxZoomLevel}
+              onClick={() => zoomTo(zoomLevel + 1, true)}
+              className={`w-11 h-11 flex items-center justify-center transition-all select-none ${isDark ? 'text-slate-100 hover:bg-white/10 active:bg-white/15' : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'} disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-inset`}
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+            <div className={`${isDark ? 'border-t border-slate-800' : 'border-t border-gray-200'}`} />
+            <button
+              type="button"
+              aria-label="缩小"
+              disabled={zoomLevel <= minZoomLevel}
+              onClick={() => zoomTo(zoomLevel - 1, true)}
+              className={`w-11 h-11 flex items-center justify-center transition-all select-none ${isDark ? 'text-slate-100 hover:bg-white/10 active:bg-white/15' : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'} disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-inset`}
+            >
+              <Minus className="w-5 h-5" />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            aria-label="复位"
+            onClick={resetView}
+            className={`w-11 h-11 rounded-2xl border shadow-xl backdrop-blur-md flex items-center justify-center transition-all select-none focus:outline-none focus:ring-2 focus:ring-sky-400 ${isDark ? 'bg-slate-900/60 border-slate-700 text-slate-100 hover:bg-white/10 active:bg-white/15' : 'bg-white/70 border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100'}`}
+          >
+            <RotateCcw className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* Tooltip */}
       {hoveredPoint && (

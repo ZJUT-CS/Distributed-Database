@@ -1,5 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Flight, BookingDetails, PassengerInfo } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { CreditCard, User, ShieldCheck, Plane, Clock, Mail, Phone, ChevronRight, CheckCircle2, QrCode, Smartphone, Wallet, ArrowLeft, AlertCircle, Lock, BadgeCheck } from 'lucide-react';
@@ -34,6 +35,7 @@ const cabinMeta = (c: 'economy' | 'business' | 'first') => {
 
 const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabinClass, onConfirm, onCancel }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState<BookingStep>(1);
   const [attemptedNext, setAttemptedNext] = useState(false);
 
@@ -106,7 +108,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   const promptVerifyAccount = () => {
     const ok = window.confirm('购票前请先完成实名认证，是否前往个人中心认证？');
     if (!ok) return;
-    window.open('/user-center?tab=profile', '_blank');
+    navigate({ pathname: '/user-center', search: '?tab=profile' });
   };
 
   const updatePassenger = (index: number, patch: Partial<PassengerInfo>) => {

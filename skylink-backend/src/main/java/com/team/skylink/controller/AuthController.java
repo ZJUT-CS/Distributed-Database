@@ -25,10 +25,16 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping({"/auth", "/api/v1/auth"})
 public class AuthController {
+    private static final String REQ_ATTR_USER_ID = "AUTH_USER_ID";
+    private static final String REQ_ATTR_USER_TYPE = "AUTH_USER_TYPE";
+
+    private static final Map<String, SessionIdentity> SESSIONS = new ConcurrentHashMap<>();
+
     private final UserMapper userMapper;
     private final AdminMapper adminMapper;
     private final PasswordEncoder passwordEncoder;
@@ -59,11 +65,14 @@ public class AuthController {
 
         // 用户表不记录最后登录时间字段，直接返回登录结果
 
+        String token = UUID.randomUUID().toString();
+        SESSIONS.put(token, new SessionIdentity(user.getUserId(), 1));
+
         LoginResponse resp = new LoginResponse(
                 user.getUserId(),
                 user.getPhoneNumber(),
                 "user",
-                UUID.randomUUID().toString()
+                token
         );
         return Result.ok(resp);
     }
@@ -86,11 +95,14 @@ public class AuthController {
         admin.setLastLoginTime(now);
         adminMapper.updateById(admin);
 
+        String token = UUID.randomUUID().toString();
+        SESSIONS.put(token, new SessionIdentity(admin.getAdminId(), 2));
+
         LoginResponse resp = new LoginResponse(
                 admin.getAdminId(),
                 admin.getUsername(),
                 "admin",
-                UUID.randomUUID().toString()
+                token
         );
         return Result.ok(resp);
     }
@@ -173,7 +185,7 @@ public class AuthController {
         Result<?> userGuard = ensureUser(request);
         if (userGuard != null) return (Result<UserProfileResponse>) userGuard;
 
-        Long userId = parseLongHeader(request, "X-User-Id");
+        Long userId = getAuthedUserId(request);
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
 
@@ -185,7 +197,7 @@ public class AuthController {
         Result<?> userGuard = ensureUser(request);
         if (userGuard != null) return (Result<UserProfileResponse>) userGuard;
 
-        Long userId = parseLongHeader(request, "X-User-Id");
+        Long userId = getAuthedUserId(request);
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
 
@@ -242,7 +254,7 @@ public class AuthController {
         if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) return Result.fail(400, "invalid email");
         if (!"123456".equals(req.getCode().trim())) return Result.fail(400, "invalid verify code");
 
-        Long userId = parseLongHeader(request, "X-User-Id");
+        Long userId = getAuthedUserId(request);
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
         u.setEmail(email);
@@ -270,7 +282,7 @@ public class AuthController {
         if (!phone.matches("^1[3-9]\\d{9}$")) return Result.fail(400, "invalid phone");
         if (!"123456".equals(req.getCode().trim())) return Result.fail(400, "invalid verify code");
 
-        Long userId = parseLongHeader(request, "X-User-Id");
+        Long userId = getAuthedUserId(request);
         User exists = userMapper.selectOne(new QueryWrapper<User>().eq("phone_number", phone).ne("user_id", userId));
         if (exists != null) return Result.fail(409, "phone number already exists");
 
@@ -287,7 +299,7 @@ public class AuthController {
         Result<?> userGuard = ensureUser(request);
         if (userGuard != null) return (Result<Boolean>) userGuard;
 
-        Long userId = parseLongHeader(request, "X-User-Id");
+        Long userId = getAuthedUserId(request);
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
 
@@ -304,11 +316,46 @@ public class AuthController {
     }
 
     private static Result<?> ensureUser(HttpServletRequest request) {
+        SessionIdentity s = resolveSession(request);
+        if (s != null) {
+            if (s.userType != 1) return Result.fail(403, "user required");
+            request.setAttribute(REQ_ATTR_USER_ID, s.userId);
+            request.setAttribute(REQ_ATTR_USER_TYPE, s.userType);
+            return null;
+        }
+
         Long userId = parseLongHeader(request, "X-User-Id");
         if (userId == null || userId <= 0) return Result.fail(401, "login required");
 
         String t = request.getHeader("X-User-Type");
         if (t == null || (!"1".equals(t.trim()))) return Result.fail(403, "user required");
+
+        request.setAttribute(REQ_ATTR_USER_ID, userId);
+        request.setAttribute(REQ_ATTR_USER_TYPE, 1);
+        return null;
+    }
+
+    private static SessionIdentity resolveSession(HttpServletRequest request) {
+        String token = parseBearerToken(request);
+        if (token == null) return null;
+        return SESSIONS.get(token);
+    }
+
+    private static String parseBearerToken(HttpServletRequest request) {
+        String auth = request.getHeader("Authorization");
+        if (auth == null) return null;
+        String v = auth.trim();
+        if (v.length() < 8) return null;
+        if (!v.regionMatches(true, 0, "Bearer ", 0, 7)) return null;
+        String token = v.substring(7).trim();
+        if (token.isEmpty()) return null;
+        return token;
+    }
+
+    private static Long getAuthedUserId(HttpServletRequest request) {
+        Object v = request.getAttribute(REQ_ATTR_USER_ID);
+        if (v instanceof Long) return (Long) v;
+        if (v instanceof Number) return ((Number) v).longValue();
         return null;
     }
 
@@ -319,6 +366,16 @@ public class AuthController {
             return Long.parseLong(v.trim());
         } catch (NumberFormatException e) {
             return null;
+        }
+    }
+
+    private static final class SessionIdentity {
+        private final Long userId;
+        private final int userType;
+
+        private SessionIdentity(Long userId, int userType) {
+            this.userId = userId;
+            this.userType = userType;
         }
     }
 

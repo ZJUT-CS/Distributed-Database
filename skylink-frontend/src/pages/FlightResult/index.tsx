@@ -277,6 +277,10 @@ const FlightResultPage: React.FC = () => {
                className="h-full w-full rounded-none border-none opacity-100"
                showGrid={true}
                theme="dark"
+               enableControls={true}
+               minZoomLevel={3}
+               maxZoomLevel={18}
+               defaultZoomLevel={10}
              />
 
              {/* Overlay */}
