@@ -57,6 +57,8 @@ const FlightResultPage: React.FC = () => {
   });
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [userMapPoints, setUserMapPoints] = useState<MapPoint[]>([]);
+  const [userMapRoutes, setUserMapRoutes] = useState<Array<{ from: string; to: string }>>([]);
 
   // Helper: map IATA code to city name (for backend search)
   const toCity = (loc: string) => {
@@ -258,7 +260,9 @@ const FlightResultPage: React.FC = () => {
     return { points, routes };
   };
 
-  const mapData = getRouteMapData();
+  const mapData = useMemo(() => getRouteMapData(), [origin, destination]);
+  const mergedMapPoints = useMemo(() => [...mapData.points, ...userMapPoints], [mapData.points, userMapPoints]);
+  const mergedMapRoutes = useMemo(() => [...mapData.routes, ...userMapRoutes], [mapData.routes, userMapRoutes]);
 
   const handleAiRequest = () => {
       if (!user) navigate('/login');
@@ -272,8 +276,8 @@ const FlightResultPage: React.FC = () => {
              <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/30 via-transparent to-transparent pointer-events-none"></div>
              
              <WorldMap 
-               points={mapData.points} 
-               routes={mapData.routes} 
+               points={mergedMapPoints} 
+               routes={mergedMapRoutes} 
                className="h-full w-full rounded-none border-none opacity-100"
                showGrid={true}
                theme="dark"
@@ -281,6 +285,10 @@ const FlightResultPage: React.FC = () => {
                minZoomLevel={3}
                maxZoomLevel={18}
                defaultZoomLevel={10}
+               onReset={() => {
+                 setUserMapPoints([]);
+                 setUserMapRoutes([]);
+               }}
              />
 
              {/* Overlay */}

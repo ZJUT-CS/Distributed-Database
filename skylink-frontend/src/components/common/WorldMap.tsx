@@ -11,6 +11,7 @@ interface WorldMapProps {
   theme?: 'light' | 'dark';
   preserveAspectRatio?: string;
   enableControls?: boolean;
+  onReset?: () => void;
   minZoomLevel?: number;
   maxZoomLevel?: number;
   defaultZoomLevel?: number;
@@ -24,6 +25,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
   theme = 'light',
   preserveAspectRatio = 'xMidYMid slice',
   enableControls = false,
+  onReset,
   minZoomLevel = 3,
   maxZoomLevel = 18,
   defaultZoomLevel = 10
@@ -31,6 +33,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
   const [hoveredPoint, setHoveredPoint] = useState<MapPoint | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const minZoomRef = useRef<number>(minZoomLevel);
+  const [effectiveMinZoom, setEffectiveMinZoom] = useState<number>(minZoomLevel);
   const smoothTimerRef = useRef<number | null>(null);
 
   const isDark = theme === 'dark';
@@ -41,7 +45,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
   const zoomLevelRef = useRef<number>(defaultZoomLevel);
   const offsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const clampZoom = (z: number) => Math.min(maxZoomLevel, Math.max(minZoomLevel, z));
+  const clampZoom = (z: number) => Math.min(maxZoomLevel, Math.max(minZoomRef.current, z));
 
   const baseZoom = defaultZoomLevel;
   const scaleFromZoom = (z: number) => Math.pow(2, (z - baseZoom) / 4);
@@ -103,6 +107,50 @@ const WorldMap: React.FC<WorldMapProps> = ({
     offsetRef.current = offset;
   }, [offset]);
 
+  const computeEffectiveMinZoom = () => {
+    if (!enableControls) return minZoomLevel;
+    const el = containerRef.current;
+    if (!el) return minZoomLevel;
+    const rect = el.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    if (!w || !h) return minZoomLevel;
+    const VIEWBOX_W = 1250;
+    const VIEWBOX_H = 800;
+    const unitPx = Math.min(w / VIEWBOX_W, h / VIEWBOX_H);
+    const minLabelPx = 10;
+    const labelFontSize = 14;
+    const minScaleForLabel = unitPx > 0 ? minLabelPx / (labelFontSize * unitPx) : 1;
+    const minZoomByLabel = zoomFromScale(Math.max(0.01, minScaleForLabel));
+    return Math.max(minZoomLevel, Math.min(defaultZoomLevel, minZoomByLabel));
+  };
+
+  useEffect(() => {
+    if (!enableControls) {
+      minZoomRef.current = minZoomLevel;
+      setEffectiveMinZoom(minZoomLevel);
+      return;
+    }
+
+    const update = () => {
+      const next = computeEffectiveMinZoom();
+      minZoomRef.current = next;
+      setEffectiveMinZoom(next);
+      setZoomLevel((z) => {
+        const clamped = Math.min(maxZoomLevel, Math.max(next, z));
+        return clamped;
+      });
+      setOffset((prev) => clampOffset(prev, scaleFromZoom(zoomLevelRef.current)));
+    };
+
+    update();
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [enableControls, maxZoomLevel, minZoomLevel, defaultZoomLevel]);
+
   const updateZoomAtPoint = (nextZoomRaw: number, clientX: number, clientY: number, smooth?: boolean) => {
     const el = containerRef.current;
     if (!el) return;
@@ -120,7 +168,9 @@ const WorldMap: React.FC<WorldMapProps> = ({
     };
 
     setZoomLevel(nextZoom);
-    setOffset(clampOffset(nextOffset, nextScale));
+    const clamped = clampOffset(nextOffset, nextScale);
+    const shouldCenter = Math.abs(nextZoom - minZoomRef.current) < 1e-6;
+    setOffset(shouldCenter ? clampOffset({ x: 0, y: 0 }, nextScale) : clamped);
     if (smooth) applySmoothTransform();
   };
 
@@ -134,12 +184,16 @@ const WorldMap: React.FC<WorldMapProps> = ({
   const resetView = () => {
     const el = containerRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
     const nextZoom = clampZoom(defaultZoomLevel);
     const nextScale = scaleFromZoom(nextZoom);
     const centered = clampOffset({ x: 0, y: 0 }, nextScale);
     setZoomLevel(nextZoom);
     setOffset(centered);
+    setHoveredPoint(null);
+    setTooltipPos({ x: 0, y: 0 });
+    pointersRef.current.clear();
+    pinchBaseRef.current = null;
+    onReset?.();
     applySmoothTransform();
     el.focus({ preventScroll: true });
   };
@@ -339,7 +393,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
       <svg 
         viewBox="-150 -20 1250 800" 
         className="w-full h-full block"
-        preserveAspectRatio={preserveAspectRatio}
+        preserveAspectRatio={enableControls && zoomLevel <= effectiveMinZoom + 1e-6 ? 'xMidYMid meet' : preserveAspectRatio}
         style={{
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
           transformOrigin: '0 0',
@@ -514,7 +568,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
             <button
               type="button"
               aria-label="缩小"
-              disabled={zoomLevel <= minZoomLevel}
+              disabled={zoomLevel <= effectiveMinZoom}
               onClick={() => zoomTo(zoomLevel - 1, true)}
               className={`w-11 h-11 flex items-center justify-center transition-all select-none ${isDark ? 'text-slate-100 hover:bg-white/10 active:bg-white/15' : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'} disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-inset`}
             >
