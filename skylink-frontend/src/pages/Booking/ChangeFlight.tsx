@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Calendar, CheckCircle2, Plane, RefreshCw } from 'lucide-react';
 import type { ConfirmedBooking, Flight, PassengerInfo } from '../../types';
-import { request } from '../../services/api';
-import { applyRefundChange } from '../../services/refundChange';
-import { useAuth } from '../../hooks/useAuth';
-import { searchOrders, type OrderSearchResult } from '../../services/orders';
-import FlightList from '../../components/flight/FlightList';
+import { request } from '../../lib/axios';
+import { applyRefundChange } from '../../features/user/api/refund';
+import { useAuth } from '../../features/auth/hooks/useAuth';
+import { searchOrders, type OrderSearchResult } from '../../features/booking/api/order';
+import FlightList from '../../features/flight/components/FlightList';
 
 type Step = 1 | 2 | 3;
 type CabinType = 'economy' | 'business' | 'first';

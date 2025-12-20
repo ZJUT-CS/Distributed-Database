@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ConfirmedBooking } from '../../types';
 import { CheckCircle, Sparkles, Map as MapIcon } from 'lucide-react';
-import { getDestinationGuide } from '../../services/geminiService';
+import { getDestinationGuide } from '../../features/ai/api/gemini';
 import { POPULAR_AIRPORTS } from '../../constants';
 
 const ConfirmationPage: React.FC = () => {

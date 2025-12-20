@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, FileText, Shield, User, Globe, AlertCircle } from 'lucide-react';
-import Pagination from './components/Pagination';
+import Pagination from '../../features/admin/components/Pagination';
 
 type LogLevel = 'info' | 'warning' | 'error';
 

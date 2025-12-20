@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Save, Globe, Bell, Shield, Server, CreditCard } from 'lucide-react';
-import { INITIAL_GATEWAYS } from '../../services/mockData';
+import { INITIAL_GATEWAYS } from '../../utils/mockData';
 
 const Settings: React.FC = () => {
   const [gateways, setGateways] = useState(INITIAL_GATEWAYS);

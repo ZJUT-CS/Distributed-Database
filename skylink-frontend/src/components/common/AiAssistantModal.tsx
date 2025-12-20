@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles, MapPin, Loader2, Send } from 'lucide-react';
-import { getSmartRecommendations } from '../../services/geminiService';
-import { AIRecommendation } from '../../types';
+import { getSmartRecommendations, type AIRecommendation } from '../../features/ai/api/gemini';
 
 interface AiAssistantModalProps {
   isOpen: boolean;

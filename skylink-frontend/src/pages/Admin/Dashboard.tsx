@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, CalendarCheck, Plane, Users, Globe, ArrowRightLeft, AlertCircle } from 'lucide-react';
 import WorldMap from '../../components/common/WorldMap';
-import { INITIAL_FLIGHTS, INITIAL_BOOKINGS, INITIAL_USERS } from '../../services/mockData';
-import { getAdminDashboardMetrics, type AdminDashboardMetrics } from '../../services/adminDashboard';
+import { INITIAL_FLIGHTS, INITIAL_BOOKINGS, INITIAL_USERS } from '../../utils/mockData';
+import { getAdminDashboardMetrics, type AdminDashboardMetrics } from '../../features/admin/api/dashboard';
 
 const Dashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<AdminDashboardMetrics | null>(null);

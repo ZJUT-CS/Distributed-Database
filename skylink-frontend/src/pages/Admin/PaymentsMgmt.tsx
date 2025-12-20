@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Search, Download, Eye, Filter, AlertCircle, FileText } from 'lucide-react';
-import { INITIAL_TRANSACTIONS } from '../../services/mockData';
-import Pagination from './components/Pagination';
-import TableActionMenu from './components/TableActionMenu';
+import { INITIAL_TRANSACTIONS } from '../../utils/mockData';
+import Pagination from '../../features/admin/components/Pagination';
+import TableActionMenu from '../../features/admin/components/TableActionMenu';
 
 const PaymentsMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');

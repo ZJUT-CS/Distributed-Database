@@ -1,10 +1,10 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import BookingForm from '../../components/booking/BookingForm';
+import BookingForm from '../../features/booking/components/BookingForm';
 import { Flight, BookingDetails, ConfirmedBooking } from '../../types';
-import { useAuth } from '../../hooks/useAuth';
-import { createOrder } from '../../services/orders';
-import { saveOrderPassengers } from '../../services/storage';
+import { useAuth } from '../../features/auth/hooks/useAuth';
+import { createOrder } from '../../features/booking/api/order';
+import { saveOrderPassengers } from '../../utils/storage';
 
 const BookingPage: React.FC = () => {
   const location = useLocation();

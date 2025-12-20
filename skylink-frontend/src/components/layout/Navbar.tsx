@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Plane, Sparkles, User as UserIcon, LayoutDashboard, Ticket, RefreshCw, LogOut } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 import AiAssistantModal from '../common/AiAssistantModal';
 import { AIRecommendation } from '../../types';
 

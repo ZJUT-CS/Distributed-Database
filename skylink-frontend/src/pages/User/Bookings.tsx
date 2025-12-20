@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import UserBookings from '../../components/user/UserBookings';
-import { useAuth } from '../../hooks/useAuth';
+import UserBookings from '../../features/user/components/UserBookings';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 import { ConfirmedBooking, type PassengerInfo } from '../../types';
 import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, RefreshCw, Clock } from 'lucide-react';
-import { searchOrders, type OrderSearchResult } from '../../services/orders';
-import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '../../services/payments';
-import { cancelOrder } from '../../services/orders';
-import { loadOrderPassengers } from '../../services/storage';
+import { searchOrders, type OrderSearchResult, cancelOrder } from '../../features/booking/api/order';
+import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '../../features/booking/api/payment';
+import { loadOrderPassengers } from '../../utils/storage';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 

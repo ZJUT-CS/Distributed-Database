@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
 import { Download, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X, Save } from 'lucide-react';
-import { INITIAL_FLIGHTS } from '../../services/mockData';
+import { INITIAL_FLIGHTS } from '../../utils/mockData';
 import { FlightStatus } from '../../types';
-import Pagination from './components/Pagination';
-import TableActionMenu from './components/TableActionMenu';
+import Pagination from '../../features/admin/components/Pagination';
+import TableActionMenu from '../../features/admin/components/TableActionMenu';
 
 const FlightMgmt: React.FC = () => {
   const [flights, setFlights] = useState(INITIAL_FLIGHTS);

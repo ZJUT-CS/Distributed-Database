@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Eye, Filter, Download, XCircle } from 'lucide-react';
-import { cancelAdminOrder, listAdminOrders, type AdminOrderItem } from '../../services/adminOrders';
-import Pagination from './components/Pagination';
-import TableActionMenu from './components/TableActionMenu';
+import { cancelAdminOrder, listAdminOrders, type AdminOrderItem } from '../../features/admin/api/orders';
+import Pagination from '../../features/admin/components/Pagination';
+import TableActionMenu from '../../features/admin/components/TableActionMenu';
 
 const BookingsMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');

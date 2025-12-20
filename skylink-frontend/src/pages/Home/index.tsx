@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import SearchForm from '../../components/search/SearchForm';
+import SearchForm from '../../features/flight/components/SearchForm';
 import { SearchParams } from '../../types';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();

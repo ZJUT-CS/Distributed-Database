@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Plus, Shield, UserCog, Mail, Phone, Filter, Lock, Trash2, RefreshCw } from 'lucide-react';
-import Pagination from './components/Pagination';
-import TableActionMenu from './components/TableActionMenu';
+import Pagination from '../../features/admin/components/Pagination';
+import TableActionMenu from '../../features/admin/components/TableActionMenu';
 
 type AdminRole = 'super_admin' | 'ops' | 'auditor';
 type AdminStatus = 'active' | 'disabled';

@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import LoginForm from '../../components/user/LoginForm';
-import { useAuth } from '../../hooks/useAuth';
-import { User } from '../../types';
+import LoginForm from '../../features/auth/components/LoginForm';
+import { useAuth } from '../../features/auth/hooks/useAuth';
+import type { User } from '../../types';
 
 const LoginPage: React.FC = () => {
   const { login } = useAuth();

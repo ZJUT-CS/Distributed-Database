@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 import { RefundChangeRecord, AuditStatus } from '../../types';
-import { listRefundChanges, revokeRefundChange, updateRefundChange } from '../../services/refundChange';
+import { listRefundChanges, revokeRefundChange, updateRefundChange } from '../../features/user/api/refund';
 import { ArrowLeft, CheckCircle2, Filter, RefreshCw, Search, Ticket, XCircle, AlertCircle, Trash2, Edit } from 'lucide-react';
 
 const RefundsHelpPage: React.FC = () => {

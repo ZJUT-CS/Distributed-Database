@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Edit, Trash2, Shield, Mail, Filter, Ban, Lock } from 'lucide-react';
-import { createAdminUser, deleteAdminUser, listAdminUsers, resetAdminUserPassword, updateAdminUser, type AdminUserItem } from '../../services/adminUsers';
-import Pagination from './components/Pagination';
-import TableActionMenu from './components/TableActionMenu';
+import { createAdminUser, deleteAdminUser, listAdminUsers, resetAdminUserPassword, updateAdminUser, type AdminUserItem } from '../../features/admin/api/users';
+import Pagination from '../../features/admin/components/Pagination';
+import TableActionMenu from '../../features/admin/components/TableActionMenu';
 
 const UsersMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');

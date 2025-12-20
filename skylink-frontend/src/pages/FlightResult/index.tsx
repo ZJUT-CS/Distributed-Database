@@ -1,16 +1,16 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import SearchForm from '../../components/search/SearchForm';
-import FilterSidebar from '../../components/search/FilterSidebar';
-import FlightList from '../../components/flight/FlightList';
-import TripSummary from '../../components/flight/TripSummary';
+import SearchForm from '../../features/flight/components/SearchForm';
+import FilterSidebar from '../../features/flight/components/FilterSidebar';
+import FlightList from '../../features/flight/components/FlightList';
+import TripSummary from '../../features/flight/components/TripSummary';
 import WorldMap from '../../components/common/WorldMap';
 import { Flight, SearchParams, FilterState, MapPoint } from '../../types';
-import { request } from '../../services/api';
 import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '../../constants';
 import { Plane, Filter, MoveRight } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../features/auth/hooks/useAuth';
+import { searchFlights } from '../../features/flight/api/search';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -60,66 +60,15 @@ const FlightResultPage: React.FC = () => {
   const [userMapPoints, setUserMapPoints] = useState<MapPoint[]>([]);
   const [userMapRoutes, setUserMapRoutes] = useState<Array<{ from: string; to: string }>>([]);
 
-  // Helper: map IATA code to city name (for backend search)
-  const toCity = (loc: string) => {
-    const byCode = AIRPORTS_CONST.find(a => a.code === loc);
-    if (byCode) return byCode.city;
-    const byCity = AIRPORTS_CONST.find(a => a.city === loc);
-    return byCity ? byCity.city : loc;
-  };
-
   const fetchFlights = async (orig: string, dest: string, dt: string) => {
     const o = (orig || '').trim();
     const d = (dest || '').trim();
     const dateStr = (dt || '').trim();
-    if (!o || !d || !dateStr) {
-      setFlights([]);
-      setFlightError('查询参数不完整');
-      return;
-    }
 
     setLoadingFlights(true);
     setFlightError(null);
     try {
-      const data = await request<Array<{
-        flightNo: string;
-        departurePlace: string;
-        destination: string;
-        departureTime: string;
-        arrivalTime: string;
-        duration: string;
-        price?: number;
-        remainingSeats?: number;
-        airlineCompany?: string;
-        cabinType?: string;
-      }>>({
-        method: 'GET',
-        url: '/flights/search',
-        params: {
-          departurePlace: toCity(o),
-          destination: toCity(d),
-          departureDate: dateStr,
-        },
-      });
-
-      const mapped: Flight[] = data.map((r) => ({
-        id: r.flightNo || `${r.departurePlace}-${r.destination}-${r.departureTime}`,
-        airline: r.airlineCompany || '',
-        airlineCode: (r.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
-        flightNumber: r.flightNo || '',
-        cabinType: r.cabinType,
-        origin: r.departurePlace,
-        destination: r.destination,
-        departureTime: r.departureTime,
-        arrivalTime: r.arrivalTime,
-        price: Number(r.price ?? 0),
-        remainingSeats: typeof r.remainingSeats === 'number' ? r.remainingSeats : undefined,
-        duration: r.duration || '',
-        stops: 0,
-        baggageWeight: 23,
-        amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
-        aircraft: undefined,
-      }));
+      const mapped = await searchFlights({ origin: o, destination: d, departureDate: dateStr });
       setFlights(mapped);
     } catch (e: any) {
       setFlights([]);

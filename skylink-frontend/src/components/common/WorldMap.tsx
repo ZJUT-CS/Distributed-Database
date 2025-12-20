@@ -36,14 +36,36 @@ const WorldMap: React.FC<WorldMapProps> = ({
   const minZoomRef = useRef<number>(minZoomLevel);
   const [effectiveMinZoom, setEffectiveMinZoom] = useState<number>(minZoomLevel);
   const smoothTimerRef = useRef<number | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
 
   const isDark = theme === 'dark';
 
   const [zoomLevel, setZoomLevel] = useState<number>(defaultZoomLevel);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [smoothTransform, setSmoothTransform] = useState(false);
+  const [resetFlash, setResetFlash] = useState(false);
+  const [toastText, setToastText] = useState<string | null>(null);
   const zoomLevelRef = useRef<number>(defaultZoomLevel);
   const offsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const viewRef = useRef<{ zoom: number; offset: { x: number; y: number } }>({
+    zoom: defaultZoomLevel,
+    offset: { x: 0, y: 0 },
+  });
+  const targetViewRef = useRef<{ zoom: number; offset: { x: number; y: number } }>({
+    zoom: defaultZoomLevel,
+    offset: { x: 0, y: 0 },
+  });
+  const rafRef = useRef<number | null>(null);
+  const rafModeRef = useRef<'spring' | 'tween' | null>(null);
+  const rafPrevMsRef = useRef<number>(0);
+  const tweenRef = useRef<{
+    startMs: number;
+    durationMs: number;
+    from: { zoom: number; offset: { x: number; y: number } };
+    to: { zoom: number; offset: { x: number; y: number } };
+    onDone?: () => void;
+  } | null>(null);
+  const springVelRef = useRef<{ zoomV: number; xV: number; yV: number }>({ zoomV: 0, xV: 0, yV: 0 });
 
   const clampZoom = (z: number) => Math.min(maxZoomLevel, Math.max(minZoomRef.current, z));
 
@@ -85,15 +107,169 @@ const WorldMap: React.FC<WorldMapProps> = ({
     return { x, y };
   };
 
-  const applySmoothTransform = () => {
+  const stopAnimation = () => {
+    rafModeRef.current = null;
+    tweenRef.current = null;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    springVelRef.current = { zoomV: 0, xV: 0, yV: 0 };
+    rafPrevMsRef.current = 0;
+  };
+
+  const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+  const animateStep = (nowMs: number) => {
+    const mode = rafModeRef.current;
+    if (!mode) {
+      rafRef.current = null;
+      return;
+    }
+
+    const prevMs = rafPrevMsRef.current || nowMs;
+    rafPrevMsRef.current = nowMs;
+    const dt = Math.min(0.034, Math.max(0.001, (nowMs - prevMs) / 1000));
+
+    if (mode === 'tween') {
+      const tw = tweenRef.current;
+      if (!tw) {
+        stopAnimation();
+        return;
+      }
+      const tRaw = (nowMs - tw.startMs) / tw.durationMs;
+      const t = Math.max(0, Math.min(1, tRaw));
+      const k = easeInOutCubic(t);
+      const nextZoom = tw.from.zoom + (tw.to.zoom - tw.from.zoom) * k;
+      const nextOffset = {
+        x: tw.from.offset.x + (tw.to.offset.x - tw.from.offset.x) * k,
+        y: tw.from.offset.y + (tw.to.offset.y - tw.from.offset.y) * k,
+      };
+      zoomLevelRef.current = nextZoom;
+      offsetRef.current = nextOffset;
+      viewRef.current = { zoom: nextZoom, offset: nextOffset };
+      setZoomLevel(nextZoom);
+      setOffset(nextOffset);
+      if (t >= 1) {
+        stopAnimation();
+        tw.onDone?.();
+        return;
+      }
+      rafRef.current = requestAnimationFrame(animateStep);
+      return;
+    }
+
+    const v = viewRef.current;
+    const target = targetViewRef.current;
+    const vel = springVelRef.current;
+
+    const zStiff = 52;
+    const zDamp = 16;
+    const pStiff = 620;
+    const pDamp = 56;
+
+    const zErr = target.zoom - v.zoom;
+    vel.zoomV += (zStiff * zErr - zDamp * vel.zoomV) * dt;
+    let nextZoom = v.zoom + vel.zoomV * dt;
+    nextZoom = clampZoom(nextZoom);
+
+    const prevScale = scaleFromZoom(v.zoom);
+    const nextScale = scaleFromZoom(nextZoom);
+    const scaleRatio = prevScale > 0 ? nextScale / prevScale : 1;
+
+    const xErr = target.offset.x - v.offset.x;
+    const yErr = target.offset.y - v.offset.y;
+    vel.xV += (pStiff * xErr - pDamp * vel.xV) * dt;
+    vel.yV += (pStiff * yErr - pDamp * vel.yV) * dt;
+    const nextOffsetRaw = { x: v.offset.x + vel.xV * dt, y: v.offset.y + vel.yV * dt };
+    const nextOffset = clampOffset(nextOffsetRaw, nextScale);
+
+    zoomLevelRef.current = nextZoom;
+    offsetRef.current = nextOffset;
+    viewRef.current = { zoom: nextZoom, offset: nextOffset };
+    setZoomLevel(nextZoom);
+    setOffset(nextOffset);
+
+    const done =
+      Math.abs(target.zoom - nextZoom) < 0.002 &&
+      Math.abs(target.offset.x - nextOffset.x) < 0.2 &&
+      Math.abs(target.offset.y - nextOffset.y) < 0.2 &&
+      Math.abs(vel.zoomV) < 0.02 &&
+      Math.abs(vel.xV) < 5 &&
+      Math.abs(vel.yV) < 5 &&
+      Math.abs(scaleRatio - 1) < 0.04;
+
+    if (done) {
+      zoomLevelRef.current = target.zoom;
+      offsetRef.current = target.offset;
+      viewRef.current = { zoom: target.zoom, offset: target.offset };
+      setZoomLevel(target.zoom);
+      setOffset(target.offset);
+      stopAnimation();
+      return;
+    }
+    rafRef.current = requestAnimationFrame(animateStep);
+  };
+
+  const startSpringTo = (next: { zoom: number; offset: { x: number; y: number } }) => {
+    targetViewRef.current = next;
+    if (rafModeRef.current !== 'spring') {
+      tweenRef.current = null;
+      rafModeRef.current = 'spring';
+    }
+    if (!rafRef.current) {
+      rafPrevMsRef.current = 0;
+      rafRef.current = requestAnimationFrame(animateStep);
+    }
+  };
+
+  const startTweenTo = (next: { zoom: number; offset: { x: number; y: number } }, durationMs: number, onDone?: () => void) => {
+    stopAnimation();
+    tweenRef.current = {
+      startMs: performance.now(),
+      durationMs,
+      from: viewRef.current,
+      to: next,
+      onDone,
+    };
+    targetViewRef.current = next;
+    rafModeRef.current = 'tween';
+    rafRef.current = requestAnimationFrame(animateStep);
+  };
+
+  const showToast = (text: string) => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    setToastText(text);
+    toastTimerRef.current = window.setTimeout(() => setToastText(null), 1200);
+  };
+
+  const applySmoothTransform = (durationMs: number = 220) => {
     if (smoothTimerRef.current) window.clearTimeout(smoothTimerRef.current);
     setSmoothTransform(true);
-    smoothTimerRef.current = window.setTimeout(() => setSmoothTransform(false), 220);
+    smoothTimerRef.current = window.setTimeout(() => setSmoothTransform(false), durationMs);
+  };
+
+  const pushOpLog = (entry: {
+    at: number;
+    type: 'zoom_in' | 'zoom_out' | 'zoom' | 'reset' | 'pinch_end';
+    source: 'button' | 'wheel' | 'key' | 'gesture' | 'program';
+    zoomLevel: number;
+    scale: number;
+  }) => {
+    try {
+      const key = 'skylink_map_ops';
+      const raw = localStorage.getItem(key);
+      const existing = raw ? (JSON.parse(raw) as any[]) : [];
+      const next = Array.isArray(existing) ? existing.concat(entry).slice(-200) : [entry];
+      localStorage.setItem(key, JSON.stringify(next));
+    } catch {}
+    try {
+      window.dispatchEvent(new CustomEvent('skylink:map-op', { detail: entry }));
+    } catch {}
   };
 
   useEffect(() => {
     return () => {
       if (smoothTimerRef.current) window.clearTimeout(smoothTimerRef.current);
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
     };
   }, []);
 
@@ -101,10 +277,12 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
   useEffect(() => {
     zoomLevelRef.current = zoomLevel;
+    viewRef.current.zoom = zoomLevel;
   }, [zoomLevel]);
 
   useEffect(() => {
     offsetRef.current = offset;
+    viewRef.current.offset = offset;
   }, [offset]);
 
   const computeEffectiveMinZoom = () => {
@@ -157,21 +335,31 @@ const WorldMap: React.FC<WorldMapProps> = ({
     const rect = el.getBoundingClientRect();
     const px = clientX - rect.left;
     const py = clientY - rect.top;
-    const prevScale = scaleFromZoom(zoomLevel);
+    const prevZoom = zoomLevelRef.current;
+    const prevOffset = offsetRef.current;
+    const prevScale = scaleFromZoom(prevZoom);
     const nextZoom = clampZoom(nextZoomRaw);
     const nextScale = scaleFromZoom(nextZoom);
     const k = nextScale / prevScale;
 
     const nextOffset = {
-      x: px - (px - offset.x) * k,
-      y: py - (py - offset.y) * k,
+      x: px - (px - prevOffset.x) * k,
+      y: py - (py - prevOffset.y) * k,
     };
 
-    setZoomLevel(nextZoom);
     const clamped = clampOffset(nextOffset, nextScale);
     const shouldCenter = Math.abs(nextZoom - minZoomRef.current) < 1e-6;
-    setOffset(shouldCenter ? clampOffset({ x: 0, y: 0 }, nextScale) : clamped);
-    if (smooth) applySmoothTransform();
+    const finalOffset = shouldCenter ? clampOffset({ x: 0, y: 0 }, nextScale) : clamped;
+    if (smooth) {
+      startSpringTo({ zoom: nextZoom, offset: finalOffset });
+    } else {
+      stopAnimation();
+      zoomLevelRef.current = nextZoom;
+      offsetRef.current = finalOffset;
+      viewRef.current = { zoom: nextZoom, offset: finalOffset };
+      setZoomLevel(nextZoom);
+      setOffset(finalOffset);
+    }
   };
 
   const zoomTo = (nextZoom: number, smooth?: boolean) => {
@@ -181,21 +369,48 @@ const WorldMap: React.FC<WorldMapProps> = ({
     updateZoomAtPoint(nextZoom, rect.left + rect.width / 2, rect.top + rect.height / 2, smooth);
   };
 
-  const resetView = () => {
+  const zoomByFactor = (factor: number, opts: { smooth?: boolean; source: 'button' | 'wheel' | 'key' | 'gesture' | 'program' }) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const prevZoom = zoomLevelRef.current;
+    const prevScale = scaleFromZoom(prevZoom);
+    const nextScale = prevScale * factor;
+    const nextZoom = clampZoom(zoomFromScale(nextScale));
+    updateZoomAtPoint(nextZoom, rect.left + rect.width / 2, rect.top + rect.height / 2, opts.smooth);
+
+    const nextScaleApplied = scaleFromZoom(nextZoom);
+    pushOpLog({
+      at: Date.now(),
+      type: factor >= 1 ? 'zoom_in' : 'zoom_out',
+      source: opts.source,
+      zoomLevel: nextZoom,
+      scale: nextScaleApplied,
+    });
+  };
+
+  const resetView = (source: 'button' | 'key' | 'program' = 'button') => {
     const el = containerRef.current;
     if (!el) return;
     const nextZoom = clampZoom(defaultZoomLevel);
     const nextScale = scaleFromZoom(nextZoom);
     const centered = clampOffset({ x: 0, y: 0 }, nextScale);
-    setZoomLevel(nextZoom);
-    setOffset(centered);
     setHoveredPoint(null);
     setTooltipPos({ x: 0, y: 0 });
     pointersRef.current.clear();
     pinchBaseRef.current = null;
     onReset?.();
-    applySmoothTransform();
-    el.focus({ preventScroll: true });
+    startTweenTo(
+      { zoom: nextZoom, offset: centered },
+      420,
+      () => {
+        setResetFlash(true);
+        window.setTimeout(() => setResetFlash(false), 160);
+        showToast('已复位');
+        pushOpLog({ at: Date.now(), type: 'reset', source, zoomLevel: nextZoom, scale: nextScale });
+        el.focus({ preventScroll: true });
+      },
+    );
   };
 
   useEffect(() => {
@@ -220,8 +435,12 @@ const WorldMap: React.FC<WorldMapProps> = ({
         x: px - (px - prevOffset.x) * k,
         y: py - (py - prevOffset.y) * k,
       };
-      setZoomLevel(nextZoom);
-      setOffset(clampOffset(nextOffset, nextScale));
+      if (Math.abs(nextZoom - prevZoom) > 1e-6) {
+        setZoomLevel(nextZoom);
+        setOffset(clampOffset(nextOffset, nextScale));
+        applySmoothTransform();
+        pushOpLog({ at: Date.now(), type: 'zoom', source: 'wheel', zoomLevel: nextZoom, scale: nextScale });
+      }
     };
 
     el.addEventListener('wheel', onWheel, { passive: false });
@@ -296,25 +515,32 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
   const onPointerUpOrCancel = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!enableControls) return;
+    const wasPinching = pointersRef.current.size === 2;
     pointersRef.current.delete(e.pointerId);
-    if (pointersRef.current.size < 2) pinchBaseRef.current = null;
+    if (pointersRef.current.size < 2) {
+      pinchBaseRef.current = null;
+      if (wasPinching) {
+        const z = zoomLevelRef.current;
+        pushOpLog({ at: Date.now(), type: 'pinch_end', source: 'gesture', zoomLevel: z, scale: scaleFromZoom(z) });
+      }
+    }
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!enableControls) return;
     if (e.key === '+' || e.key === '=' ) {
       e.preventDefault();
-      zoomTo(zoomLevel + 1, true);
+      zoomByFactor(1.35, { smooth: true, source: 'key' });
       return;
     }
     if (e.key === '-' || e.key === '_') {
       e.preventDefault();
-      zoomTo(zoomLevel - 1, true);
+      zoomByFactor(1 / 1.35, { smooth: true, source: 'key' });
       return;
     }
     if (e.key === '0') {
       e.preventDefault();
-      resetView();
+      resetView('key');
     }
   };
 
@@ -554,12 +780,17 @@ const WorldMap: React.FC<WorldMapProps> = ({
           aria-label="地图缩放控制"
           className={`absolute bottom-4 right-4 z-20 flex flex-col gap-2 ${isDark ? '' : ''}`}
         >
+          <div className="flex justify-end">
+            <div className={`px-2.5 py-1 rounded-xl border shadow-lg backdrop-blur-md text-[11px] font-mono ${isDark ? 'bg-slate-900/60 border-slate-700 text-slate-200' : 'bg-white/70 border-gray-200 text-gray-700'}`}>
+              {Math.round(scale * 100)}%
+            </div>
+          </div>
           <div className={`overflow-hidden rounded-2xl border shadow-xl backdrop-blur-md ${isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-white/70 border-gray-200'}`}>
             <button
               type="button"
               aria-label="放大"
               disabled={zoomLevel >= maxZoomLevel}
-              onClick={() => zoomTo(zoomLevel + 1, true)}
+              onClick={() => zoomByFactor(1.35, { smooth: true, source: 'button' })}
               className={`w-11 h-11 flex items-center justify-center transition-all select-none ${isDark ? 'text-slate-100 hover:bg-white/10 active:bg-white/15' : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'} disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-inset`}
             >
               <Plus className="w-5 h-5" />
@@ -569,7 +800,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
               type="button"
               aria-label="缩小"
               disabled={zoomLevel <= effectiveMinZoom}
-              onClick={() => zoomTo(zoomLevel - 1, true)}
+              onClick={() => zoomByFactor(1 / 1.35, { smooth: true, source: 'button' })}
               className={`w-11 h-11 flex items-center justify-center transition-all select-none ${isDark ? 'text-slate-100 hover:bg-white/10 active:bg-white/15' : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'} disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-inset`}
             >
               <Minus className="w-5 h-5" />
@@ -579,11 +810,26 @@ const WorldMap: React.FC<WorldMapProps> = ({
           <button
             type="button"
             aria-label="复位"
-            onClick={resetView}
+            onClick={() => resetView('button')}
             className={`w-11 h-11 rounded-2xl border shadow-xl backdrop-blur-md flex items-center justify-center transition-all select-none focus:outline-none focus:ring-2 focus:ring-sky-400 ${isDark ? 'bg-slate-900/60 border-slate-700 text-slate-100 hover:bg-white/10 active:bg-white/15' : 'bg-white/70 border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100'}`}
           >
             <RotateCcw className="w-5 h-5" />
           </button>
+        </div>
+      )}
+
+      {(toastText || resetFlash) && (
+        <div className="absolute inset-0 pointer-events-none">
+          <div
+            className={`absolute inset-0 transition-opacity ${resetFlash ? 'opacity-100' : 'opacity-0'} ${isDark ? 'bg-white/10' : 'bg-slate-900/5'}`}
+          />
+          {toastText && (
+            <div className="absolute bottom-4 right-16">
+              <div className={`px-3 py-1.5 rounded-xl border shadow-xl backdrop-blur-md text-xs ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white/80 border-gray-200 text-gray-800'}`}>
+                {toastText}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

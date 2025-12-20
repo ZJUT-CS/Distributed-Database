@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
-import Sidebar from './components/Sidebar';
-import TopHeader from './components/TopHeader';
-import { useAuth } from '../../hooks/useAuth';
+import Sidebar from '../../features/admin/components/Sidebar';
+import TopHeader from '../../features/admin/components/TopHeader';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 
 const AdminLayout: React.FC = () => {
   const { user } = useAuth();

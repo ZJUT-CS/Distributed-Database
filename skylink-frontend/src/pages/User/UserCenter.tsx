@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CalendarDays, Check, Lock, Mail, Phone, Shield, ShieldCheck, User as UserIcon } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 import {
   bindEmail,
   bindPhone,
@@ -10,7 +10,7 @@ import {
   sendEmailCode as sendEmailCodeApi,
   sendPhoneCode as sendPhoneCodeApi,
   updateMyProfile,
-} from '../../services/auth';
+} from '../../features/auth/api/auth';
 
 type TabKey = 'profile' | 'security';
 type ToastState = { type: 'success' | 'error'; message: string };

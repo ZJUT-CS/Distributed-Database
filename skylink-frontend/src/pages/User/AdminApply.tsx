@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Lock, ArrowRight, ShieldAlert } from 'lucide-react';
-import { adminRegisterApi } from '../../services/auth';
+import { adminRegisterApi } from '../../features/auth/api/auth';
 
 const AdminApplyPage: React.FC = () => {
   const navigate = useNavigate();
