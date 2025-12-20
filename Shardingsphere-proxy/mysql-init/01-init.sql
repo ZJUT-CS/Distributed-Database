@@ -1,6 +1,6 @@
 -- 1. 用户信息表（用户端登录/注册/个人信息管理）
 CREATE TABLE `users` (
-  `user_id` bigint NOT NULL COMMENT '用户ID(雪花算法生成)',
+  `user_id` bigint NOT NULL COMMENT '后端标识(雪花算法生成)',
   `phone_number` varchar(20) NOT NULL COMMENT '手机号',
   `password_hash` varchar(255) NOT NULL COMMENT '加密密码',
   `real_name` varchar(50) DEFAULT NULL COMMENT '真实姓名',
@@ -14,16 +14,16 @@ CREATE TABLE `users` (
   UNIQUE KEY `uk_phone` (`phone_number`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户核心表';
 
--- 2. 管理员信息表（管理员端登录/权限管理）
+-- 1. 管理员信息表
 CREATE TABLE `admins` (
-  `admin_id` bigint NOT NULL COMMENT '管理员ID(雪花算法)',
-  `username` varchar(50) NOT NULL COMMENT '用户名',
+  `admin_id` bigint NOT NULL COMMENT '后端标识(雪花算法)',
+  `admin_account` varchar(50) NOT NULL COMMENT '管理员账号',
   `password_hash` varchar(255) NOT NULL COMMENT '加密密码',
-  `role` tinyint DEFAULT '2' COMMENT '角色',
+  `role` tinyint DEFAULT '2' COMMENT '角色', -- 默认是普通管理员
   `last_login_time` bigint DEFAULT NULL COMMENT '最后登录时间',
   `create_time` bigint NOT NULL COMMENT '创建时间戳',
   PRIMARY KEY (`admin_id`),
-  UNIQUE KEY `uk_admin_name` (`username`)
+  UNIQUE KEY `uk_admin_account` (`admin_account`) 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='管理员表';
 
 -- 3. 航班信息表（航班查询/管理员航班管理）

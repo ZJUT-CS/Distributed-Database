@@ -8,13 +8,34 @@ import lombok.Data;
 @Data
 @TableName("admins")
 public class Admin {
-    @TableId(value = "admin_id", type = IdType.ASSIGN_ID) // 雪花算法生成
+    /**
+     * 后端标识(雪花算法)
+     */
+    @TableId(value = "admin_id", type = IdType.ASSIGN_ID)
     private Long adminId;
 
-    private String username; // 用户名(唯一)
-    private String passwordHash; // 加密密码
-    private Integer role; // 角色
-    private Long lastLoginTime; // 最后登录时间
-    private Long createTime; // 创建时间戳
-}
+    /**
+     * 管理员账号 (对应 SQL 中的 admin_account)
+     */
+    private String adminAccount;
 
+    /**
+     * 加密密码
+     */
+    private String passwordHash;
+
+    /**
+     * 角色 (默认是普通管理员)
+     */
+    private Integer role;
+
+    /**
+     * 最后登录时间
+     */
+    private Long lastLoginTime;
+
+    /**
+     * 创建时间戳
+     */
+    private Long createTime;
+}
