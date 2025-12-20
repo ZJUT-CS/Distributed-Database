@@ -30,10 +30,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @RestController
 @RequestMapping({"/auth", "/api/v1/auth"})
 public class AuthController {
-    private static final String REQ_ATTR_USER_ID = "AUTH_USER_ID";
-    private static final String REQ_ATTR_USER_TYPE = "AUTH_USER_TYPE";
-
-    private static final Map<String, SessionIdentity> SESSIONS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, SessionIdentity> SESSIONS = new ConcurrentHashMap<>();
+    private static final String REQ_ATTR_USER_ID = "auth.userId";
+    private static final String REQ_ATTR_USER_TYPE = "auth.userType";
 
     private final UserMapper userMapper;
     private final AdminMapper adminMapper;
@@ -315,48 +314,68 @@ public class AuthController {
         return Result.ok(rows > 0);
     }
 
-    private static Result<?> ensureUser(HttpServletRequest request) {
-        SessionIdentity s = resolveSession(request);
-        if (s != null) {
-            if (s.userType != 1) return Result.fail(403, "user required");
-            request.setAttribute(REQ_ATTR_USER_ID, s.userId);
-            request.setAttribute(REQ_ATTR_USER_TYPE, s.userType);
-            return null;
-        }
-
-        Long userId = parseLongHeader(request, "X-User-Id");
-        if (userId == null || userId <= 0) return Result.fail(401, "login required");
-
-        String t = request.getHeader("X-User-Type");
-        if (t == null || (!"1".equals(t.trim()))) return Result.fail(403, "user required");
-
-        request.setAttribute(REQ_ATTR_USER_ID, userId);
-        request.setAttribute(REQ_ATTR_USER_TYPE, 1);
-        return null;
-    }
-
-    private static SessionIdentity resolveSession(HttpServletRequest request) {
-        String token = parseBearerToken(request);
-        if (token == null) return null;
-        return SESSIONS.get(token);
-    }
-
-    private static String parseBearerToken(HttpServletRequest request) {
-        String auth = request.getHeader("Authorization");
-        if (auth == null) return null;
-        String v = auth.trim();
-        if (v.length() < 8) return null;
-        if (!v.regionMatches(true, 0, "Bearer ", 0, 7)) return null;
-        String token = v.substring(7).trim();
-        if (token.isEmpty()) return null;
-        return token;
-    }
-
     private static Long getAuthedUserId(HttpServletRequest request) {
         Object v = request.getAttribute(REQ_ATTR_USER_ID);
         if (v instanceof Long) return (Long) v;
-        if (v instanceof Number) return ((Number) v).longValue();
+        if (v instanceof Integer) return ((Integer) v).longValue();
+        if (v instanceof String) {
+            try {
+                return Long.parseLong(((String) v).trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
         return null;
+    }
+
+    private static Integer getAuthedUserType(HttpServletRequest request) {
+        Object v = request.getAttribute(REQ_ATTR_USER_TYPE);
+        if (v instanceof Integer) return (Integer) v;
+        if (v instanceof Long) return ((Long) v).intValue();
+        if (v instanceof String) {
+            try {
+                return Integer.parseInt(((String) v).trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static Result<?> ensureUser(HttpServletRequest request) {
+        String token = parseBearerToken(request);
+        if (token != null) {
+            SessionIdentity s = SESSIONS.get(token);
+            if (s != null) {
+                request.setAttribute(REQ_ATTR_USER_ID, s.userId);
+                request.setAttribute(REQ_ATTR_USER_TYPE, s.userType);
+            }
+        }
+
+        if (getAuthedUserId(request) == null) {
+            Long userId = parseLongHeader(request, "X-User-Id");
+            if (userId != null) request.setAttribute(REQ_ATTR_USER_ID, userId);
+        }
+        if (getAuthedUserType(request) == null) {
+            String t = request.getHeader("X-User-Type");
+            if (t != null && !t.isBlank()) request.setAttribute(REQ_ATTR_USER_TYPE, t.trim());
+        }
+
+        Long userId = getAuthedUserId(request);
+        if (userId == null || userId <= 0) return Result.fail(401, "login required");
+        Integer userType = getAuthedUserType(request);
+        if (userType == null || userType != 1) return Result.fail(403, "user required");
+        return null;
+    }
+
+    private static String parseBearerToken(HttpServletRequest request) {
+        String v = request.getHeader("Authorization");
+        if (v == null || v.isBlank()) return null;
+        String trimmed = v.trim();
+        if (trimmed.length() < 8) return null;
+        if (!trimmed.regionMatches(true, 0, "Bearer ", 0, 7)) return null;
+        String token = trimmed.substring(7).trim();
+        return token.isEmpty() ? null : token;
     }
 
     private static Long parseLongHeader(HttpServletRequest request, String name) {
@@ -371,9 +390,9 @@ public class AuthController {
 
     private static final class SessionIdentity {
         private final Long userId;
-        private final int userType;
+        private final Integer userType;
 
-        private SessionIdentity(Long userId, int userType) {
+        private SessionIdentity(Long userId, Integer userType) {
             this.userId = userId;
             this.userType = userType;
         }

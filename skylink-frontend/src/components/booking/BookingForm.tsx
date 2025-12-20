@@ -1,6 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Flight, BookingDetails, PassengerInfo } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { CreditCard, User, ShieldCheck, Plane, Clock, Mail, Phone, ChevronRight, CheckCircle2, QrCode, Smartphone, Wallet, ArrowLeft, AlertCircle, Lock, BadgeCheck } from 'lucide-react';
@@ -15,6 +15,8 @@ interface BookingFormProps {
 
 type BookingStep = 1 | 2;
 type PaymentMethod = 'alipay' | 'wechat' | 'credit_card';
+
+const BOOKING_DRAFT_KEY = 'skylink_booking_form_draft';
 
 const createPassengers = (count: number): PassengerInfo[] => {
   const safeCount = Number.isFinite(count) && count > 0 ? Math.floor(count) : 1;
@@ -36,6 +38,7 @@ const cabinMeta = (c: 'economy' | 'business' | 'first') => {
 const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabinClass, onConfirm, onCancel }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState<BookingStep>(1);
   const [attemptedNext, setAttemptedNext] = useState(false);
 
@@ -61,6 +64,60 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
     setPrimaryIsSelf(false);
     setAttemptedNext(false);
   }, [passengerCount]);
+
+  const flightKey = useMemo(() => flights.map((f) => String(f.id || '')).join('|'), [flights]);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(BOOKING_DRAFT_KEY);
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw) as any;
+      if (!draft || typeof draft !== 'object') return;
+      if (draft.flightKey !== flightKey) {
+        sessionStorage.removeItem(BOOKING_DRAFT_KEY);
+        return;
+      }
+      if (Number(draft.passengerCount) !== Number(passengerCount)) {
+        sessionStorage.removeItem(BOOKING_DRAFT_KEY);
+        return;
+      }
+      if (draft.cabinClass !== cabinClass) {
+        sessionStorage.removeItem(BOOKING_DRAFT_KEY);
+        return;
+      }
+
+      const base = createPassengers(passengerCount);
+      const list = Array.isArray(draft.passengers) ? draft.passengers : [];
+      const nextPassengers = base.map((p, idx) => {
+        const src = list[idx] as any;
+        if (!src || typeof src !== 'object') return p;
+        const name = String(src.name ?? '');
+        const idCard = String(src.idCard ?? '');
+        const type: 'adult' | 'child' = src.type === 'child' ? 'child' : 'adult';
+        return { ...p, name, idCard, type };
+      });
+
+      setStep(draft.step === 2 ? 2 : 1);
+      setAttemptedNext(false);
+      setPassengers(nextPassengers);
+      setPrimaryIsSelf(!!draft.primaryIsSelf);
+      setAddons({
+        insurance: !!draft.addons?.insurance,
+        fastTicket: !!draft.addons?.fastTicket,
+      });
+
+      const sameAsAccount = draft.contactSameAsAccount !== false;
+      setContactSameAsAccount(sameAsAccount);
+      if (!sameAsAccount) {
+        const phone = String(draft.contact?.phone ?? '');
+        const email = String(draft.contact?.email ?? '');
+        setContact({ phone, email });
+      }
+    } catch {
+    } finally {
+      sessionStorage.removeItem(BOOKING_DRAFT_KEY);
+    }
+  }, [cabinClass, flightKey, passengerCount]);
 
   useEffect(() => {
     if (!contactSameAsAccount) return;
@@ -108,6 +165,25 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   const promptVerifyAccount = () => {
     const ok = window.confirm('购票前请先完成实名认证，是否前往个人中心认证？');
     if (!ok) return;
+    try {
+      sessionStorage.setItem(
+        BOOKING_DRAFT_KEY,
+        JSON.stringify({
+          flightKey,
+          passengerCount,
+          cabinClass,
+          step,
+          passengers,
+          primaryIsSelf,
+          contactSameAsAccount,
+          contact,
+          addons,
+          from: `${location.pathname}${location.search}`,
+          savedAt: Date.now(),
+        })
+      );
+    } catch {
+    }
     navigate({ pathname: '/user-center', search: '?tab=profile' });
   };
 
