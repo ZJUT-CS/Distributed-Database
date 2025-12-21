@@ -1,4 +1,4 @@
-package com.team.skylink.module.auth.entity;
+package com.team.skylink.module.user.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;

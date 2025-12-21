@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.team.skylink.module.flight.dto.FlightCreateRequest;
-import com.team.skylink.module.flight.dto.CabinCreateRequest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -63,8 +62,5 @@ public class FlightController {
         return flightService.createFlight(req);
     }
 
-    @PostMapping("/cabins/create")
-    public Result<Boolean> createCabin(@Valid @RequestBody CabinCreateRequest req) {
-        return flightService.createCabin(req);
-    }
+    
 }

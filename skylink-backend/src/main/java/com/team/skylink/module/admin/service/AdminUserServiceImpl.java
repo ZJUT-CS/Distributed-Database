@@ -6,8 +6,9 @@ import com.team.skylink.common.Result;
 import com.team.skylink.module.admin.dto.AdminUserCreateRequest;
 import com.team.skylink.module.admin.dto.AdminUserResetPasswordRequest;
 import com.team.skylink.module.admin.dto.AdminUserUpdateRequest;
-import com.team.skylink.module.auth.entity.User;
-import com.team.skylink.module.auth.mapper.UserMapper;
+import com.team.skylink.module.user.mapper.UserMapper;
+import com.team.skylink.module.user.entity.User;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 

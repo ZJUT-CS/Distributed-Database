@@ -3,8 +3,7 @@ package com.team.skylink.module.order.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.team.skylink.common.Result;
-import com.team.skylink.module.auth.entity.User;
-import com.team.skylink.module.auth.mapper.UserMapper;
+import com.team.skylink.module.user.mapper.UserMapper;
 import com.team.skylink.module.flight.entity.Cabin;
 import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.mapper.CabinMapper;
@@ -13,6 +12,8 @@ import com.team.skylink.module.order.dto.CreateOrderRequest;
 import com.team.skylink.module.order.dto.OrderSearchResponse;
 import com.team.skylink.module.order.entity.Order;
 import com.team.skylink.module.order.mapper.OrderMapper;
+import com.team.skylink.module.user.entity.User;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

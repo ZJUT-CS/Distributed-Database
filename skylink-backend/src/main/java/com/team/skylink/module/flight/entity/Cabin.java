@@ -21,4 +21,3 @@ public class Cabin {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
-
