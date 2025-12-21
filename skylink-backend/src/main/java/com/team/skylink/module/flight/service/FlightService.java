@@ -1,7 +1,6 @@
 package com.team.skylink.module.flight.service;
 
 import com.team.skylink.common.Result;
-import com.team.skylink.module.flight.dto.CabinCreateRequest;
 import com.team.skylink.module.flight.dto.FlightCreateRequest;
 import com.team.skylink.module.flight.dto.FlightSearchResponse;
 
@@ -24,6 +23,8 @@ public interface FlightService {
 
     Result<Boolean> createFlight(FlightCreateRequest req);
 
-    Result<Boolean> createCabin(CabinCreateRequest req);
+    Result<Boolean> updateFlight(Long flightId, FlightCreateRequest req);
+
+    Result<Boolean> deleteFlight(Long flightId);
 }
 

@@ -4,8 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.admin.dto.AdminDashboardMetricsResponse;
 import com.team.skylink.module.admin.mapper.AdminMapper;
-import com.team.skylink.module.auth.entity.User;
-import com.team.skylink.module.auth.mapper.UserMapper;
+import com.team.skylink.module.user.mapper.UserMapper;
 import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.mapper.FlightMapper;
 import com.team.skylink.module.order.entity.Order;
@@ -17,6 +16,8 @@ import com.team.skylink.module.refund.mapper.RefundChangeRecordMapper;
 import com.team.skylink.module.system.mapper.ConfigMapper;
 import com.team.skylink.module.system.mapper.OperationLogMapper;
 import com.team.skylink.module.system.mapper.UserBehaviorStatMapper;
+import com.team.skylink.module.user.entity.User;
+
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;

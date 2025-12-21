@@ -4,12 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.admin.entity.Admin;
 import com.team.skylink.module.admin.mapper.AdminMapper;
-import com.team.skylink.module.auth.dto.AdminLoginRequest;
-import com.team.skylink.module.auth.dto.AdminRegisterRequest;
 import com.team.skylink.module.auth.dto.LoginRequest;
 import com.team.skylink.module.auth.dto.LoginResponse;
-import com.team.skylink.module.auth.entity.User;
-import com.team.skylink.module.auth.mapper.UserMapper;
+import com.team.skylink.module.user.mapper.UserMapper;
+import com.team.skylink.module.user.entity.User;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -58,56 +57,6 @@ public class AuthServiceImpl implements AuthService {
         return Result.ok(resp);
     }
 
-    @Override
-    public Result<LoginResponse> adminLogin(AdminLoginRequest request) {
-        String username = request.getUsername();
-        String password = request.getPassword();
-
-        Admin admin = adminMapper.selectOne(new QueryWrapper<Admin>().eq("admin_account", username));
-        if (admin == null) {
-            return Result.fail(401, "invalid username");
-        }
-
-        if (admin.getPasswordHash() == null || !passwordEncoder.matches(password, admin.getPasswordHash())) {
-            return Result.fail(401, "invalid password");
-        }
-
-        long now = System.currentTimeMillis();
-        admin.setLastLoginTime(now);
-        adminMapper.updateById(admin);
-
-        String token = sessionStore.createSession(admin.getAdminId(), 2);
-        LoginResponse resp = new LoginResponse(
-                admin.getAdminId(),
-                admin.getAdminAccount(),
-                "admin",
-                token
-        );
-        return Result.ok(resp);
-    }
-
-    @Override
-    public Result<Boolean> adminRegister(AdminRegisterRequest request) {
-        String username = request.getUsername();
-        String password = request.getPassword();
-        Integer role = request.getRole();
-
-        Admin existing = adminMapper.selectOne(new QueryWrapper<Admin>().eq("admin_account", username));
-        if (existing != null) {
-            return Result.fail(409, "username already exists");
-        }
-
-        Admin admin = new Admin();
-        admin.setAdminAccount(username);
-        admin.setPasswordHash(passwordEncoder.encode(password));
-        admin.setRole(role != null ? role : 1);
-        long now = System.currentTimeMillis();
-        admin.setCreateTime(now);
-        admin.setLastLoginTime(now);
-
-        int rows = adminMapper.insert(admin);
-        return Result.ok(rows > 0);
-    }
 
     @Override
     public Result<Boolean> phoneRegister(Map<String, String> body) {

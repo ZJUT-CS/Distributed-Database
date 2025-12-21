@@ -1,20 +1,14 @@
 package com.team.skylink.module.auth.service;
 
 import com.team.skylink.common.Result;
-import com.team.skylink.module.auth.dto.AdminLoginRequest;
-import com.team.skylink.module.auth.dto.AdminRegisterRequest;
 import com.team.skylink.module.auth.dto.LoginRequest;
 import com.team.skylink.module.auth.dto.LoginResponse;
-import com.team.skylink.module.auth.entity.User;
+import com.team.skylink.module.user.entity.User;
 
 import java.util.Map;
 
 public interface AuthService {
     Result<LoginResponse> login(LoginRequest request);
-
-    Result<LoginResponse> adminLogin(AdminLoginRequest request);
-
-    Result<Boolean> adminRegister(AdminRegisterRequest request);
 
     Result<Boolean> phoneRegister(Map<String, String> body);
 

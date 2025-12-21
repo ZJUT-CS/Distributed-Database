@@ -1,8 +1,7 @@
 package com.team.skylink.module.booking.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.team.skylink.module.auth.entity.User;
-import com.team.skylink.module.auth.mapper.UserMapper;
+import com.team.skylink.module.user.mapper.UserMapper;
 import com.team.skylink.module.booking.dto.BookingFlightDto;
 import com.team.skylink.module.booking.dto.BookingResponse;
 import com.team.skylink.module.flight.entity.Cabin;
@@ -11,6 +10,8 @@ import com.team.skylink.module.flight.mapper.CabinMapper;
 import com.team.skylink.module.flight.mapper.FlightMapper;
 import com.team.skylink.module.order.entity.Order;
 import com.team.skylink.module.order.mapper.OrderMapper;
+import com.team.skylink.module.user.entity.User;
+
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;

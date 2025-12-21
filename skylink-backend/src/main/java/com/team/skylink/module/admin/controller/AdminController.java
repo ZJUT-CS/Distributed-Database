@@ -3,11 +3,11 @@ package com.team.skylink.module.admin.controller;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.admin.entity.Admin;
 import com.team.skylink.module.admin.service.AdminManagementService;
-import jakarta.servlet.http.HttpServletRequest; // 导入 Request
-import lombok.Data; // 导入 Data
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.Data;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping; // 导入 PostMapping
-import org.springframework.web.bind.annotation.RequestBody; // 导入 RequestBody
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,7 +23,12 @@ public class AdminController {
     // ▼▼▼▼▼▼ 新增：创建管理员的接口 ▼▼▼▼▼▼
     @PostMapping("/admins")
     public Result<Admin> createAdmin(HttpServletRequest request, @RequestBody AdminCreateRequest body) {
-        return adminManagementService.createAdmin(body.getAdminAccount(), body.getPassword());
+        // 将前端传来的 role (可能是 null) 传给 Service
+        return adminManagementService.createAdmin(
+            body.getAdminAccount(), 
+            body.getPassword(), 
+            body.getRole()
+        );
     }
     // ▲▲▲▲▲▲ 新增结束 ▲▲▲▲▲▲
 
@@ -32,7 +37,6 @@ public class AdminController {
         return adminManagementService.adminCount();
     }
 
-    // ... 其他 count 方法保持不变 ...
     @GetMapping("/configs/count")
     public Result<Long> configCount() { return adminManagementService.configCount(); }
     @GetMapping("/logs/operation/count")
@@ -47,5 +51,6 @@ public class AdminController {
     public static class AdminCreateRequest {
         private String adminAccount;
         private String password;
+        private Integer role; // 新增 role 字段，允许前端指定 (不传则是 null)
     }
 }

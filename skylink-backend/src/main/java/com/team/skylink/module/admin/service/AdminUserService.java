@@ -5,7 +5,7 @@ import com.team.skylink.common.Result;
 import com.team.skylink.module.admin.dto.AdminUserCreateRequest;
 import com.team.skylink.module.admin.dto.AdminUserResetPasswordRequest;
 import com.team.skylink.module.admin.dto.AdminUserUpdateRequest;
-import com.team.skylink.module.auth.entity.User;
+import com.team.skylink.module.user.entity.User;
 
 public interface AdminUserService {
     Result<PageResult<User>> list(Integer page, Integer size, String keyword, Integer status);

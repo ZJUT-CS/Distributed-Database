@@ -1,7 +1,8 @@
-package com.team.skylink.module.auth.mapper;
+package com.team.skylink.module.user.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.team.skylink.module.auth.entity.User;
+import com.team.skylink.module.user.entity.User;
+
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
