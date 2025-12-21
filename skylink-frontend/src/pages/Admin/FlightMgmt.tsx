@@ -1,15 +1,107 @@
-
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X, Save } from 'lucide-react';
-import { INITIAL_FLIGHTS } from '@/utils/mockData';
 import { type FlightStatus } from '@/features/flight';
-import { Pagination, TableActionMenu } from '@/features/admin';
+import { Pagination, TableActionMenu, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem } from '@/features/admin';
+
+type UiFlight = {
+  id: string; // 展示用（航班号）
+  flightId: string;
+  flightNo: string;
+  airline: string;
+  route: string;
+  dep: string;
+  arr: string;
+  aircraft: string;
+  price: number;
+  seats: number;
+  sold: number;
+  status: FlightStatus;
+
+  // upsert 必要字段
+  modelId: number;
+  routeId: number;
+  departureTime: string;
+  arrivalTime?: string;
+  airlineCompany: string;
+  totalSeats?: number;
+};
+
+const toFlightStatus = (status: number | null | undefined): FlightStatus => {
+  switch (Number(status)) {
+    case 1:
+      return 'active';
+    case 2:
+      return 'cancelled';
+    case 3:
+      return 'delayed';
+    default:
+      return 'active';
+  }
+};
+
+const toUiTime = (v: string | null | undefined) => {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  // 支持 "yyyy-MM-dd HH:mm:ss" 或 ISO
+  const m = s.match(/\b(\d{2}):(\d{2})(?::\d{2})?\b/);
+  if (m) return `${m[1]}:${m[2]}`;
+  return s;
+};
+
+const toDatetimeLocal = (v: string | null | undefined) => {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  // 后端格式 yyyy-MM-dd HH:mm:ss -> datetime-local yyyy-MM-ddTHH:mm
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::\d{2})?$/);
+  if (m) return `${m[1]}T${m[2]}`;
+  // ISO -> 截断到分钟
+  if (s.includes('T')) return s.slice(0, 16);
+  return s;
+};
+
+const normalizePrice = (v: unknown) => {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const mapAdminFlight = (f: AdminFlightItem): UiFlight => {
+  const flightNo = String(f.flightNo ?? '').trim();
+  const departureCity = String(f.departureCity ?? '').trim();
+  const arrivalCity = String(f.arrivalCity ?? '').trim();
+  const airlineCompany = String(f.airlineCompany ?? '').trim();
+  const totalSeats = f.totalSeats != null ? Number(f.totalSeats) : 0;
+
+  return {
+    id: flightNo || String(f.flightId),
+    flightId: String(f.flightId),
+    flightNo,
+    airline: airlineCompany,
+    route: `${departureCity || '-'} → ${arrivalCity || '-'}`,
+    dep: toUiTime(f.departureTime),
+    arr: toUiTime(f.arrivalTime ?? ''),
+    aircraft: String(f.modelId ?? ''),
+    price: normalizePrice(f.lowestPrice),
+    seats: Number.isFinite(totalSeats) ? totalSeats : 0,
+    sold: 0,
+    status: toFlightStatus(f.status),
+
+    modelId: Number(f.modelId),
+    routeId: Number(f.routeId),
+    departureTime: toDatetimeLocal(f.departureTime),
+    arrivalTime: toDatetimeLocal(f.arrivalTime ?? undefined) || undefined,
+    airlineCompany,
+    totalSeats: Number.isFinite(totalSeats) ? totalSeats : undefined,
+  };
+};
 
 const FlightMgmt: React.FC = () => {
-  const [flights, setFlights] = useState(INITIAL_FLIGHTS);
+  const [flights, setFlights] = useState<UiFlight[]>([]);
   const [flightStatusFilter, setFlightStatusFilter] = useState('all');
   const [flightPage, setFlightPage] = useState(1);
   const FLIGHTS_PER_PAGE = 8;
+
+  const [totalFlights, setTotalFlights] = useState(0);
+  const [loadingFlights, setLoadingFlights] = useState(false);
 
   const [isFlightModalOpen, setIsFlightModalOpen] = useState(false);
   const [editingFlight, setEditingFlight] = useState<any | null>(null);
@@ -26,47 +118,114 @@ const FlightMgmt: React.FC = () => {
     setActiveActionId(null);
   };
 
-  const handleSaveFlight = (e: React.FormEvent) => {
+  const handleSaveFlight = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
-    const newFlight = {
-      id: formData.get('id') as string,
-      airline: formData.get('airline') as string,
-      route: formData.get('route') as string,
-      dep: formData.get('dep') as string,
-      arr: formData.get('arr') as string,
-      aircraft: formData.get('aircraft') as string,
-      price: Number(formData.get('price')),
-      seats: Number(formData.get('seats')),
-      sold: editingFlight ? editingFlight.sold : 0,
-      status: formData.get('status') as FlightStatus,
-    };
 
-    if (editingFlight) {
-      setFlights(flights.map(f => f.id === editingFlight.id ? newFlight : f));
-    } else {
-      setFlights([newFlight, ...flights]);
+    const flightNo = String(formData.get('flightNo') ?? '').trim();
+    const airlineCompany = String(formData.get('airlineCompany') ?? '').trim();
+    const modelId = Number(formData.get('modelId'));
+    const routeId = Number(formData.get('routeId'));
+    const departureTime = String(formData.get('departureTime') ?? '').trim();
+    const arrivalTime = String(formData.get('arrivalTime') ?? '').trim();
+    const totalSeats = String(formData.get('totalSeats') ?? '').trim();
+    const statusRaw = String(formData.get('status') ?? '').trim();
+
+    const status = statusRaw === 'cancelled' ? 2 : statusRaw === 'delayed' ? 3 : 1;
+
+    try {
+      if (editingFlight?.flightId) {
+        const ok = await updateAdminFlight(editingFlight.flightId, {
+          flightNo,
+          modelId,
+          routeId,
+          departureTime,
+          arrivalTime: arrivalTime || undefined,
+          airlineCompany,
+          totalSeats: totalSeats ? Number(totalSeats) : undefined,
+          status,
+        });
+        if (!ok) throw new Error('保存失败');
+      } else {
+        const ok = await createAdminFlight({
+          flightNo,
+          modelId,
+          routeId,
+          departureTime,
+          arrivalTime: arrivalTime || undefined,
+          airlineCompany,
+          totalSeats: totalSeats ? Number(totalSeats) : undefined,
+          status,
+        });
+        if (!ok) throw new Error('创建失败');
+      }
+
+      await refreshFlights();
+      setIsFlightModalOpen(false);
+    } catch (err: any) {
+      alert(err?.message || '请求失败，请稍后再试');
     }
-    setIsFlightModalOpen(false);
   };
 
-  const handleDeleteFlight = (id: string) => {
-    if (confirm('确定要永久删除该航班记录吗？')) {
-      setFlights(flights.filter(f => f.id !== id));
+  const handleDeleteFlight = async (flightId: string) => {
+    if (!confirm('确定要永久删除该航班记录吗？')) return;
+    try {
+      const ok = await deleteAdminFlight(flightId);
+      if (!ok) throw new Error('删除失败');
+      await refreshFlights();
+    } catch (err: any) {
+      alert(err?.message || '请求失败，请稍后再试');
+    } finally {
+      setActiveActionId(null);
     }
-    setActiveActionId(null);
   };
 
-  const handleCancelFlight = (id: string) => {
-    if (confirm('确定要取消该航班吗？这将通知所有已预订乘客。')) {
-      setFlights(flights.map(f => f.id === id ? { ...f, status: 'cancelled' } : f));
+  const handleCancelFlight = async (flight: UiFlight) => {
+    if (!confirm('确定要取消该航班吗？这将通知所有已预订乘客。')) return;
+    try {
+      const ok = await updateAdminFlight(flight.flightId, {
+        flightNo: flight.flightNo,
+        modelId: flight.modelId,
+        routeId: flight.routeId,
+        departureTime: flight.departureTime,
+        arrivalTime: flight.arrivalTime,
+        airlineCompany: flight.airlineCompany,
+        totalSeats: flight.totalSeats,
+        status: 2,
+      });
+      if (!ok) throw new Error('取消失败');
+      await refreshFlights();
+    } catch (err: any) {
+      alert(err?.message || '请求失败，请稍后再试');
+    } finally {
+      setActiveActionId(null);
     }
-    setActiveActionId(null);
   };
 
-  const filteredFlights = flights.filter(f => flightStatusFilter === 'all' || f.status === flightStatusFilter);
-  const totalFlightPages = Math.ceil(filteredFlights.length / FLIGHTS_PER_PAGE);
-  const paginatedFlights = filteredFlights.slice((flightPage - 1) * FLIGHTS_PER_PAGE, flightPage * FLIGHTS_PER_PAGE);
+  const refreshFlights = async () => {
+    setLoadingFlights(true);
+    try {
+      const res = await listAdminFlights({ page: flightPage, size: FLIGHTS_PER_PAGE });
+      setTotalFlights(Number(res.total ?? 0));
+      setFlights((res.items ?? []).map(mapAdminFlight));
+    } catch (err: any) {
+      alert(err?.message || '航班列表加载失败');
+    } finally {
+      setLoadingFlights(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshFlights();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flightPage]);
+
+  const filteredFlights = useMemo(
+    () => flights.filter((f) => flightStatusFilter === 'all' || f.status === flightStatusFilter),
+    [flights, flightStatusFilter],
+  );
+  const totalFlightPages = Math.max(1, Math.ceil(totalFlights / FLIGHTS_PER_PAGE));
+  const paginatedFlights = filteredFlights;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -136,7 +295,7 @@ const FlightMgmt: React.FC = () => {
           </thead>
           <tbody className="divide-y divide-gray-50 relative">
             {paginatedFlights.map((flight) => {
-              const loadFactor = Math.round((flight.sold / flight.seats) * 100);
+              const loadFactor = flight.seats > 0 ? Math.round((flight.sold / flight.seats) * 100) : 0;
               let barColor = 'bg-blue-500';
               if (loadFactor > 90) barColor = 'bg-red-500';
               else if (loadFactor > 70) barColor = 'bg-green-500';
@@ -187,14 +346,14 @@ const FlightMgmt: React.FC = () => {
                         <Edit2 className="w-3.5 h-3.5 text-blue-500" /> 编辑信息
                       </button>
                       <button
-                        onClick={() => handleCancelFlight(flight.id)}
+                        onClick={() => handleCancelFlight(flight)}
                         className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                       >
                         <Ban className="w-3.5 h-3.5 text-yellow-500" /> 取消航班
                       </button>
                       <div className="h-px bg-gray-100 my-0"></div>
                       <button
-                        onClick={() => handleDeleteFlight(flight.id)}
+                        onClick={() => handleDeleteFlight(flight.flightId)}
                         className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> 删除记录
@@ -207,7 +366,7 @@ const FlightMgmt: React.FC = () => {
           </tbody>
         </table>
 
-        <Pagination currentPage={flightPage} totalPages={totalFlightPages} setPage={setFlightPage} totalItems={filteredFlights.length} itemsPerPage={FLIGHTS_PER_PAGE} />
+        <Pagination currentPage={flightPage} totalPages={totalFlightPages} setPage={setFlightPage} totalItems={totalFlights} itemsPerPage={FLIGHTS_PER_PAGE} />
       </div>
 
       {isFlightModalOpen && (
@@ -225,42 +384,37 @@ const FlightMgmt: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-500">航班号</label>
-                  <input name="id" defaultValue={editingFlight?.id} required placeholder="例如: CA1234" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input name="flightNo" defaultValue={editingFlight?.flightNo ?? editingFlight?.id} required placeholder="例如: CA1234" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-500">航空公司</label>
-                  <input name="airline" defaultValue={editingFlight?.airline} required placeholder="例如: 中国国航" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input name="airlineCompany" defaultValue={editingFlight?.airlineCompany ?? editingFlight?.airline} required placeholder="例如: 中国国航" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">航线 (出发地 - 目的地)</label>
-                <input name="route" defaultValue={editingFlight?.route} required placeholder="例如: PEK - SHA" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">起飞时间</label>
-                  <input type="time" name="dep" defaultValue={editingFlight?.dep} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="text-xs font-bold text-gray-500">航线ID (routeId)</label>
+                  <input type="number" name="routeId" defaultValue={editingFlight?.routeId} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">降落时间</label>
-                  <input type="time" name="arr" defaultValue={editingFlight?.arr} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="text-xs font-bold text-gray-500">机型ID (modelId)</label>
+                  <input type="number" name="modelId" defaultValue={editingFlight?.modelId} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">执飞机型</label>
-                  <input name="aircraft" defaultValue={editingFlight?.aircraft} required placeholder="例如: A320" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="text-xs font-bold text-gray-500">起飞时间</label>
+                  <input type="datetime-local" name="departureTime" defaultValue={editingFlight?.departureTime ? String(editingFlight.departureTime).slice(0, 16) : ''} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">基础票价 (¥)</label>
-                  <input type="number" name="price" defaultValue={editingFlight?.price} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="text-xs font-bold text-gray-500">到达时间(可选)</label>
+                  <input type="datetime-local" name="arrivalTime" defaultValue={editingFlight?.arrivalTime ? String(editingFlight.arrivalTime).slice(0, 16) : ''} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">总座位数</label>
-                  <input type="number" name="seats" defaultValue={editingFlight?.seats || 200} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="text-xs font-bold text-gray-500">总座位数(可选)</label>
+                  <input type="number" name="totalSeats" defaultValue={editingFlight?.totalSeats ?? editingFlight?.seats} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
               </div>
 

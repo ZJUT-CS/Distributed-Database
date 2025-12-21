@@ -8,5 +8,6 @@ export { default as TopHeader } from './components/TopHeader';
 // API
 export * from './api/configs';
 export * from './api/dashboard';
+export * from './api/flights';
 export * from './api/orders';
 export * from './api/users';
