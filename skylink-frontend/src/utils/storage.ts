@@ -1,4 +1,5 @@
-import { ConfirmedBooking, RefundChangeRecord, type PassengerInfo } from '../types';
+import { type ConfirmedBooking, type PassengerInfo } from '@/features/booking';
+import { type RefundChangeRecord } from '@/features/user';
 
 const STORAGE_KEYS = {
   BOOKINGS: 'skylink_user_bookings',

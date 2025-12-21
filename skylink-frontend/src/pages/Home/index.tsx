@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import SearchForm from '../../features/flight/components/SearchForm';
-import { SearchParams } from '../../types';
-import { useAuth } from '../../features/auth/hooks/useAuth';
+import { SearchForm, type SearchParams } from '@/features/flight';
+import { useAuth } from '@/features/auth';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -20,16 +19,16 @@ const HomePage: React.FC = () => {
   };
 
   const handleAiRequest = () => {
-      if (!user) navigate('/login');
-      else {
-          window.dispatchEvent(new CustomEvent('open-ai-modal'));
-      }
+    if (!user) navigate('/login');
+    else {
+      window.dispatchEvent(new CustomEvent('open-ai-modal'));
+    }
   };
 
   return (
     <div className="flex-1 flex flex-col relative">
       {/* Hero Background */}
-      <div 
+      <div
         className="h-[500px] bg-cover bg-center relative flex items-center justify-center transition-all duration-700"
         style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop")' }}
       >
@@ -45,8 +44,8 @@ const HomePage: React.FC = () => {
       </div>
 
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-8">
-        <SearchForm 
-          onSearch={handleSearch} 
+        <SearchForm
+          onSearch={handleSearch}
           onAiRequest={handleAiRequest}
           isAiLoading={false}
           origin={origin}

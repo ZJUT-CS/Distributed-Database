@@ -2,7 +2,9 @@
 :root {
   --font-family: 'Noto Sans SC', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
 }
-html, body {
+
+html,
+body {
   font-family: var(--font-family);
 }
 
@@ -11,13 +13,16 @@ html, body {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
@@ -26,11 +31,15 @@ html, body {
 .custom-scrollbar {
   scrollbar-width: thin;
 }
+
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;     /* Firefox */
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;             /* Chrome, Safari */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
 
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari */
+}

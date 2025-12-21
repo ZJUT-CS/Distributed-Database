@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { ArrowUp, Minus, Plus, RotateCcw } from 'lucide-react';
-import { MapPoint } from '../../types';
+import type { MapPoint } from '@/features/flight';
 import worldMapSvg from '../../assets/images/Simplified_World_Map.svg';
 
 interface WorldMapProps {
@@ -377,7 +377,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!enableControls) return;
-    if (e.key === '+' || e.key === '=' ) {
+    if (e.key === '+' || e.key === '=') {
       e.preventDefault();
       zoomByFactor(BUTTON_ZOOM_FACTOR);
       return;
@@ -398,7 +398,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
   const MAP_HEIGHT = 560;
 
   // 这里的偏移量用于手动校准标点位置
-  const mapOffsetX = -30; 
+  const mapOffsetX = -30;
   const mapOffsetY = 66;
 
   // Colors based on theme
@@ -436,11 +436,11 @@ const WorldMap: React.FC<WorldMapProps> = ({
   const project = (lat: number, lng: number) => {
     // X轴: -180 ~ 180 => 0 ~ 1009
     const x = ((lng + 180) * MAP_WIDTH) / 360 + mapOffsetX;
-    
+
     // Y轴: 90 ~ -90 => 0 ~ 665
     const y = ((-lat + 90) * MAP_HEIGHT) / 180 + mapOffsetY;
-    
-    return { x, y }; 
+
+    return { x, y };
   };
 
   return (
@@ -465,8 +465,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
           (332 - 400) ≈ -68。取 -110 可以让地图在垂直方向上绝对居中。
           这样可以确保顶部（北极圈）和底部（澳大利亚/新西兰）都包含在视口内。
       */}
-      <svg 
-        viewBox="-150 -20 1250 800" 
+      <svg
+        viewBox="-150 -20 1250 800"
         className="w-full h-full block"
         preserveAspectRatio={effectivePreserveAspectRatio}
         style={{
@@ -476,117 +476,149 @@ const WorldMap: React.FC<WorldMapProps> = ({
         }}
       >
         <defs>
-            <linearGradient id="routeGradientDark" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-                <stop offset="50%" stopColor="#60a5fa" stopOpacity="1" />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2" />
-            </linearGradient>
-            
-            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="2" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
+          <linearGradient id="routeGradientDark" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
+            <stop offset="50%" stopColor="#60a5fa" stopOpacity="1" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2" />
+          </linearGradient>
+
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
         </defs>
 
         {/* Background Grid */}
         {showGrid && renderGrid()}
-        
-        <image 
-            href={worldMapSvg}
-            x="0" 
-            y="0" 
-            width={MAP_WIDTH} 
-            height={MAP_HEIGHT}
-            opacity={colors.mapOpacity}
-            className="pointer-events-none"
-            style={{ filter: colors.mapFilter }}
+
+        <image
+          href={worldMapSvg}
+          x="0"
+          y="0"
+          width={MAP_WIDTH}
+          height={MAP_HEIGHT}
+          opacity={colors.mapOpacity}
+          className="pointer-events-none"
+          style={{ filter: colors.mapFilter }}
         />
+
+        {/* Global Styles for Animations */}
+        <style>
+          {`
+            @keyframes pulse-radius {
+              0%, 100% { r: 5px; }
+              50% { r: 8px; }
+            }
+            @keyframes pulse-radius-large {
+              0%, 100% { r: 10px; }
+              50% { r: 18px; }
+            }
+            @keyframes pulse-opacity {
+              0%, 100% { opacity: 0.3; }
+              50% { opacity: 0.8; }
+            }
+            @keyframes fly-path {
+              0% { offset-distance: 0%; }
+              100% { offset-distance: 100%; }
+            }
+            @keyframes dash-flow {
+              0% { stroke-dashoffset: 1000; }
+              100% { stroke-dashoffset: 0; }
+            }
+          `}
+        </style>
 
         {/* Routes Rendering */}
         {routes && routes.map((route, idx) => {
-           const startPoint = points.find(p => p.id === route.from);
-           const endPoint = points.find(p => p.id === route.to);
-           if (!startPoint || !endPoint) return null;
-           
-           const start = project(startPoint.lat, startPoint.lng);
-           const end = project(endPoint.lat, endPoint.lng);
+          const startPoint = points.find(p => p.id === route.from);
+          const endPoint = points.find(p => p.id === route.to);
+          if (!startPoint || !endPoint) return null;
 
-           const midX = (start.x + end.x) / 2;
-           // 曲线控制点
-           const midY = Math.min(start.y, end.y) - 150;
+          const start = project(startPoint.lat, startPoint.lng);
+          const end = project(endPoint.lat, endPoint.lng);
 
-           const pathD = `M${start.x} ${start.y} Q ${midX} ${midY} ${end.x} ${end.y}`;
+          const midX = (start.x + end.x) / 2;
+          const midY = Math.min(start.y, end.y) - 150;
 
-           return (
-             <g key={`route-special-${idx}`}>
-               <path
-                 d={pathD}
-                 fill="none"
-                 stroke={colors.routeStroke}
-                 strokeWidth="2"
-                 strokeLinecap="round"
-                 opacity="0.3"
-               />
+          const pathD = `M${start.x} ${start.y} Q ${midX} ${midY} ${end.x} ${end.y}`;
 
-               <path
-                 d={pathD}
-                 fill="none"
-                 stroke={colors.routeStroke}
-                 strokeWidth="3"
-                 strokeLinecap="round"
-                 strokeDasharray="10, 20"
-                 opacity="0.8"
-                 filter={isDark ? "url(#glow)" : ""}
-               >
-                  {!enableControls && (
-                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="2s" repeatCount="indefinite" />
-                  )}
-               </path>
-               {!enableControls && (
-                 <circle r="4" fill={colors.planeFill} filter={isDark ? "url(#glow)" : ""}>
-                   <animateMotion dur="3s" repeatCount="indefinite" path={pathD} rotate="auto">
-                     <mpath href={`#routePath-${idx}`} />
-                   </animateMotion>
-                 </circle>
-               )}
-               
-               <path id={`routePath-${idx}`} d={pathD} fill="none" stroke="none" />
-             </g>
-           );
+          return (
+            <g key={`route-special-${idx}`}>
+              <path
+                d={pathD}
+                fill="none"
+                stroke={colors.routeStroke}
+                strokeWidth="2"
+                strokeLinecap="round"
+                opacity="0.2"
+              />
+
+              <path
+                d={pathD}
+                fill="none"
+                stroke={colors.routeStroke}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray="10, 300"
+                opacity="0.8"
+                filter={isDark ? "url(#glow)" : ""}
+                style={!enableControls ? {
+                  animation: 'dash-flow 3s linear infinite'
+                } : undefined}
+              />
+              {!enableControls && (
+                <g style={{
+                  offsetPath: `path("${pathD}")`,
+                  animation: 'fly-path 6s ease-in-out infinite',
+                  offsetRotate: 'auto'
+                }}>
+                  <circle r="4" fill={colors.planeFill} filter={isDark ? "url(#glow)" : ""} />
+                </g>
+              )}
+
+              <path id={`routePath-${idx}`} d={pathD} fill="none" stroke="none" />
+            </g>
+          );
         })}
 
         {/* Normal Mode Radiation Lines */}
         {!routes && points.filter(p => p.type === 'normal').map((target, idx) => {
-            const hub = points.find(p => p.type === 'hub') || points[0];
-            const start = project(hub.lat, hub.lng);
-            const end = project(target.lat, target.lng);
-            return (
-                <path
-                    key={`line-${idx}`}
-                    d={`M${start.x} ${start.y} Q ${(start.x + end.x)/2} ${Math.min(start.y, end.y) - 50} ${end.x} ${end.y}`}
-                    fill="none"
-                    stroke={target.type === 'hub' ? '#ef4444' : '#3b82f6'}
-                    strokeWidth="1"
-                    strokeOpacity="0.2"
-                    strokeDasharray="5,5"
-                >
-                    {!enableControls && (
-                      <animate attributeName="stroke-dashoffset" from="100" to="0" dur="3s" repeatCount="indefinite" />
-                    )}
-                </path>
-            );
+          const hub = points.find(p => p.type === 'hub') || points[0];
+          const start = project(hub.lat, hub.lng);
+          const end = project(target.lat, target.lng);
+          const pathD = `M${start.x} ${start.y} Q ${(start.x + end.x) / 2} ${Math.min(start.y, end.y) - 50} ${end.x} ${end.y}`;
+          return (
+            <path
+              key={`line-${idx}`}
+              d={pathD}
+              fill="none"
+              stroke={target.type === 'hub' ? '#ef4444' : '#3b82f6'}
+              strokeWidth="1"
+              strokeOpacity="0.2"
+              strokeDasharray="5, 100"
+              style={!enableControls ? {
+                animation: 'dash-flow 4s linear infinite'
+              } : undefined}
+            />
+          );
         })}
 
         {/* Points */}
         {points.map((point) => {
           const { x, y } = project(point.lat, point.lng);
           const isLarge = point.type === 'hub' || point.type === 'origin' || point.type === 'destination';
-          
           const pointColor = getPointColor(point.type);
 
+          // Generate a stable random delay based on point ID (or index if needed, but ID is better)
+          // We use the first char code for stability, or just random if strict stability isn't required by user (User said "Random Delay")
+          // Pure random in render causes flicker on re-render. Let's use useMemo or something stable if we could, 
+          // but inside this map, we need a seed.
+          // Using a deterministically random delay based on coordinate sum to keep it stable across renders but random-looking.
+          const delay = -1 * ((Math.abs(point.lat + point.lng) * 100) % 5) + 's';
+
           return (
-            <g 
-              key={point.id} 
+            <g
+              key={point.id}
               onMouseEnter={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 setTooltipPos({ x: rect.left + window.scrollX, y: rect.top + window.scrollY - 10 });
@@ -595,37 +627,42 @@ const WorldMap: React.FC<WorldMapProps> = ({
               onMouseLeave={() => setHoveredPoint(null)}
               style={{ cursor: 'pointer' }}
             >
-              <circle cx={x} cy={y} r={isLarge ? 15 : 8} fill={pointColor} opacity={isDark ? 0.6 : 0.3}>
-                {!enableControls && (
-                  <>
-                    <animate attributeName="r" values={isLarge ? "10;25;10" : "5;12;5"} dur="3s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values={isDark ? "0.6;0;0.6" : "0.3;0;0.3"} dur="3s" repeatCount="indefinite" />
-                  </>
-                )}
-              </circle>
-              
-              <circle 
-                  cx={x} 
-                  cy={y} 
-                  r={isLarge ? 5 : 3} 
-                  fill={pointColor} 
-                  stroke={isDark ? "#fff" : "#fff"} 
-                  strokeWidth="1.5"
-                  filter={isDark ? "url(#glow)" : ""}
+              {/* Pulsing Background Circle */}
+              <circle
+                cx={x}
+                cy={y}
+                fill={pointColor}
+                opacity={isDark ? 0.6 : 0.3}
+                style={!enableControls ? {
+                  animation: `${isLarge ? 'pulse-radius-large' : 'pulse-radius'} 4s ease-in-out infinite, pulse-opacity 4s ease-in-out infinite`,
+                  animationDelay: delay
+                } : undefined}
+                r={isLarge ? 10 : 5} // Initial radius matching keyframes start
               />
-              
+
+              {/* Static Center Core */}
+              <circle
+                cx={x}
+                cy={y}
+                r={isLarge ? 5 : 3}
+                fill={pointColor}
+                stroke={isDark ? "#fff" : "#fff"}
+                strokeWidth="1.5"
+                filter={isDark ? "url(#glow)" : ""}
+              />
+
               {(point.type === 'origin' || point.type === 'destination') && (
-                 <text 
-                    x={x} 
-                    y={y + 25} 
-                    textAnchor="middle" 
-                    fill={isDark ? "#e2e8f0" : "#334155"} 
-                    fontSize="14" 
-                    fontWeight="bold"
-                    style={{ textShadow: isDark ? '0 2px 4px #000' : '0 1px 2px rgba(255,255,255,0.8)' }}
-                 >
-                   {point.id}
-                 </text>
+                <text
+                  x={x}
+                  y={y + 25}
+                  textAnchor="middle"
+                  fill={isDark ? "#e2e8f0" : "#334155"}
+                  fontSize="14"
+                  fontWeight="bold"
+                  style={{ textShadow: isDark ? '0 2px 4px #000' : '0 1px 2px rgba(255,255,255,0.8)' }}
+                >
+                  {point.id}
+                </text>
               )}
             </g>
           );
@@ -697,14 +734,14 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
       {/* Tooltip */}
       {hoveredPoint && (
-        <div 
+        <div
           className="fixed z-50 bg-slate-900/90 text-white text-xs rounded-lg py-2 px-3 shadow-2xl pointer-events-none transform -translate-x-1/2 -translate-y-full mb-2 border border-slate-700 backdrop-blur-sm"
           style={{ left: tooltipPos.x, top: tooltipPos.y }}
         >
           <div className="font-bold mb-1 border-b border-slate-700 pb-1 text-slate-200">{hoveredPoint.name}</div>
           <div className="flex items-center gap-2 whitespace-nowrap">
-             <span className={`w-2 h-2 rounded-full`} style={{ backgroundColor: getPointColor(hoveredPoint.type) }}></span>
-             <span className="text-slate-300">{hoveredPoint.info || hoveredPoint.id}</span>
+            <span className={`w-2 h-2 rounded-full`} style={{ backgroundColor: getPointColor(hoveredPoint.type) }}></span>
+            <span className="text-slate-300">{hoveredPoint.info || hoveredPoint.id}</span>
           </div>
         </div>
       )}

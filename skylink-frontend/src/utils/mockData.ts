@@ -1,6 +1,6 @@
 
-import { POPULAR_AIRPORTS, AIRLINES, AIRCRAFTS } from '../constants';
-import { FlightStatus } from '../types';
+import { POPULAR_AIRPORTS, AIRLINES, AIRCRAFTS } from '@/constants';
+import { type FlightStatus } from '@/features/flight';
 
 export const generateMockFlights = (origin: string, destination: string, date: string): any[] => {
   const seed = origin.length + destination.length + date.length;

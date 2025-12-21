@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import UserBookings from '../../features/user/components/UserBookings';
-import { useAuth } from '../../features/auth/hooks/useAuth';
-import { ConfirmedBooking, type PassengerInfo } from '../../types';
+import { UserBookings as UserBookingsComponent } from '@/features/user';
+import { useAuth } from '@/features/auth';
+import { type ConfirmedBooking, type PassengerInfo } from '@/features/booking';
 import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, RefreshCw, Clock } from 'lucide-react';
-import { searchOrders, type OrderSearchResult, cancelOrder } from '../../features/booking/api/order';
-import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '../../features/booking/api/payment';
-import { loadOrderPassengers } from '../../utils/storage';
+import { searchOrders, type OrderSearchResult, cancelOrder } from '@/features/booking/api/order';
+import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '@/features/booking/api/payment';
+import { loadOrderPassengers } from '@/utils/storage';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -40,49 +40,49 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
   const passengers = parsePassengersJson(o.passengersJson) ?? loadOrderPassengers(id) ?? [];
 
   return {
-  id,
-  flight: {
-    id: o.flightNo || '',
-    airline: '',
-    airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
-    flightNumber: o.flightNo || '',
-    cabinType: 'economy',
-    origin: o.origin || '',
-    destination: o.destination || '',
-    departureTime: o.departureTime || '',
-    arrivalTime: o.arrivalTime || '',
-    price: Number(o.totalAmount || 0),
-    remainingSeats: 0,
-    duration: '',
-    stops: 0,
-    baggageWeight: 23,
-    amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
-  },
-  flights: [{
-    id: o.flightNo || '',
-    airline: '',
-    airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
-    flightNumber: o.flightNo || '',
-    cabinType: 'economy',
-    origin: o.origin || '',
-    destination: o.destination || '',
-    departureTime: o.departureTime || '',
-    arrivalTime: o.arrivalTime || '',
-    price: Number(o.totalAmount || 0),
-    remainingSeats: 0,
-    duration: '',
-    stops: 0,
-    baggageWeight: 23,
-    amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
-  }],
-  status: o.orderStatus === 0 ? 'pending_payment' : o.orderStatus === 1 ? 'confirmed' : o.orderStatus === 2 ? 'cancelled' : 'cancelled',
-  bookingDate: o.orderTime || new Date().toISOString(),
-  totalPrice: Number(o.totalAmount || 0),
-  passengerName: o.passengerName || passengers[0]?.name || '',
-  passportNumber: '',
-  passengers,
-  contactEmail: o.contactEmail || '',
-  phone: o.contactPhone || '',
+    id,
+    flight: {
+      id: o.flightNo || '',
+      airline: '',
+      airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
+      flightNumber: o.flightNo || '',
+      cabinType: 'economy',
+      origin: o.origin || '',
+      destination: o.destination || '',
+      departureTime: o.departureTime || '',
+      arrivalTime: o.arrivalTime || '',
+      price: Number(o.totalAmount || 0),
+      remainingSeats: 0,
+      duration: '',
+      stops: 0,
+      baggageWeight: 23,
+      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+    },
+    flights: [{
+      id: o.flightNo || '',
+      airline: '',
+      airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
+      flightNumber: o.flightNo || '',
+      cabinType: 'economy',
+      origin: o.origin || '',
+      destination: o.destination || '',
+      departureTime: o.departureTime || '',
+      arrivalTime: o.arrivalTime || '',
+      price: Number(o.totalAmount || 0),
+      remainingSeats: 0,
+      duration: '',
+      stops: 0,
+      baggageWeight: 23,
+      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+    }],
+    status: o.orderStatus === 0 ? 'pending_payment' : o.orderStatus === 1 ? 'confirmed' : o.orderStatus === 2 ? 'cancelled' : 'cancelled',
+    bookingDate: o.orderTime || new Date().toISOString(),
+    totalPrice: Number(o.totalAmount || 0),
+    passengerName: o.passengerName || passengers[0]?.name || '',
+    passportNumber: '',
+    passengers,
+    contactEmail: o.contactEmail || '',
+    phone: o.contactPhone || '',
   };
 };
 
@@ -102,13 +102,13 @@ const BookingsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-     if (!user?.id) return;
-     setLoading(true);
-     setError(null);
-     searchOrders({ userId: user.id })
-       .then((res) => setBookings(res.map(mapOrderToBooking)))
-       .catch((e: any) => setError(e?.message || '加载订单失败'))
-       .finally(() => setLoading(false));
+    if (!user?.id) return;
+    setLoading(true);
+    setError(null);
+    searchOrders({ userId: user.id })
+      .then((res) => setBookings(res.map(mapOrderToBooking)))
+      .catch((e: any) => setError(e?.message || '加载订单失败'))
+      .finally(() => setLoading(false));
   }, [user]);
 
   const handleUpdateBooking = (updated: ConfirmedBooking) => {
@@ -133,7 +133,7 @@ const BookingsPage: React.FC = () => {
           {error}
         </div>
       )}
-      <UserBookings bookings={bookings} onBack={() => navigate('/')} onUpdateBooking={handleUpdateBooking} />
+      <UserBookingsComponent bookings={bookings} onBack={() => navigate('/')} onUpdateBooking={handleUpdateBooking} />
       {loading && (
         <div className="mt-4 text-sm text-gray-500">加载中...</div>
       )}
@@ -401,20 +401,19 @@ export const BookingDetailsPage: React.FC = () => {
             </>
           )}
           {booking.status === 'pending_payment' && (
-             <button
+            <button
               onClick={handlePay}
               disabled={Date.now() >= getPaymentDeadlineMs(booking.bookingDate) || payPreparing}
-              className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all shadow-lg shadow-orange-500/20 ${
-                Date.now() >= getPaymentDeadlineMs(booking.bookingDate) || payPreparing
-                  ? 'bg-gray-300 cursor-not-allowed shadow-none'
-                  : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
-              }`}
+              className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all shadow-lg shadow-orange-500/20 ${Date.now() >= getPaymentDeadlineMs(booking.bookingDate) || payPreparing
+                ? 'bg-gray-300 cursor-not-allowed shadow-none'
+                : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
+                }`}
             >
               {payPreparing ? '准备中...' : '去支付'}
             </button>
           )}
-           {booking.status === 'refunding' && (
-             <button
+          {booking.status === 'refunding' && (
+            <button
               onClick={() => navigate('/refunds-help')}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 text-purple-700 text-sm font-bold hover:bg-purple-100 transition-all"
             >

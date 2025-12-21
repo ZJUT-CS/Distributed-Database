@@ -1,10 +1,9 @@
 
 import React, { useState } from 'react';
 import { Download, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X, Save } from 'lucide-react';
-import { INITIAL_FLIGHTS } from '../../utils/mockData';
-import { FlightStatus } from '../../types';
-import Pagination from '../../features/admin/components/Pagination';
-import TableActionMenu from '../../features/admin/components/TableActionMenu';
+import { INITIAL_FLIGHTS } from '@/utils/mockData';
+import { type FlightStatus } from '@/features/flight';
+import { Pagination, TableActionMenu } from '@/features/admin';
 
 const FlightMgmt: React.FC = () => {
   const [flights, setFlights] = useState(INITIAL_FLIGHTS);
@@ -98,27 +97,27 @@ const FlightMgmt: React.FC = () => {
 
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative flex-1 md:max-w-md w-full">
-           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-           <input type="text" placeholder="搜索航班号、航线..." className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input type="text" placeholder="搜索航班号、航线..." className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
-        
+
         <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-           <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 text-sm whitespace-nowrap">
-             <Filter className="w-4 h-4" />
-             <span className="hidden sm:inline">筛选</span>
-           </button>
-           <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
-           <div className="flex bg-gray-100 p-1 rounded-lg">
-              {['all', 'active', 'delayed', 'cancelled'].map(status => (
-                <button 
-                 key={status}
-                 onClick={() => { setFlightStatusFilter(status); setFlightPage(1); }}
-                 className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${flightStatusFilter === status ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  {status === 'all' ? '全部状态' : status}
-                </button>
-              ))}
-           </div>
+          <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 text-sm whitespace-nowrap">
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline">筛选</span>
+          </button>
+          <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
+          <div className="flex bg-gray-100 p-1 rounded-lg">
+            {['all', 'active', 'delayed', 'cancelled'].map(status => (
+              <button
+                key={status}
+                onClick={() => { setFlightStatusFilter(status); setFlightPage(1); }}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${flightStatusFilter === status ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                {status === 'all' ? '全部状态' : status}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -181,25 +180,25 @@ const FlightMgmt: React.FC = () => {
                       onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === flight.id ? null : flight.id); }}
                       onClose={() => setActiveActionId(null)}
                     >
-                        <button 
-                          onClick={() => handleOpenEditFlight(flight)}
-                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <Edit2 className="w-3.5 h-3.5 text-blue-500" /> 编辑信息
-                        </button>
-                        <button 
-                          onClick={() => handleCancelFlight(flight.id)}
-                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <Ban className="w-3.5 h-3.5 text-yellow-500" /> 取消航班
-                        </button>
-                        <div className="h-px bg-gray-100 my-0"></div>
-                        <button 
-                          onClick={() => handleDeleteFlight(flight.id)}
-                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> 删除记录
-                        </button>
+                      <button
+                        onClick={() => handleOpenEditFlight(flight)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 text-blue-500" /> 编辑信息
+                      </button>
+                      <button
+                        onClick={() => handleCancelFlight(flight.id)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <Ban className="w-3.5 h-3.5 text-yellow-500" /> 取消航班
+                      </button>
+                      <div className="h-px bg-gray-100 my-0"></div>
+                      <button
+                        onClick={() => handleDeleteFlight(flight.id)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> 删除记录
+                      </button>
                     </TableActionMenu>
                   </td>
                 </tr>
@@ -207,7 +206,7 @@ const FlightMgmt: React.FC = () => {
             })}
           </tbody>
         </table>
-        
+
         <Pagination currentPage={flightPage} totalPages={totalFlightPages} setPage={setFlightPage} totalItems={filteredFlights.length} itemsPerPage={FLIGHTS_PER_PAGE} />
       </div>
 
@@ -233,36 +232,36 @@ const FlightMgmt: React.FC = () => {
                   <input name="airline" defaultValue={editingFlight?.airline} required placeholder="例如: 中国国航" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
               </div>
-              
+
               <div className="space-y-1">
-                 <label className="text-xs font-bold text-gray-500">航线 (出发地 - 目的地)</label>
-                 <input name="route" defaultValue={editingFlight?.route} required placeholder="例如: PEK - SHA" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                <label className="text-xs font-bold text-gray-500">航线 (出发地 - 目的地)</label>
+                <input name="route" defaultValue={editingFlight?.route} required placeholder="例如: PEK - SHA" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-1">
-                   <label className="text-xs font-bold text-gray-500">起飞时间</label>
-                   <input type="time" name="dep" defaultValue={editingFlight?.dep} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-xs font-bold text-gray-500">降落时间</label>
-                   <input type="time" name="arr" defaultValue={editingFlight?.arr} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                 </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500">起飞时间</label>
+                  <input type="time" name="dep" defaultValue={editingFlight?.dep} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500">降落时间</label>
+                  <input type="time" name="arr" defaultValue={editingFlight?.arr} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
-                 <div className="space-y-1">
-                   <label className="text-xs font-bold text-gray-500">执飞机型</label>
-                   <input name="aircraft" defaultValue={editingFlight?.aircraft} required placeholder="例如: A320" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-xs font-bold text-gray-500">基础票价 (¥)</label>
-                   <input type="number" name="price" defaultValue={editingFlight?.price} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-xs font-bold text-gray-500">总座位数</label>
-                   <input type="number" name="seats" defaultValue={editingFlight?.seats || 200} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                 </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500">执飞机型</label>
+                  <input name="aircraft" defaultValue={editingFlight?.aircraft} required placeholder="例如: A320" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500">基础票价 (¥)</label>
+                  <input type="number" name="price" defaultValue={editingFlight?.price} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500">总座位数</label>
+                  <input type="number" name="seats" defaultValue={editingFlight?.seats || 200} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -276,10 +275,10 @@ const FlightMgmt: React.FC = () => {
               </div>
 
               <div className="pt-4 flex gap-3">
-                 <button type="button" onClick={() => setIsFlightModalOpen(false)} className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors">取消</button>
-                 <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/30 transition-colors flex items-center justify-center gap-2">
-                   <Save className="w-4 h-4" /> 保存航班
-                 </button>
+                <button type="button" onClick={() => setIsFlightModalOpen(false)} className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors">取消</button>
+                <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/30 transition-colors flex items-center justify-center gap-2">
+                  <Save className="w-4 h-4" /> 保存航班
+                </button>
               </div>
             </form>
           </div>

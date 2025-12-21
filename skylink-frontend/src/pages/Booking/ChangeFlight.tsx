@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Calendar, CheckCircle2, Plane, RefreshCw } from 'lucide-react';
-import type { ConfirmedBooking, Flight, PassengerInfo } from '../../types';
-import { request } from '../../lib/axios';
-import { applyRefundChange } from '../../features/user/api/refund';
-import { useAuth } from '../../features/auth/hooks/useAuth';
-import { searchOrders, type OrderSearchResult } from '../../features/booking/api/order';
-import FlightList from '../../features/flight/components/FlightList';
+import { type ConfirmedBooking, type PassengerInfo } from '@/features/booking';
+import { type Flight, FlightList } from '@/features/flight';
+import { request } from '@/lib/axios';
+import { applyRefundChange } from '@/features/user/api/refund';
+import { useAuth } from '@/features/auth';
+import { searchOrders, type OrderSearchResult } from '@/features/booking/api/order';
 
 type Step = 1 | 2 | 3;
 type CabinType = 'economy' | 'business' | 'first';
@@ -71,14 +71,14 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => ({
     o.orderStatus === 0
       ? 'pending_payment'
       : o.orderStatus === 2
-      ? 'cancelled'
-      : o.orderStatus === 3
-      ? 'refunded'
-      : o.orderStatus === 4
-      ? 'refunding'
-      : o.orderStatus === 5
-      ? 'changed'
-      : 'confirmed',
+        ? 'cancelled'
+        : o.orderStatus === 3
+          ? 'refunded'
+          : o.orderStatus === 4
+            ? 'refunding'
+            : o.orderStatus === 5
+              ? 'changed'
+              : 'confirmed',
   bookingDate: o.orderTime || new Date().toISOString(),
   passengerName: o.passengerName || '',
   passportNumber: '',

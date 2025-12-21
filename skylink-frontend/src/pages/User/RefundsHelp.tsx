@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../features/auth/hooks/useAuth';
-import { RefundChangeRecord, AuditStatus } from '../../types';
-import { listRefundChanges, revokeRefundChange, updateRefundChange } from '../../features/user/api/refund';
+import { useAuth } from '@/features/auth';
+import { type RefundChangeRecord, type AuditStatus } from '@/features/user';
+import { listRefundChanges, revokeRefundChange, updateRefundChange } from '@/features/user/api/refund';
 import { ArrowLeft, CheckCircle2, Filter, RefreshCw, Search, Ticket, XCircle, AlertCircle, Trash2, Edit } from 'lucide-react';
 
 const RefundsHelpPage: React.FC = () => {
@@ -203,15 +203,14 @@ const RefundsHelpPage: React.FC = () => {
               { id: 'rejected', label: '已拒绝' },
               { id: 'all', label: '全部' },
             ].map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => setStatusFilter(opt.id as AuditStatus | 'all')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                    statusFilter === opt.id ? 'bg-white text-sky-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              <button
+                key={opt.id}
+                onClick={() => setStatusFilter(opt.id as AuditStatus | 'all')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${statusFilter === opt.id ? 'bg-white text-sky-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
-                >
-                  {opt.label}
-                </button>
+              >
+                {opt.label}
+              </button>
             ))}
           </div>
         </div>
@@ -243,9 +242,8 @@ const RefundsHelpPage: React.FC = () => {
                 <td className="px-6 py-4 font-mono text-gray-600">{a.orderId}</td>
                 <td className="px-6 py-4">
                   <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      a.type === '退票' ? 'bg-red-50 text-red-700' : 'bg-indigo-50 text-indigo-700'
-                    }`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${a.type === '退票' ? 'bg-red-50 text-red-700' : 'bg-indigo-50 text-indigo-700'
+                      }`}
                   >
                     <RefreshCw className="w-3 h-3" />
                     {a.type}
@@ -302,15 +300,15 @@ const RefundsHelpPage: React.FC = () => {
         </table>
       </div>
 
-       {/* Re-apply Modal */}
-       {isModalOpen && editingRecord && (
+      {/* Re-apply Modal */}
+      {isModalOpen && editingRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-6 sm:p-8 animate-scale-up">
             <h3 className="text-xl font-bold text-gray-900 mb-2">
               重新提交申请
             </h3>
             <div className="mb-4 p-3 bg-red-50 rounded-xl border border-red-100 text-xs text-red-700">
-               <span className="font-bold">上次拒绝原因：</span> 证件信息不符（模拟数据）
+              <span className="font-bold">上次拒绝原因：</span> 证件信息不符（模拟数据）
             </div>
 
             <div className="space-y-4">
@@ -328,7 +326,7 @@ const RefundsHelpPage: React.FC = () => {
 
               {editingRecord.type === '改签' && (
                 <div>
-                   <label className="block text-sm font-bold text-gray-700 mb-1">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
                     期望变更的航班
                   </label>
                   <input

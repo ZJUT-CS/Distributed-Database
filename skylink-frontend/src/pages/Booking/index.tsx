@@ -1,10 +1,10 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import BookingForm from '../../features/booking/components/BookingForm';
-import { Flight, BookingDetails, ConfirmedBooking } from '../../types';
-import { useAuth } from '../../features/auth/hooks/useAuth';
-import { createOrder } from '../../features/booking/api/order';
-import { saveOrderPassengers } from '../../utils/storage';
+import { BookingForm, type BookingDetails, type ConfirmedBooking } from '@/features/booking';
+import { type Flight } from '@/features/flight';
+import { useAuth } from '@/features/auth';
+import { createOrder } from '@/features/booking/api/order';
+import { saveOrderPassengers } from '@/utils/storage';
 
 const BookingPage: React.FC = () => {
   const location = useLocation();
@@ -26,8 +26,8 @@ const BookingPage: React.FC = () => {
   }
 
   if (flights.length === 0) {
-      navigate('/');
-      return null;
+    navigate('/');
+    return null;
   }
 
   const handleConfirm = async (details: BookingDetails) => {
@@ -88,13 +88,13 @@ const BookingPage: React.FC = () => {
 
   return (
     <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-8">
-        <BookingForm 
-            flights={flights} 
-            passengerCount={passengerCount}
-            cabinClass={cabinClass}
-            onConfirm={handleConfirm} 
-            onCancel={() => navigate(-1)} 
-        />
+      <BookingForm
+        flights={flights}
+        passengerCount={passengerCount}
+        cabinClass={cabinClass}
+        onConfirm={handleConfirm}
+        onCancel={() => navigate(-1)}
+      />
     </div>
   );
 };

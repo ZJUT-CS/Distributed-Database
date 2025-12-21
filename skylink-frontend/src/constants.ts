@@ -1,5 +1,5 @@
 
-import { Airport } from './types';
+import { type Airport } from '@/features/flight';
 
 export const POPULAR_AIRPORTS: Airport[] = [
   { code: 'PEK', city: '北京', name: '首都国际机场', lat: 40.0799, lng: 116.6031 },
