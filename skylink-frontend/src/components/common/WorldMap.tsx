@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { ArrowUp, Minus, Plus, RotateCcw } from 'lucide-react';
 import type { MapPoint } from '@/features/flight';
-import worldMapSvg from '../../assets/images/Simplified_World_Map.svg';
+import WorldMapSvg from '../../assets/images/Simplified_World_Map.svg?react';
 
 interface WorldMapProps {
   points: MapPoint[];
@@ -37,6 +37,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
 }) => {
   const [hoveredPoint, setHoveredPoint] = useState<MapPoint | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const isDark = theme === 'dark';
@@ -293,6 +294,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
         dy: 0,
       };
       setDragIndicator({ active: true, angle: 0, strength: 0 });
+      setIsDragging(true);
     }
   };
 
@@ -363,6 +365,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
     if (drag && drag.pointerId === e.pointerId) {
       dragRef.current = null;
       setDragIndicator({ active: false, angle: 0, strength: 0 });
+      setIsDragging(false);
       const vx = drag.vx;
       const vy = drag.vy;
       onViewChange?.({ scale: scaleRef.current, offset: offsetRef.current });
@@ -371,6 +374,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
     if (wasPinching && pointersRef.current.size < 2) {
       setDragIndicator({ active: false, angle: 0, strength: 0 });
+      setIsDragging(false);
       onViewChange?.({ scale: scaleRef.current, offset: offsetRef.current });
     }
   };
@@ -418,18 +422,6 @@ const WorldMap: React.FC<WorldMapProps> = ({
     if (type === 'origin') return colors.origin;
     if (type === 'destination') return colors.destination;
     return '#eab308';
-  };
-
-  const renderGrid = () => {
-    const lines = [];
-    // 扩展网格范围以覆盖 viewBox 区域
-    for (let i = -500; i < 1600; i += 50) {
-      lines.push(<line key={`v-${i}`} x1={i} y1="-300" x2={i} y2="1200" stroke={colors.grid} strokeWidth="1" opacity={isDark ? 0.1 : 1} />);
-    }
-    for (let i = -300; i < 1200; i += 50) {
-      lines.push(<line key={`h-${i}`} x1="-500" y1={i} x2="1600" y2={i} stroke={colors.grid} strokeWidth="1" opacity={isDark ? 0.1 : 1} />);
-    }
-    return lines;
   };
 
   // 投影算法 (基于 1016x514)
@@ -486,21 +478,18 @@ const WorldMap: React.FC<WorldMapProps> = ({
             <feGaussianBlur stdDeviation="2" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
+
+          {/* Grid Pattern for better performance */}
+          <pattern id="grid-pattern" width="50" height="50" patternUnits="userSpaceOnUse">
+            <path
+              d="M 50 0 L 0 0 0 50"
+              fill="none"
+              stroke={colors.grid}
+              strokeWidth="1"
+              opacity={isDark ? 0.1 : 1}
+            />
+          </pattern>
         </defs>
-
-        {/* Background Grid */}
-        {showGrid && renderGrid()}
-
-        <image
-          href={worldMapSvg}
-          x="0"
-          y="0"
-          width={MAP_WIDTH}
-          height={MAP_HEIGHT}
-          opacity={colors.mapOpacity}
-          className="pointer-events-none"
-          style={{ filter: colors.mapFilter }}
-        />
 
         {/* Global Styles for Animations */}
         <style>
@@ -527,6 +516,26 @@ const WorldMap: React.FC<WorldMapProps> = ({
             }
           `}
         </style>
+
+        {/* Background Grid */}
+        {showGrid && (
+          <rect
+            x="-500"
+            y="-300"
+            width="2100"
+            height="1500"
+            fill="url(#grid-pattern)"
+          />
+        )}
+
+        {/* World Map (Vector SVG for crisp rendering at any zoom) */}
+        <g
+          className="world-map-landmass pointer-events-none"
+          opacity={colors.mapOpacity}
+          style={{ filter: colors.mapFilter }}
+        >
+          <WorldMapSvg width={MAP_WIDTH} height={MAP_HEIGHT} />
+        </g>
 
         {/* Routes Rendering */}
         {routes && routes.map((route, idx) => {
@@ -562,19 +571,19 @@ const WorldMap: React.FC<WorldMapProps> = ({
                 strokeDasharray="10, 300"
                 opacity="0.8"
                 filter={isDark ? "url(#glow)" : ""}
-                style={!enableControls ? {
-                  animation: 'dash-flow 3s linear infinite'
-                } : undefined}
+                style={{
+                  animation: 'dash-flow 3s linear infinite',
+                  animationPlayState: isDragging ? 'paused' : 'running'
+                }}
               />
-              {!enableControls && (
-                <g style={{
-                  offsetPath: `path("${pathD}")`,
-                  animation: 'fly-path 6s ease-in-out infinite',
-                  offsetRotate: 'auto'
-                }}>
-                  <circle r="4" fill={colors.planeFill} filter={isDark ? "url(#glow)" : ""} />
-                </g>
-              )}
+              <g style={{
+                offsetPath: `path("${pathD}")`,
+                animation: 'fly-path 6s ease-in-out infinite',
+                animationPlayState: isDragging ? 'paused' : 'running',
+                offsetRotate: 'auto'
+              }}>
+                <circle r="4" fill={colors.planeFill} filter={isDark ? "url(#glow)" : ""} />
+              </g>
 
               <path id={`routePath-${idx}`} d={pathD} fill="none" stroke="none" />
             </g>
@@ -596,9 +605,10 @@ const WorldMap: React.FC<WorldMapProps> = ({
               strokeWidth="1"
               strokeOpacity="0.2"
               strokeDasharray="5, 100"
-              style={!enableControls ? {
-                animation: 'dash-flow 4s linear infinite'
-              } : undefined}
+              style={{
+                animation: 'dash-flow 4s linear infinite',
+                animationPlayState: isDragging ? 'paused' : 'running'
+              }}
             />
           );
         })}
@@ -633,10 +643,11 @@ const WorldMap: React.FC<WorldMapProps> = ({
                 cy={y}
                 fill={pointColor}
                 opacity={isDark ? 0.6 : 0.3}
-                style={!enableControls ? {
+                style={{
                   animation: `${isLarge ? 'pulse-radius-large' : 'pulse-radius'} 4s ease-in-out infinite, pulse-opacity 4s ease-in-out infinite`,
-                  animationDelay: delay
-                } : undefined}
+                  animationDelay: delay,
+                  animationPlayState: isDragging ? 'paused' : 'running'
+                }}
                 r={isLarge ? 10 : 5} // Initial radius matching keyframes start
               />
 
