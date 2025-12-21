@@ -20,9 +20,15 @@ CREATE TABLE `aircraft_cabin_configs` (
   `cabin_coefficient` decimal(3,1) NOT NULL COMMENT '舱位系数（最终票价=航线基础价×该系数×季节/供需系数）',
   `cabin_layout_no` tinyint NOT NULL COMMENT '舱位布局方案号（如1/2/3，标识机型的第N种布局方案）',
   `capacity` int NOT NULL COMMENT '该舱位分配的座位数',
+  
+  -- 【核心新增字段】用于生成真实座位号
+  `start_row_num` int NOT NULL DEFAULT 1 COMMENT '起始行号 (如经济舱从31排开始)',
+  `seat_col_layout` varchar(20) NOT NULL DEFAULT 'ABCDEF' COMMENT '列布局规则 (如 ABCDEF 或 ACHK)',
+  
   `default_carry_on` varchar(50) DEFAULT '7KG',
   `default_checked` varchar(50) DEFAULT '20KG',
   `default_services` text COMMENT '该舱位默认服务描述',
+  
   PRIMARY KEY (`config_id`),
   KEY `model_id` (`model_id`),
   CONSTRAINT `aircraft_cabin_configs_ibfk_1` FOREIGN KEY (`model_id`) REFERENCES `aircraft_models` (`model_id`)

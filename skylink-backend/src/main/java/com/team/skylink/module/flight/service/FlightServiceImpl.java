@@ -46,7 +46,6 @@ public class FlightServiceImpl implements FlightService {
         this.seatService = seatService;
     }
 
-    // search 方法保持不变...
     @Override
     public Result<List<FlightSearchResponse>> search(String departurePlace, String destination, String flightNo, String airlineCompany, String cabinType, Integer status, LocalDate departureDate, LocalDateTime departureTimeFrom, LocalDateTime departureTimeTo) {
         return Result.ok(new ArrayList<>()); 
@@ -130,7 +129,110 @@ public class FlightServiceImpl implements FlightService {
         seatService.remove(Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, f.getFlightId())); 
 
         List<Seat> allSeats = new ArrayList<>();
+        // 复用生成逻辑
+        generateSeats(f, configs, allSeats);
 
+        if (!allSeats.isEmpty()) {
+            seatService.saveBatch(allSeats, 100);
+        }
+
+        return Result.ok(true);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Boolean> updateFlight(Long flightId, FlightCreateRequest req) {
+        Flight f = flightMapper.selectById(flightId);
+        if (f == null) return Result.fail(404, "flight not found");
+
+        // 1. 检查是否修改了关键字段 (机型)
+        boolean modelChanged = !f.getModelId().equals(req.getModelId());
+
+        // 2. 更新基础信息
+        f.setFlightNo(req.getFlightNo());
+        f.setModelId(req.getModelId());
+        f.setRouteId(req.getRouteId());
+        f.setAirlineCompany(req.getAirlineCompany());
+        f.setDepartureTime(req.getDepartureTime()); // 修复：之前未更新起飞时间
+        f.setStatus(req.getStatus() != null ? req.getStatus() : 1);
+        f.setUpdateTime(LocalDateTime.now());
+        f.setStopoverInfo(req.getStopoverInfo());
+
+        // 3. 同步航线信息
+        Route route = routeMapper.selectById(req.getRouteId());
+        if (route != null) {
+            f.setDepartureCity(route.getDepartureCity());
+            f.setArrivalCity(route.getArrivalCity());
+            f.setDepartureAirport(route.getDepartureAirport());
+            f.setArrivalAirport(route.getArrivalAirport());
+            
+            // 简单更新最低价 (生产环境可能需要更复杂的计算)
+            f.setLowestPrice(route.getBasePrice());
+        }
+        
+        // 4. 自动计算到达时间
+        if (req.getArrivalTime() != null) {
+            f.setArrivalTime(req.getArrivalTime());
+        } else if (route != null) {
+            int duration = route.getEstimatedDuration() != null ? route.getEstimatedDuration() : 120;
+            f.setArrivalTime(req.getDepartureTime().plusMinutes(duration));
+        }
+
+        // 5. 更新航班表
+        flightMapper.updateById(f);
+
+        // 6. 【核心逻辑】如果换了机型，必须重置座位！
+        if (modelChanged) {
+            // A. 先删掉所有旧座位
+            seatService.remove(Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, flightId));
+            
+            // B. 重新获取新机型的配置
+            AircraftModel model = aircraftModelMapper.selectById(req.getModelId());
+            if (model != null) {
+                // 更新总座位数
+                f.setTotalSeats(req.getTotalSeats() != null ? req.getTotalSeats() : model.getTotalPhysicalSeats());
+                flightMapper.updateById(f); // 再次更新航班的总座位数
+
+                // C. 获取新机型的舱位配置
+                Integer layoutNo = req.getLayoutNo() != null ? req.getLayoutNo() : 1;
+                List<AircraftCabinConfig> configs = cabinConfigMapper.selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
+                        .eq(AircraftCabinConfig::getModelId, model.getModelId())
+                        .eq(AircraftCabinConfig::getCabinLayoutNo, layoutNo));
+
+                // D. 重新生成座位
+                List<Seat> allSeats = new ArrayList<>();
+                generateSeats(f, configs, allSeats); // 调用提取出来的公共方法
+
+                if (!allSeats.isEmpty()) {
+                    seatService.saveBatch(allSeats, 100);
+                }
+            }
+        }
+
+        return Result.ok(true);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Boolean> deleteFlight(Long flightId) {
+        // 1. 先把这个航班下的所有座位删掉 (物理删除)
+        seatService.remove(Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, flightId));
+        
+        // 2. 再删航班本身
+        int rows = flightMapper.deleteById(flightId);
+        
+        if (rows > 0) {
+            return Result.ok(true);
+        } else {
+            return Result.fail(404, "flight not found");
+        }
+    }
+
+
+    /**
+     * 提取公共座位生成逻辑，供 createFlight 和 updateFlight 复用
+     */
+    private void generateSeats(Flight f, List<AircraftCabinConfig> configs, List<Seat> allSeats) {
         for (AircraftCabinConfig cfg : configs) {
             int capacity = cfg.getCapacity() == null ? 0 : cfg.getCapacity();
             
@@ -164,54 +266,5 @@ public class FlightServiceImpl implements FlightService {
                 }
             }
         }
-
-        if (!allSeats.isEmpty()) {
-            seatService.saveBatch(allSeats, 100);
-        }
-
-        return Result.ok(true);
     }
-
-    @Override
-    public Result<Boolean> updateFlight(Long flightId, FlightCreateRequest req) {
-        Flight f = flightMapper.selectById(flightId);
-        if (f == null) return Result.fail(404, "flight not found");
-
-        Route route = routeMapper.selectById(req.getRouteId());
-        if (route != null) {
-            f.setDepartureCity(route.getDepartureCity());
-            f.setArrivalCity(route.getArrivalCity());
-            f.setDepartureAirport(route.getDepartureAirport());
-            f.setArrivalAirport(route.getArrivalAirport());
-        }
-        
-        if (req.getArrivalTime() != null) {
-            f.setArrivalTime(req.getArrivalTime());
-        } else if (route != null) {
-            int duration = route.getEstimatedDuration() != null ? route.getEstimatedDuration() : 120;
-            f.setArrivalTime(req.getDepartureTime().plusMinutes(duration));
-        }
-
-        flightMapper.updateById(f);
-        return Result.ok(true);
-    }
-
-    // 【新增】级联删除方法
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public Result<Boolean> deleteFlight(Long flightId) {
-        // 1. 先把这个航班下的所有座位删掉 (物理删除)
-        // 使用 delete from seat where flight_id = ?
-        seatService.remove(Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, flightId));
-        
-        // 2. 再删航班本身
-        int rows = flightMapper.deleteById(flightId);
-        
-        if (rows > 0) {
-            return Result.ok(true);
-        } else {
-            return Result.fail(404, "flight not found");
-        }
-    }
-
 }

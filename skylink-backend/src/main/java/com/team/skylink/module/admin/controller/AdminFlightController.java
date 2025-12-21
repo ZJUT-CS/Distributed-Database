@@ -77,6 +77,19 @@ public class AdminFlightController {
         return flightService.createFlight(body);
     }
 
+
+    // 4. 修改航班
+    @PutMapping("/{flightId}")
+    public Result<Boolean> update(HttpServletRequest request, 
+                                  @PathVariable Long flightId, 
+                                  @RequestBody @Valid FlightCreateRequest body) {
+        Result<?> adminGuard = ensureAdmin(request);
+        if (adminGuard != null) return (Result<Boolean>) adminGuard;
+
+        // 调用 Service 进行更新
+        return flightService.updateFlight(flightId, body);
+    }
+    
     // 3. 删除航班 (修改点：调用 Service 进行级联删除)
     @DeleteMapping("/{flightId}")
     public Result<Boolean> delete(HttpServletRequest request, @PathVariable Long flightId) {
