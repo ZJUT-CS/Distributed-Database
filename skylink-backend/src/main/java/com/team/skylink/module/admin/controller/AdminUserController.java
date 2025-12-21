@@ -6,7 +6,8 @@ import com.team.skylink.module.admin.dto.AdminUserCreateRequest;
 import com.team.skylink.module.admin.dto.AdminUserResetPasswordRequest;
 import com.team.skylink.module.admin.dto.AdminUserUpdateRequest;
 import com.team.skylink.module.admin.service.AdminUserService;
-import com.team.skylink.module.auth.entity.User;
+import com.team.skylink.module.user.entity.User;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;

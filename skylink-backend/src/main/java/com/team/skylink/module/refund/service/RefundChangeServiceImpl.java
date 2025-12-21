@@ -14,7 +14,7 @@ import com.team.skylink.module.refund.dto.RefundChangeApplyRequest;
 import com.team.skylink.module.refund.dto.RefundChangeSearchResponse;
 import com.team.skylink.module.refund.entity.RefundChangeRecord;
 import com.team.skylink.module.refund.mapper.RefundChangeRecordMapper;
-import com.team.skylink.module.auth.mapper.UserMapper;
+import com.team.skylink.module.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
