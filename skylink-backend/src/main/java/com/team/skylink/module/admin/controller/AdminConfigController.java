@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 
 @RestController
 @RequestMapping("/api/v1/admins/system-configs")
@@ -28,6 +30,8 @@ public class AdminConfigController {
     }
 
     @GetMapping
+    @Operation(summary = "系统配置列表")
+    @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
     public Result<PageResult<SystemConfig>> list(
             HttpServletRequest request,
             @RequestParam(defaultValue = "1") Integer page,
@@ -41,26 +45,35 @@ public class AdminConfigController {
     }
 
     @PostMapping
+    @Operation(summary = "创建系统配置（仅超级管理员）")
+    @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
+    @Parameter(name = "X-Admin-Role", description = "管理员角色：1=普通管理员，2=超级管理员", required = true)
     public Result<SystemConfig> create(HttpServletRequest request, @Valid @RequestBody AdminConfigUpsertRequest body) {
-        Result<?> adminGuard = ensureAdmin(request);
+        Result<?> adminGuard = ensureSuperAdmin(request);
         if (adminGuard != null) return (Result<SystemConfig>) adminGuard;
         return adminConfigService.create(parseAdminId(request), body);
     }
 
     @PutMapping("/{configId}")
+    @Operation(summary = "更新系统配置（仅超级管理员）")
+    @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
+    @Parameter(name = "X-Admin-Role", description = "管理员角色：1=普通管理员，2=超级管理员", required = true)
     public Result<Boolean> update(
             HttpServletRequest request,
             @PathVariable("configId") Long configId,
             @Valid @RequestBody AdminConfigUpsertRequest body
     ) {
-        Result<?> adminGuard = ensureAdmin(request);
+        Result<?> adminGuard = ensureSuperAdmin(request);
         if (adminGuard != null) return (Result<Boolean>) adminGuard;
         return adminConfigService.update(parseAdminId(request), configId, body);
     }
 
     @DeleteMapping("/{configId}")
+    @Operation(summary = "删除系统配置（仅超级管理员）")
+    @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
+    @Parameter(name = "X-Admin-Role", description = "管理员角色：1=普通管理员，2=超级管理员", required = true)
     public Result<Boolean> delete(HttpServletRequest request, @PathVariable("configId") Long configId) {
-        Result<?> adminGuard = ensureAdmin(request);
+        Result<?> adminGuard = ensureSuperAdmin(request);
         if (adminGuard != null) return (Result<Boolean>) adminGuard;
         return adminConfigService.delete(configId);
     }
@@ -69,6 +82,16 @@ public class AdminConfigController {
         String t = request.getHeader("X-User-Type");
         if (t == null || (!"2".equals(t.trim()))) {
             return Result.fail(403, "admin required");
+        }
+        return null;
+    }
+
+    private static Result<?> ensureSuperAdmin(HttpServletRequest request) {
+        Result<?> adminGuard = ensureAdmin(request);
+        if (adminGuard != null) return adminGuard;
+        String r = request.getHeader("X-Admin-Role");
+        if (r == null || (!"2".equals(r.trim()))) {
+            return Result.fail(403, "super admin required");
         }
         return null;
     }

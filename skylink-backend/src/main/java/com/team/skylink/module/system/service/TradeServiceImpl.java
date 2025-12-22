@@ -1,4 +1,4 @@
-package com.team.skylink.module.trade.service;
+package com.team.skylink.module.system.service;
 
 import com.team.skylink.common.Result;
 import com.team.skylink.module.order.mapper.OrderMapper;
