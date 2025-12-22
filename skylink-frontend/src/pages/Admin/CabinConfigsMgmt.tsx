@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Save, Sliders, Plane as PlaneIcon, Download } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminPageHeader, AdminModal } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal } from '@/features/admin';
 import {
   listCabinConfigs,
   createCabinConfig,
@@ -226,21 +226,34 @@ const CabinConfigsMgmt: React.FC = () => {
                 configs.map((c) => (
                   <tr key={c.configId} className="hover:bg-indigo-50/30 transition-colors">
                     <td className="px-4 py-3 text-sm font-medium text-gray-700">{c.configId}</td>
-                    <td className="px-4 py-3 text-sm text-indigo-600 font-medium">{c.modelName || getModelName(c.modelId)}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                        c.cabinType === 'FIRST' ? 'bg-yellow-100 text-yellow-700' :
-                        c.cabinType === 'BUSINESS' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {CABIN_TYPE_MAP[c.cabinType] || c.cabinType}
-                      </span>
+                      <AdminBadge size="sm" variant="info">
+                        {c.modelName || getModelName(c.modelId)}
+                      </AdminBadge>
                     </td>
-                    <td className="px-4 py-3 text-sm text-green-600 font-semibold">×{Number(c.cabinCoefficient).toFixed(1)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{c.cabinLayoutNo}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{c.capacity}座</td>
+                    <td className="px-4 py-3">
+                      <AdminBadge
+                        size="sm"
+                        variant={c.cabinType === 'FIRST' ? 'warning' : c.cabinType === 'BUSINESS' ? 'info' : 'neutral'}
+                      >
+                        {CABIN_TYPE_MAP[c.cabinType] || c.cabinType}
+                      </AdminBadge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <AdminBadge size="sm" variant="success">×{Number(c.cabinCoefficient).toFixed(1)}</AdminBadge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <AdminBadge size="sm" variant="neutral">布局 {c.cabinLayoutNo}</AdminBadge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <AdminBadge size="sm" variant="primary">{c.capacity} 座</AdminBadge>
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-500">第{c.startRowNum}排</td>
-                    <td className="px-4 py-3 text-sm font-mono text-purple-600">{c.seatColLayout}</td>
+                    <td className="px-4 py-3">
+                      <AdminBadge size="sm" variant="purple" className="font-mono">
+                        {c.seatColLayout}
+                      </AdminBadge>
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <TableActionMenu
                         isOpen={activeActionId === c.configId}

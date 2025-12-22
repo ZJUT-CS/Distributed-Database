@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,10 +61,63 @@ public class RefundChangeServiceImpl implements RefundChangeService {
 
     @Override
     public Result<List<RefundChangeSearchResponse>> search(Long userId, Long orderNo) {
-        // ... (查询逻辑无需大改，仅展示核心变化) ...
-        // ... 此处逻辑与原文件基本一致，主要是 Mapper 的替换 ...
-        // 为节省篇幅，省略 search 方法的具体实现，保留你原来的即可
-        return Result.ok(new ArrayList<>());
+        var q = Wrappers.<RefundChangeRecord>lambdaQuery();
+        if (userId != null) {
+            q.eq(RefundChangeRecord::getOperUserId, userId);
+        }
+        if (orderNo != null) {
+            q.eq(RefundChangeRecord::getOrderId, orderNo);
+        }
+        q.orderByDesc(RefundChangeRecord::getOperTime);
+
+        List<RefundChangeRecord> records = refundChangeRecordMapper.selectList(q);
+        if (records == null || records.isEmpty()) {
+            return Result.ok(new ArrayList<>());
+        }
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        List<RefundChangeSearchResponse> out = new ArrayList<>(records.size());
+        for (RefundChangeRecord r : records) {
+            RefundChangeSearchResponse resp = new RefundChangeSearchResponse();
+            resp.setId(String.valueOf(r.getRecordId()));
+            resp.setOrderId(String.valueOf(r.getOrderId()));
+
+            // passenger
+            String passenger = null;
+            if (r.getOperUserId() != null) {
+                var u = userMapper.selectById(r.getOperUserId());
+                if (u != null) {
+                    passenger = u.getRealName();
+                    if (passenger == null || passenger.trim().isEmpty()) {
+                        passenger = u.getPhoneNumber();
+                    }
+                }
+            }
+            if (passenger == null || passenger.trim().isEmpty()) {
+                passenger = "-";
+            }
+            resp.setPassenger(passenger);
+
+            // type
+            String type = (r.getOperType() != null && r.getOperType() == 2) ? "改签" : "退票";
+            resp.setType(type);
+
+            // flights
+            resp.setOldFlight(formatFlight(r.getOldFlightId()));
+            resp.setNewFlight(r.getNewFlightId() == null ? "-" : formatFlight(r.getNewFlightId()));
+
+            // time
+            resp.setApplyTime(r.getOperTime() == null ? null : r.getOperTime().format(fmt));
+
+            // status
+            resp.setStatus(toAuditStatus(r.getAuditStatus()));
+            resp.setRemark(r.getRemark());
+
+            out.add(resp);
+        }
+
+        return Result.ok(out);
     }
 
     @Override
@@ -178,14 +232,40 @@ public class RefundChangeServiceImpl implements RefundChangeService {
     // ... reject, revoke, updatePending 逻辑类似，主要是去掉库存操作 ...
     @Override
     public Result<Boolean> reject(Long recordId) {
-         // ...
-         return Result.ok(true);
+           RefundChangeRecord r = refundChangeRecordMapper.selectById(recordId);
+           if (r == null) return Result.fail(404, "record not found");
+           if (r.getAuditStatus() != 0) return Result.fail(409, "record not pending");
+
+           Orders o = orderMapper.selectById(r.getOrderId());
+           if (o == null) return Result.fail(404, "order not found");
+
+           LocalDateTime now = LocalDateTime.now();
+           r.setAuditStatus(2);
+           r.setAuditTime(now);
+           refundChangeRecordMapper.updateById(r);
+
+           // 退改签被拒绝：订单回到已确认(2)
+           o.setOrderStatus(2);
+           orderMapper.updateById(o);
+
+           return Result.ok(true);
     }
     
     @Override
     public Result<Boolean> revoke(Long recordId) {
-         // ...
-         return Result.ok(true);
+           RefundChangeRecord r = refundChangeRecordMapper.selectById(recordId);
+           if (r == null) return Result.fail(404, "record not found");
+           if (r.getAuditStatus() != 0) return Result.fail(409, "record not pending");
+
+           Orders o = orderMapper.selectById(r.getOrderId());
+           if (o == null) return Result.fail(404, "order not found");
+
+           // 撤销申请：删除记录，订单回到已确认(2)
+           refundChangeRecordMapper.deleteById(recordId);
+           o.setOrderStatus(2);
+           orderMapper.updateById(o);
+
+           return Result.ok(true);
     }
     
     @Override
@@ -201,5 +281,28 @@ public class RefundChangeServiceImpl implements RefundChangeService {
 
         refundChangeRecordMapper.updateById(r);
         return Result.ok(true);
+    }
+
+    private String toAuditStatus(Integer auditStatus) {
+        if (auditStatus == null) return "pending";
+        return switch (auditStatus) {
+            case 0 -> "pending";
+            case 1 -> "approved";
+            case 2 -> "rejected";
+            default -> "pending";
+        };
+    }
+
+    private String formatFlight(Long flightId) {
+        if (flightId == null) return "-";
+        Flight f = flightMapper.selectById(flightId);
+        if (f == null) return "-";
+        String dep = f.getDepartureCity() == null ? "" : f.getDepartureCity();
+        String arr = f.getArrivalCity() == null ? "" : f.getArrivalCity();
+        String route = (!dep.isEmpty() || !arr.isEmpty()) ? (dep + " → " + arr) : "";
+        if (!route.isEmpty()) {
+            return (f.getFlightNo() + " " + route).trim();
+        }
+        return f.getFlightNo();
     }
 }

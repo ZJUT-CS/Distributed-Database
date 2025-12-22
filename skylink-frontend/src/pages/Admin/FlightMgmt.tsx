@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Plus, Search, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X, Save, Plane as PlaneIcon } from 'lucide-react';
 import { type FlightStatus } from '@/features/flight';
-import { Pagination, TableActionMenu, AdminPageHeader, AdminModal, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem } from '@/features/admin';
 import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
 
@@ -41,12 +41,17 @@ const toFlightStatus = (status: number | null | undefined): FlightStatus => {
   }
 };
 
-const toUiTime = (v: string | null | undefined) => {
+const toUiDateTime = (v: string | null | undefined) => {
   const s = String(v ?? '').trim();
   if (!s) return '';
-  // 支持 "yyyy-MM-dd HH:mm:ss" 或 ISO
-  const m = s.match(/\b(\d{2}):(\d{2})(?::\d{2})?\b/);
-  if (m) return `${m[1]}:${m[2]}`;
+  // 支持 "yyyy-MM-dd HH:mm:ss" 或 "yyyy-MM-ddTHH:mm:ss"，统一展示到分钟
+  const dt = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::\d{2})?/);
+  if (dt) return `${dt[1]} ${dt[2]}`;
+
+  // 兜底：仅提取 HH:mm（避免 ISO 场景误命中 mm:ss）
+  const tm = s.match(/(?:^|[ T])(\d{2}):(\d{2})(?::\d{2})?/);
+  if (tm) return `${tm[1]}:${tm[2]}`;
+
   return s;
 };
 
@@ -79,8 +84,8 @@ const mapAdminFlight = (f: AdminFlightItem): UiFlight => {
     flightNo,
     airline: airlineCompany,
     route: `${departureCity || '-'} → ${arrivalCity || '-'}`,
-    dep: toUiTime(f.departureTime),
-    arr: toUiTime(f.arrivalTime ?? ''),
+    dep: toUiDateTime(f.departureTime),
+    arr: toUiDateTime(f.arrivalTime ?? ''),
     aircraft: String(f.modelId ?? ''),
     price: normalizePrice(f.lowestPrice),
     seats: Number.isFinite(totalSeats) ? totalSeats : 0,
@@ -120,6 +125,25 @@ const FlightMgmt: React.FC = () => {
     listRouteOptions().then(setRouteOptions).catch(console.error);
     listAircraftModelOptions().then(setModelOptions).catch(console.error);
   }, []);
+
+  const routeMap = useMemo(() => {
+    const m = new Map<number, RouteOption>();
+    for (const r of routeOptions) m.set(r.routeId, r);
+    return m;
+  }, [routeOptions]);
+
+  const modelMap = useMemo(() => {
+    const m = new Map<number, AircraftModelOption>();
+    for (const a of modelOptions) m.set(a.modelId, a);
+    return m;
+  }, [modelOptions]);
+
+  const formatCityAirport = (city?: string | null, airport?: string | null) => {
+    const c = String(city ?? '').trim();
+    const a = String(airport ?? '').trim().toUpperCase();
+    if (c && a) return `${c}(${a})`;
+    return c || a || '-';
+  };
 
   const handleOpenCreateFlight = () => {
     setEditingFlight(null);
@@ -247,10 +271,30 @@ const FlightMgmt: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'active': return <span className="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-1 rounded-full"><CheckCircle2 className="w-3 h-3" /> 计划中</span>;
-      case 'delayed': return <span className="flex items-center gap-1 text-xs font-medium text-yellow-700 bg-yellow-50 px-2 py-1 rounded-full"><Clock className="w-3 h-3" /> 延误</span>;
-      case 'cancelled': return <span className="flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 px-2 py-1 rounded-full"><AlertCircle className="w-3 h-3" /> 已取消</span>;
-      case 'full': return <span className="flex items-center gap-1 text-xs font-medium text-purple-700 bg-purple-50 px-2 py-1 rounded-full"><Users className="w-3 h-3" /> 满员</span>;
+      case 'active':
+        return (
+          <AdminBadge size="sm" icon={CheckCircle2} variant="success">
+            计划中
+          </AdminBadge>
+        );
+      case 'delayed':
+        return (
+          <AdminBadge size="sm" icon={Clock} variant="warning">
+            延误
+          </AdminBadge>
+        );
+      case 'cancelled':
+        return (
+          <AdminBadge size="sm" icon={AlertCircle} variant="danger">
+            已取消
+          </AdminBadge>
+        );
+      case 'full':
+        return (
+          <AdminBadge size="sm" icon={Users} variant="purple">
+            满员
+          </AdminBadge>
+        );
       default: return null;
     }
   };
@@ -329,11 +373,37 @@ const FlightMgmt: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-medium text-gray-800">{flight.route}</div>
-                    <div className="text-xs text-gray-500 mt-0.5 font-mono">{flight.dep} - {flight.arr}</div>
+                    {(() => {
+                      const ro = routeMap.get(flight.routeId);
+                      const from = ro ? formatCityAirport(ro.departureCity, ro.departureAirport) : String(flight.route ?? '-');
+                      const to = ro ? formatCityAirport(ro.arrivalCity, ro.arrivalAirport) : '';
+
+                      return (
+                        <>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <AdminBadge size="sm" variant="info">
+                              {from}
+                            </AdminBadge>
+                            <span className="text-xs text-gray-400">→</span>
+                            <AdminBadge size="sm" variant="purple">
+                              {to || '-'}
+                            </AdminBadge>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5 font-mono">{flight.dep} - {flight.arr}</div>
+                        </>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4 text-gray-600">
-                    <span className="bg-gray-100 px-2 py-1 rounded text-xs font-mono">{flight.aircraft}</span>
+                    {(() => {
+                      const mo = modelMap.get(flight.modelId);
+                      const label = mo?.modelName || (flight.modelId ? `#${flight.modelId}` : String(flight.aircraft || '-'));
+                      return (
+                        <AdminBadge size="sm" variant="primary" className="font-mono">
+                          {label}
+                        </AdminBadge>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4 font-medium text-gray-800">¥{flight.price}</td>
                   <td className="px-6 py-4">

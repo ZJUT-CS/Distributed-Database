@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Plus, Shield, UserCog, Mail, Phone, Lock, Trash2, RefreshCw, Download } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminPageHeader } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader } from '@/features/admin';
 
 type AdminRole = 'super_admin' | 'ops' | 'auditor';
 type AdminStatus = 'active' | 'disabled';
@@ -205,32 +205,17 @@ const AdminsMgmt: React.FC = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      a.role === 'super_admin'
-                        ? 'bg-purple-50 text-purple-700'
-                        : a.role === 'ops'
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'bg-amber-50 text-amber-700'
-                    }`}
+                  <AdminBadge
+                    icon={UserCog}
+                    variant={a.role === 'super_admin' ? 'purple' : a.role === 'ops' ? 'primary' : 'warning'}
                   >
-                    <UserCog className="w-3 h-3" />
                     {a.role === 'super_admin' ? '超级管理员' : a.role === 'ops' ? '运营' : '风控审核'}
-                  </span>
+                  </AdminBadge>
                 </td>
                 <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      a.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        a.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
-                      }`}
-                    />
+                  <AdminBadge dot variant={a.status === 'active' ? 'success' : 'neutral'}>
                     {a.status === 'active' ? '启用' : '停用'}
-                  </span>
+                  </AdminBadge>
                 </td>
                 <td className="px-6 py-4 text-xs text-gray-500">{a.createdAt}</td>
                 <td className="px-6 py-4 text-xs text-gray-500">{a.lastLogin}</td>

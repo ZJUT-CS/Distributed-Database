@@ -11,6 +11,7 @@ export { default as FilterBar } from './components/FilterBar';
 export { default as AdminPageHeader } from './components/AdminPageHeader';
 export { default as AdminTooltip } from './components/AdminTooltip';
 export { default as AdminModal } from './components/AdminModal';
+export { default as AdminBadge } from './components/AdminBadge';
 
 // API
 export * from './api/configs';
@@ -21,3 +22,4 @@ export * from './api/users';
 export * from './api/routes';
 export * from './api/aircraftModels';
 export * from './api/cabinConfigs';
+export * from './api/refundChangeRequests';

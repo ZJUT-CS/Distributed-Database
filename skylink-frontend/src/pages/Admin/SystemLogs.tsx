@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, FileText, Shield, User, Globe, AlertCircle, ScrollText, Download } from 'lucide-react';
-import { Pagination, AdminPageHeader } from '@/features/admin';
+import { Pagination, AdminBadge, AdminPageHeader } from '@/features/admin';
 
 type LogLevel = 'info' | 'warning' | 'error';
 
@@ -96,25 +96,22 @@ const SystemLogs: React.FC = () => {
   const getLevelBadge = (level: LogLevel) => {
     if (level === 'info') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-          <FileText className="w-3 h-3" />
+        <AdminBadge icon={FileText} variant="info">
           正常
-        </span>
+        </AdminBadge>
       );
     }
     if (level === 'warning') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
-          <AlertCircle className="w-3 h-3" />
+        <AdminBadge icon={AlertCircle} variant="warning">
           注意
-        </span>
+        </AdminBadge>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">
-        <AlertCircle className="w-3 h-3" />
+      <AdminBadge icon={AlertCircle} variant="danger">
         异常
-      </span>
+      </AdminBadge>
     );
   };
 

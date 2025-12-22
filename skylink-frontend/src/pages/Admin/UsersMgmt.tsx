@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download } from 'lucide-react';
 import { createAdminUser, deleteAdminUser, listAdminUsers, resetAdminUserPassword, updateAdminUser, type AdminUserItem } from '../../features/admin/api/users';
-import { Pagination, TableActionMenu, AdminPageHeader, AdminModal } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminPageHeader, AdminModal, AdminBadge } from '@/features/admin';
 
 const UsersMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -226,17 +226,14 @@ const UsersMgmt: React.FC = () => {
                     </div>
                  </td>
                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border bg-gray-50 text-gray-700 border-gray-100">
-                        USER
-                    </span>
+                    <AdminBadge icon={Shield} variant="neutral">
+                      USER
+                    </AdminBadge>
                  </td>
                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        u.userStatus === 1 ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${u.userStatus === 1 ? 'bg-green-500' : 'bg-gray-400'}`}></span>
-                        {u.userStatus === 1 ? '正常' : '禁用'}
-                    </span>
+                    <AdminBadge dot variant={u.userStatus === 1 ? 'success' : 'neutral'}>
+                      {u.userStatus === 1 ? '正常' : '禁用'}
+                    </AdminBadge>
                  </td>
                  <td className="px-6 py-4 text-xs text-gray-500">{u.createTime ? String(u.createTime).replace('T', ' ').slice(0, 16) : '-'}</td>
                  <td className="px-6 py-4 text-right">

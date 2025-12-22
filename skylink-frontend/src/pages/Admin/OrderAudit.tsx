@@ -1,79 +1,96 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search, CheckCircle2, XCircle, RefreshCw, User, Plane, ClipboardCheck, Download } from 'lucide-react';
-import { AdminPageHeader } from '@/features/admin';
+import { AdminBadge, AdminPageHeader, approveRefundChangeRequest, listRefundChangeRequests, rejectRefundChangeRequest } from '@/features/admin';
+import type { RefundChangeRecord } from '@/features/user';
 
 type AuditStatus = 'all' | 'pending' | 'approved' | 'rejected';
-
-const MOCK_AUDITS = [
-  {
-    id: 'RC-2025001',
-    orderId: 'ORD-992812',
-    passenger: 'Alice Wu',
-    type: '退票',
-    oldFlight: 'CA1831 北京 → 上海',
-    newFlight: '-',
-    applyTime: '2025-12-15 10:20',
-    status: 'pending' as AuditStatus,
-  },
-  {
-    id: 'RC-2025002',
-    orderId: 'ORD-992815',
-    passenger: 'David Lee',
-    type: '改签',
-    oldFlight: 'HU7608 北京 → 深圳',
-    newFlight: 'HU7610 北京 → 深圳',
-    applyTime: '2025-12-15 11:05',
-    status: 'approved' as AuditStatus,
-  },
-  {
-    id: 'RC-2025003',
-    orderId: 'ORD-992814',
-    passenger: 'Charlie',
-    type: '退票',
-    oldFlight: 'CZ3001 北京 → 广州',
-    newFlight: '-',
-    applyTime: '2025-12-14 16:40',
-    status: 'rejected' as AuditStatus,
-  },
-];
 
 const OrderAudit: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AuditStatus>('pending');
 
-  const filteredAudits = MOCK_AUDITS.filter((a) => {
-    const matchStatus = statusFilter === 'all' || a.status === statusFilter;
-    const matchKeyword =
-      !searchTerm ||
-      a.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.passenger.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchStatus && matchKeyword;
-  });
+  const [audits, setAudits] = useState<RefundChangeRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const records = await listRefundChangeRequests({});
+      setAudits(records);
+    } catch (e: any) {
+      setError(e?.message || '加载失败');
+      setAudits([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const filteredAudits = useMemo(() => {
+    const kw = searchTerm.trim().toLowerCase();
+    return audits.filter((a) => {
+      const matchStatus = statusFilter === 'all' || a.status === statusFilter;
+      const matchKeyword =
+        !kw ||
+        String(a.id ?? '').toLowerCase().includes(kw) ||
+        String(a.orderId ?? '').toLowerCase().includes(kw) ||
+        String(a.passenger ?? '').toLowerCase().includes(kw);
+      return matchStatus && matchKeyword;
+    });
+  }, [audits, searchTerm, statusFilter]);
+
+  const onApprove = async (recordId: string) => {
+    setSubmittingId(recordId);
+    setError(null);
+    try {
+      await approveRefundChangeRequest(recordId);
+      await refresh();
+    } catch (e: any) {
+      setError(e?.message || '操作失败');
+    } finally {
+      setSubmittingId(null);
+    }
+  };
+
+  const onReject = async (recordId: string) => {
+    setSubmittingId(recordId);
+    setError(null);
+    try {
+      await rejectRefundChangeRequest(recordId);
+      await refresh();
+    } catch (e: any) {
+      setError(e?.message || '操作失败');
+    } finally {
+      setSubmittingId(null);
+    }
+  };
 
   const renderStatusBadge = (status: AuditStatus) => {
     if (status === 'pending') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">
-          <RefreshCw className="w-3 h-3" />
+        <AdminBadge icon={RefreshCw} variant="warning">
           待审核
-        </span>
+        </AdminBadge>
       );
     }
     if (status === 'approved') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
-          <CheckCircle2 className="w-3 h-3" />
+        <AdminBadge icon={CheckCircle2} variant="success">
           审核通过
-        </span>
+        </AdminBadge>
       );
     }
     if (status === 'rejected') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">
-          <XCircle className="w-3 h-3" />
+        <AdminBadge icon={XCircle} variant="danger">
           审核拒绝
-        </span>
+        </AdminBadge>
       );
     }
     return null;
@@ -127,6 +144,10 @@ const OrderAudit: React.FC = () => {
         </div>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-100 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>
+      )}
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50/80">
@@ -142,7 +163,16 @@ const OrderAudit: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredAudits.map((a) => (
+            {loading && (
+              <tr>
+                <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={8}>
+                  正在加载...
+                </td>
+              </tr>
+            )}
+
+            {!loading &&
+              filteredAudits.map((a) => (
               <tr key={a.id} className="hover:bg-indigo-50/30 transition-colors group">
                 <td className="px-6 py-4 font-mono text-gray-700">{a.id}</td>
                 <td className="px-6 py-4 font-mono text-gray-600">{a.orderId}</td>
@@ -155,36 +185,44 @@ const OrderAudit: React.FC = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      a.type === '退票' ? 'bg-red-50 text-red-700' : 'bg-indigo-50 text-indigo-700'
-                    }`}
-                  >
-                    <Plane className="w-3 h-3" />
+                  <AdminBadge icon={Plane} variant={a.type === '退票' ? 'danger' : 'info'}>
                     {a.type}
-                  </span>
+                  </AdminBadge>
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-xs text-gray-600">
                     <div>原航班：{a.oldFlight}</div>
-                    {a.newFlight !== '-' && <div className="mt-1 text-indigo-600">新航班：{a.newFlight}</div>}
+                    {a.newFlight !== '-' && a.newFlight !== '' && (
+                      <div className="mt-1 text-indigo-600">新航班：{a.newFlight}</div>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-xs text-gray-500">{a.applyTime}</td>
                 <td className="px-6 py-4">{renderStatusBadge(a.status)}</td>
                 <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="px-3 py-1.5 text-xs rounded-lg bg-green-50 text-green-700 hover:bg-green-100 font-medium">
-                      通过
-                    </button>
-                    <button className="px-3 py-1.5 text-xs rounded-lg bg-red-50 text-red-700 hover:bg-red-100 font-medium">
-                      拒绝
-                    </button>
-                  </div>
+                  {a.status === 'pending' && (
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        disabled={submittingId === a.id}
+                        onClick={() => onApprove(a.id)}
+                        className="px-3 py-1.5 text-xs rounded-lg bg-green-50 text-green-700 hover:bg-green-100 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {submittingId === a.id ? '处理中...' : '通过'}
+                      </button>
+                      <button
+                        disabled={submittingId === a.id}
+                        onClick={() => onReject(a.id)}
+                        className="px-3 py-1.5 text-xs rounded-lg bg-red-50 text-red-700 hover:bg-red-100 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {submittingId === a.id ? '处理中...' : '拒绝'}
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
-            {filteredAudits.length === 0 && (
+
+            {!loading && filteredAudits.length === 0 && (
               <tr>
                 <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={8}>
                   暂无符合条件的退改签申请

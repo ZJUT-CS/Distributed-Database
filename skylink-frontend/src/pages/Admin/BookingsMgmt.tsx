@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Eye, Download, XCircle, ShoppingCart } from 'lucide-react';
 import { cancelAdminOrder, listAdminOrders, type AdminOrderItem } from '../../features/admin/api/orders';
-import { Pagination, TableActionMenu, AdminPageHeader } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader } from '@/features/admin';
 
 const BookingsMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -143,24 +143,20 @@ const BookingsMgmt: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                            <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-xs font-bold">{b.flightNo || '-'}</span>
+                            <AdminBadge size="sm" variant="info">
+                              {b.flightNo || '-'}
+                            </AdminBadge>
                             <span className="text-xs text-gray-400">{route}</span>
                         </div>
                     </td>
                     <td className="px-6 py-4 font-bold text-gray-900">¥{Number(b.totalAmount || 0).toLocaleString()}</td>
                     <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            st.id === 'paid' ? 'bg-green-50 text-green-700' : 
-                            st.id === 'pending' ? 'bg-yellow-50 text-yellow-700' : 
-                            'bg-gray-100 text-gray-600'
-                        }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${
-                                st.id === 'paid' ? 'bg-green-500' : 
-                                st.id === 'pending' ? 'bg-yellow-500' : 
-                                'bg-gray-400'
-                            }`}></span>
-                            {st.label}
-                        </span>
+                      <AdminBadge
+                        dot
+                        variant={st.id === 'paid' ? 'success' : st.id === 'pending' ? 'warning' : 'neutral'}
+                      >
+                        {st.label}
+                      </AdminBadge>
                     </td>
                     <td className="px-6 py-4 text-right">
                         <TableActionMenu

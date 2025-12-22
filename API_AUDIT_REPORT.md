@@ -2,7 +2,7 @@
 
 > **生成时间**: 2025年12月23日
 > **扫描范围**: `skylink-backend` 所有 Controller 及 DTO
-> **基础路径**: `http://localhost:9999` (默认)
+> **基础路径**: `http://localhost:8080` (默认)
 
 ---
 
@@ -20,6 +20,8 @@
 10. [管理后台 - 航班管理](#10-管理后台---航班管理)
 11. [管理后台 - 订单管理](#11-管理后台---订单管理)
 12. [管理后台 - 系统配置与监控](#12-管理后台---系统配置与监控)
+13. [附录：枚举值定义](#13-附录枚举值定义)
+14. [附录：错误码说明](#14-附录错误码说明)
 
 ---
 
@@ -30,15 +32,15 @@
 
 ```json
 {
-  "code": 0,          // 0 表示成功，非 0 表示失败
-  "msg": "success",   // 提示信息
+  "code": 0,          // 0 表示成功，非 0 表示失败 (通常对应 HTTP 状态码，如 400, 401, 500)
+  "msg": "success",   // 提示信息 (成功时为 success，失败时为错误描述)
   "data": { ... }     // 具体的业务数据
 }
 ```
 
 ### 认证方式
 - **Header**: `Authorization: Bearer <token>` (用户/管理员通用)
-- **Header (备用)**: `X-User-Id: <id>` (仅用于开发/测试环境或特定内部调用)
+- **Header (备用)**: `X-User-Id: <id>` (仅用于开发/测试环境或特定内部调用，优先级低于 Token)
 - **管理员特有 Header**:
   - `X-User-Type: 2` (必须，标识管理员身份)
   - `X-Admin-Role: 1` (普通管理员) 或 `2` (超级管理员)
@@ -53,8 +55,8 @@
 - **请求体 (JSON)**:
   ```json
   {
-      "phoneNumber": "13800138000", // 必填
-      "password": "your_password"   // 必填
+      "phoneNumber": "13800138000", // 必填 (@NotBlank)
+      "password": "your_password"   // 必填 (@NotBlank)
   }
   ```
 - **响应数据**:
@@ -73,8 +75,8 @@
 - **请求体 (JSON)**:
   ```json
   {
-      "adminAccount": "admin",      // 必填
-      "password": "admin_password"  // 必填
+      "adminAccount": "admin",      // 必填 (@NotBlank)
+      "password": "admin_password"  // 必填 (@NotBlank)
   }
   ```
 - **响应数据**:
@@ -85,7 +87,7 @@
       "role": "admin",
       "token": "...",
       "userType": 2,
-      "adminRole": 2
+      "adminRole": 2 // 1:普通管理员, 2:超级管理员
   }
   ```
 
@@ -117,7 +119,7 @@
       "email": "test@example.com",
       "realName": "张三",
       "idCard": "110...",
-      "gender": 1,
+      "gender": 1, // 0:未知, 1:男, 2:女
       "avatarUrl": "http://...",
       "createTime": "2024-01-01T12:00:00"
   }
@@ -141,8 +143,8 @@
 - **请求体**:
   ```json
   {
-      "oldPassword": "old_pass",
-      "newPassword": "new_pass"
+      "oldPassword": "old_pass", // 必填
+      "newPassword": "new_pass"  // 必填
   }
   ```
 
@@ -151,8 +153,8 @@
 - **请求体**:
   ```json
   {
-      "value": "xx@xx.com", // 或手机号
-      "code": "123456"      // 验证码
+      "value": "xx@xx.com", // 或手机号, 必填
+      "code": "123456"      // 验证码, 必填
   }
   ```
 
@@ -168,6 +170,8 @@
   - `departureDate`: 出发日期 (yyyy-MM-dd)
   - `page`: 页码 (默认1)
   - `size`: 分页大小 (默认10)
+  - `cabinType`: 舱位类型
+  - `airlineCompany`: 航空公司
 - **响应数据**:
   ```json
   {
@@ -178,14 +182,13 @@
       "arrivalTime": "2024-05-01T12:30:00",
       "price": 1200.50,
       "remainingSeats": 50,
-      "airlineCompany": "Air China"
+      "airlineCompany": "Air China",
+      "duration": "PT2H30M" // ISO-8601 Duration 格式
   }
   ```
 
-### 4.2 创建航班 (仅限开发/测试用，不需要Auth?)
-- **注意**: 此接口在 User 端 controller，但通常应该是 Admin 功能。
-- **接口**: `POST /api/v1/flights`
-- **请求体**: 见 10.2 节 Admin 创建航班部分。
+### 4.2 创建航班 (管理员功能入口见 10.2)
+- （此处省略，直接参考管理后台部分）
 
 ---
 
@@ -195,7 +198,7 @@
 
 ### 5.1 搜索订单
 - **接口**: `GET /api/v1/orders`
-- **参数**: `userId`, `orderNo`, `orderStatus`, `createTimeStart`...
+- **参数**: `userId`, `orderNo`, `orderStatus` (见附录), `createTimeStart`...
 - **响应数据 (列表项)**:
   ```json
   {
@@ -203,32 +206,32 @@
       "flightNo": "CA1234",
       "passengerName": "张三",
       "totalAmount": 1200.00,
-      "orderStatus": 1, // 0:待支付, 1:已支付, 2:已取消...
+      "orderStatus": 1, // 0:待审核, 1:待支付, 2:已支付... (见附录)
       "orderTime": "..."
   }
   ```
 
-### 5.2 创建订单
+### 5.2 创建订单 (直接下单)
 - **接口**: `POST /api/v1/orders`
 - **请求体**:
   ```json
   {
-      "userId": 1001,
-      "flightNo": "CA1234",
-      "cabinType": "Economy",
-      "ticketNum": 1,
-      "passengerName": "张三",
+      "userId": 1001, // 必填
+      "flightNo": "CA1234", // 必填
+      "cabinType": "Economy", // 必填
+      "ticketNum": 1, // 必填, >= 1
+      "passengerName": "张三", // 必填
       "contactEmail": "xx@xx.com",
       "contactPhone": "138...",
-      "passengersJson": "[{...}]", // 详细乘机人列表
-      "flightNos": ["CA1234", "MU5678"] // 联程票时填写
+      "passengersJson": "[{...}]", // 详细乘机人 JSON 字符串
+      "flightNos": ["CA1234", "MU5678"] // 可选：联程航班列表
   }
   ```
 
 ### 5.3 取消订单
 - **接口**: `POST /api/v1/orders/{orderId}/cancellation`
 
-### 5.4 订单审核 (疑似内部使用)
+### 5.4 订单审核 (管理员)
 - **接口**: `POST /api/v1/orders/{orderId}/audit`
 - **参数**: `approved=true/false`
 
@@ -243,9 +246,9 @@
 - **请求体**:
   ```json
   {
-      "orderNo": 123456789,
-      "amount": 100.00,
-      "method": "Alipay" // Wechat, CreditCard
+      "orderNo": 123456789, // 必填
+      "amount": 100.00, // 必填, > 0
+      "method": "Alipay" // 必填 (Alipay, Wechat, CreditCard)
   }
   ```
 
@@ -258,21 +261,22 @@
 
 ### 6.4 支付记录搜索
 - **接口**: `GET /api/v1/payments`
+- **参数**: `orderNo`, `paymentStatus` (见附录)...
 
 ---
 
 ## 7. 预订模块 (Booking)
 
-### 7.1 提交预订 (聚合下单)
+### 7.1 提交预订 (聚合下单 - 推荐)
 - **接口**: `POST /api/v1/bookings`
-- **描述**: 处理复杂下单逻辑 (单程/联程)
+- **描述**: 推荐使用此接口进行复杂下单 (支持单程/联程)
 - **请求体**:
   ```json
   {
-      "flightIds": [1001, 1002],
-      "cabinId": 5,
-      "userId": 1001,
-      "isInterline": true, // 是否联程
+      "flightIds": [1001, 1002], // 航班ID列表
+      "cabinId": 5, // 舱位配置ID
+      "userId": 1001, 
+      "isInterline": true, // true=联程(打包), false=拼凑(独立)
       "passengers": [
           { "name": "张三", "idCard": "...", "phone": "..." }
       ]
@@ -294,8 +298,8 @@
 - **请求体**:
   ```json
   {
-      "orderNo": 123456,
-      "operType": 1, // 1:退票, 2:改签
+      "orderNo": 123456, // 必填
+      "operType": 1, // 必填 (1:退票, 2:改签)
       "newFlightNo": "CA9999", // 改签时必填
       "remark": "行程变更"
   }
@@ -307,7 +311,7 @@
 ### 8.3 撤销申请
 - **接口**: `DELETE /api/v1/refund-change-requests/{recordId}`
 
-### 8.4 审批操作 (管理员/系统)
+### 8.4 审批操作 (管理员)
 - **接口**: `POST /api/v1/refund-change-requests/{recordId}/approvals` (通过)
 - **接口**: `POST /api/v1/refund-change-requests/{recordId}/rejections` (拒绝)
 
@@ -315,15 +319,14 @@
 
 ## 9. 管理后台 - 用户管理
 
-**Headers**: `X-User-Type: 2` (Admin)
+**Headers**: `X-User-Type: 2`
 
 ### 9.1 用户列表
 - **接口**: `GET /api/v1/admins/users`
 - **参数**: `page`, `size`, `keyword`, `status`
 
-### 9.2 创建用户 (管理员视角)
+### 9.2 创建用户
 - **接口**: `POST /api/v1/admins/users`
-- **请求体**: `{ "phoneNumber": "...", "password": "...", "realName": "..." }`
 
 ### 9.3 更新用户 / 重置密码
 - **接口**: `PUT /api/v1/admins/users/{userId}`
@@ -347,20 +350,20 @@
 - **请求体**:
   ```json
   {
-      "flightNo": "CA8888",
-      "modelId": 1,
-      "routeId": 5,
-      "airlineCompany": "AirChina",
-      "departureTime": "2024-12-01 10:00:00",
+      "flightNo": "CA8888", // 必填
+      "modelId": 1, // 必填 (机型ID)
+      "routeId": 5, // 必填 (航线ID)
+      "airlineCompany": "AirChina", // 必填
+      "departureTime": "2024-12-01 10:00:00", // 必填 (yyyy-MM-dd HH:mm:ss)
       "arrivalTime": "2024-12-01 14:00:00", // 选填
       "totalSeats": 200, // 选填
-      "status": 1 // 1:计划中
+      "status": 1 // 1:计划中 (见附录)
   }
   ```
 
 ### 10.3 修改/删除
 - **接口**: `PUT /api/v1/admins/flights/{flightId}`
-- **接口**: `DELETE /api/v1/admins/flights/{flightId}`
+- **接口**: `DELETE /api/v1/admins/flights/{flightId}` (级联删除)
 
 ---
 
@@ -387,7 +390,7 @@
 
 ## 12. 管理后台 - 系统配置与监控
 
-**Headers**: `X-User-Type: 2` (部分需要 `X-Admin-Role: 2` 超级管理员)
+**Headers**: `X-User-Type: 2` (部分需 `X-Admin-Role: 2`)
 
 ### 12.1 管理员账号管理 (仅超管)
 - **接口**: `POST /api/v1/admins` (创建管理员)
@@ -401,9 +404,69 @@
 
 ### 12.3 仪表盘数据
 - **接口**: `GET /api/v1/admins/dashboards/metrics`
-- **响应**: 包含 GMV、订单数、用户数、待办事项等聚合数据。
+- **响应**: 大盘统计数据
 
 ### 12.4 基础监控
-- **接口**: `GET /api/v1/system/health` (Keep-alive)
-- **接口**: `GET /api/v1/system/db-connection` (DB Connectivity)
-- **接口**: `GET /api/v1/metrics/orders/count` ... (各类计数)
+- **接口**: `GET /api/v1/system/health`
+- **接口**: `GET /api/v1/system/db-connection`
+- **接口**: `GET /api/v1/metrics/orders/count` ...
+
+---
+
+## 13. 附录：枚举值定义
+
+### 13.1 订单状态 (orderStatus / OrderStatusEnum)
+| 值 (Code) | 描述 (Desc) | 备注 |
+|---|---|---|
+| `0` | 待审核 | PENDING_AUDIT |
+| `1` | 待支付 | PENDING_PAYMENT |
+| `2` | 已支付 | CONFIRMED |
+| `3` | 已拒绝 | REJECTED |
+| `4` | 改签处理中 | PROCESSING |
+| `5` | 已退票 | REFUNDED |
+| `6` | 已取消 | CANCELLED |
+
+### 13.2 航班状态 (status / Flight.java)
+| 值 | 描述 |
+|---|---|
+| `1` | 计划中 |
+| `2` | 取消 |
+| `3` | 延误 |
+| `4` | 已起飞 |
+| `5` | 已到达 |
+
+### 13.3 支付状态 (paymentStatus / Payment.java)
+| 值 | 描述 |
+|---|---|
+| `0` | 待支付 |
+| `1` | 已支付 |
+| `2` | 支付失败 |
+| `3` | 退款中 |
+| `4` | 已退款 |
+
+### 13.4 行程类型 (isInterline / TripTypeEnum)
+| 值 | 描述 |
+|---|---|
+| `0` | 独立/单程 |
+| `1` | 联程首段 |
+| `2` | 联程后续 |
+
+### 13.5 管理员角色 (X-Admin-Role)
+| 值 | 描述 |
+|---|---|
+| `1` | 普通管理员 (无法管理其他管理员和系统配置) |
+| `2` | 超级管理员 (最高权限) |
+
+---
+
+## 14. 附录：错误码说明
+
+后端通过 `GlobalExceptionHandler` 统一处理异常，返回 `Result` 对象。
+
+| code (返回码) | 含义 | 常见 msg 示例 |
+|---|---|---|
+| `0` | 成功 | success |
+| `400` | 参数错误/请求无效 | validation error: flightNo is required, bind error... |
+| `401` | 未认证 | login required |
+| `403` | 权限不足 | admin required, super admin required |
+| `500` | 服务器内部错误 | Internal Error: ... |

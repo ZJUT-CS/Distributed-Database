@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Save, Plane as PlaneIcon } from 'lucide-react';
-import { Pagination, TableActionMenu } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge } from '@/features/admin';
 import { listAircraftModels, createAircraftModel, updateAircraftModel, deleteAircraftModel, type AircraftModelItem } from '@/features/admin/api/aircraftModels';
 
 const AircraftModelsMgmt: React.FC = () => {
@@ -146,9 +146,15 @@ const AircraftModelsMgmt: React.FC = () => {
                 models.map((m) => (
                   <tr key={m.modelId} className="hover:bg-indigo-50/30 transition-colors">
                     <td className="px-6 py-4 text-sm font-medium text-gray-700">{m.modelId}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-indigo-600">{m.modelName}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{m.manufacturer || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{m.totalPhysicalSeats} 座</td>
+                    <td className="px-6 py-4">
+                      <AdminBadge size="sm" variant="primary">{m.modelName}</AdminBadge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <AdminBadge size="sm" variant="neutral">{m.manufacturer || '-'}</AdminBadge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <AdminBadge size="sm" variant="success">{m.totalPhysicalSeats} 座</AdminBadge>
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <TableActionMenu
                         isOpen={activeActionId === m.modelId}

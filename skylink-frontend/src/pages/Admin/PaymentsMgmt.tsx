@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Download, Eye, AlertCircle, FileText, CreditCard } from 'lucide-react';
 import { INITIAL_TRANSACTIONS } from '../../utils/mockData';
-import { Pagination, TableActionMenu, AdminPageHeader } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader } from '@/features/admin';
 
 const PaymentsMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,9 +68,7 @@ const PaymentsMgmt: React.FC = () => {
 
       {/* Transactions */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100">
-            <h3 className="font-bold text-lg text-gray-800">交易流水</h3>
-        </div>
+
 
         <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -91,26 +89,20 @@ const PaymentsMgmt: React.FC = () => {
                     <td className="px-6 py-4 font-mono text-gray-600">{t.id}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">{t.user}</td>
                     <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            t.type === 'payment' ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'
-                        }`}>
-                            {t.type === 'payment' ? '支付' : '退款'}
-                        </span>
+                      <AdminBadge variant={t.type === 'payment' ? 'primary' : 'warning'}>
+                        {t.type === 'payment' ? '支付' : '退款'}
+                      </AdminBadge>
                     </td>
                     <td className={`px-6 py-4 font-bold ${t.type === 'refund' ? 'text-red-600' : 'text-emerald-600'}`}>
                         {t.type === 'refund' ? '-' : '+'}¥{t.amount.toLocaleString()}
                     </td>
                     <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            t.status === 'success' ? 'bg-green-50 text-green-700' :
-                            t.status === 'pending' ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-700'
-                        }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${
-                                t.status === 'success' ? 'bg-green-500' :
-                                t.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
-                            }`}></span>
-                            {t.status === 'success' ? '成功' : t.status === 'pending' ? '处理中' : '失败'}
-                        </span>
+                      <AdminBadge
+                        dot
+                        variant={t.status === 'success' ? 'success' : t.status === 'pending' ? 'warning' : 'danger'}
+                      >
+                        {t.status === 'success' ? '成功' : t.status === 'pending' ? '处理中' : '失败'}
+                      </AdminBadge>
                     </td>
                     <td className="px-6 py-4 text-xs text-gray-500">{t.time}</td>
                     <td className="px-6 py-4 text-right">

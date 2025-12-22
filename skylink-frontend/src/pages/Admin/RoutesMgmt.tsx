@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Save, MapPin, Plane as PlaneIcon, Download } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminPageHeader, AdminModal } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal } from '@/features/admin';
 import { listRoutes, createRoute, updateRoute, deleteRoute, type RouteItem } from '@/features/admin/api/routes';
 
 const RoutesMgmt: React.FC = () => {
@@ -165,12 +165,26 @@ const RoutesMgmt: React.FC = () => {
                 routes.map((r) => (
                   <tr key={r.routeId} className="hover:bg-indigo-50/30 transition-colors">
                     <td className="px-6 py-4 text-sm font-medium text-gray-700">{r.routeId}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{r.departureCity}</td>
-                    <td className="px-6 py-4 text-sm font-mono text-indigo-600">{r.departureAirport}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{r.arrivalCity}</td>
-                    <td className="px-6 py-4 text-sm font-mono text-indigo-600">{r.arrivalAirport}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-green-600">¥{Number(r.basePrice).toFixed(0)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{r.estimatedDuration ? `${r.estimatedDuration}分钟` : '-'}</td>
+                    <td className="px-6 py-4">
+                      <AdminBadge size="sm" variant="info">{r.departureCity || '-'}</AdminBadge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <AdminBadge size="sm" variant="neutral" className="font-mono">{r.departureAirport || '-'}</AdminBadge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <AdminBadge size="sm" variant="purple">{r.arrivalCity || '-'}</AdminBadge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <AdminBadge size="sm" variant="neutral" className="font-mono">{r.arrivalAirport || '-'}</AdminBadge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <AdminBadge size="sm" variant="success">¥{Number(r.basePrice).toFixed(0)}</AdminBadge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <AdminBadge size="sm" variant={r.estimatedDuration ? 'warning' : 'neutral'}>
+                        {r.estimatedDuration ? `${r.estimatedDuration}分钟` : '-'}
+                      </AdminBadge>
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <TableActionMenu
                         isOpen={activeActionId === r.routeId}
