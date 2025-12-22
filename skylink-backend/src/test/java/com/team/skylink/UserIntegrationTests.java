@@ -6,8 +6,8 @@ import org.springframework.aop.support.AopUtils;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import com.team.skylink.module.auth.service.AuthService;
-import com.team.skylink.module.auth.service.AuthServiceImpl;
+import com.team.skylink.module.user.service.AuthService;
+import com.team.skylink.module.user.service.AuthServiceImpl;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;

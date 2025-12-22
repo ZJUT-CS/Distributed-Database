@@ -1,4 +1,4 @@
-package com.team.skylink.module.auth.dto;
+package com.team.skylink.module.user.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -8,6 +8,7 @@ import lombok.Data;
 public class LoginResponse {
     private Long id;
     private String displayName;
-    private String role; // user | admin
+    private String role;
     private String token;
 }
+

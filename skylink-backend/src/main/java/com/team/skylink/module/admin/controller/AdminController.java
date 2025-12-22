@@ -24,7 +24,7 @@ public class AdminController {
     }
 
     @PostMapping("/sessions")
-    public Result<com.team.skylink.module.admin.dto.AdminLoginResponse> login(@Valid @RequestBody com.team.skylink.module.auth.dto.AdminLoginRequest request) {
+    public Result<com.team.skylink.module.admin.dto.AdminLoginResponse> login(@Valid @RequestBody com.team.skylink.module.admin.dto.AdminLoginRequest request) {
         return adminManagementService.login(request.getAdminAccount(), request.getPassword());
     }
 
