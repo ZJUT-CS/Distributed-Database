@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/admin/flights")
+@RequestMapping("/api/v1/admins/flights")
 public class AdminFlightController {
 
     private final FlightMapper flightMapper;
@@ -102,7 +102,8 @@ public class AdminFlightController {
 
     private static Result<?> ensureAdmin(HttpServletRequest request) {
         String t = request.getHeader("X-User-Type");
-        if (t == null || (!"1".equals(t.trim()) && !"2".equals(t.trim()))) {
+        // Only allow Type 2 (Admin)
+        if (t == null || !"2".equals(t.trim())) {
             return Result.fail(403, "admin required");
         }
         return null;

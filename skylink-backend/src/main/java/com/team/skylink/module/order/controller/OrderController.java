@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping({"/orders", "/api/v1/orders"})
+@RequestMapping("/api/v1/orders")
 public class OrderController {
     private final OrderService orderService;
 
@@ -26,7 +26,7 @@ public class OrderController {
         this.orderService = orderService;
     }
 
-    @GetMapping("/search")
+    @GetMapping("")
     public Result<List<OrderSearchResponse>> search(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long orderNo,
@@ -39,12 +39,12 @@ public class OrderController {
         return orderService.search(userId, orderNo, orderStatus, createTimeStart, createTimeEnd, flightNo, cabinType);
     }
 
-    @PostMapping("/create")
+    @PostMapping("")
     public Result<OrderSearchResponse> create(@Valid @RequestBody CreateOrderRequest req) {
         return orderService.create(req);
     }
 
-    @PostMapping("/{orderId}/cancel")
+    @PostMapping("/{orderId}/cancellation")
     public Result<Boolean> cancel(@PathVariable("orderId") Long orderId) {
         return orderService.cancel(orderId);
     }

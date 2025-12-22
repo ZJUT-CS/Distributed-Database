@@ -3,7 +3,7 @@ package com.team.skylink.module.payment.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.team.skylink.common.Result;
-import com.team.skylink.module.order.entity.Order;
+import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
 import com.team.skylink.module.payment.dto.ConfirmPaymentRequest;
 import com.team.skylink.module.payment.dto.CreatePaymentRequest;
@@ -79,11 +79,11 @@ public class PaymentServiceImpl implements PaymentService {
             qw.le("payment_time", paymentTimeEnd);
         }
         if (userId != null) {
-            List<Order> orders = orderMapper.selectList(new QueryWrapper<Order>().eq("user_id", userId));
+            List<Orders> orders = orderMapper.selectList(new QueryWrapper<Orders>().eq("user_id", userId));
             if (orders.isEmpty()) {
                 return Result.ok(new ArrayList<>());
             }
-            List<Long> orderIds = orders.stream().map(Order::getOrderId).toList();
+            List<Long> orderIds = orders.stream().map(Orders::getOrderId).toList();
             qw.in("order_id", orderIds);
         }
 
@@ -106,7 +106,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public Result<CreatePaymentTokenResponse> createConfirmToken(CreatePaymentTokenRequest req) {
-        Order o = orderMapper.selectById(req.getOrderNo());
+        Orders o = orderMapper.selectById(req.getOrderNo());
         if (o == null) {
             return Result.fail(404, "order not found");
         }
@@ -154,7 +154,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
         PAYMENT_TOKENS.remove(req.getToken());
 
-        Order o = orderMapper.selectById(req.getOrderNo());
+        Orders o = orderMapper.selectById(req.getOrderNo());
         if (o == null) {
             return Result.fail(404, "order not found");
         }
@@ -182,10 +182,10 @@ public class PaymentServiceImpl implements PaymentService {
         p.setUpdateTime(payTime);
         paymentMapper.insert(p);
 
-        LambdaUpdateWrapper<Order> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(Order::getOrderId, o.getOrderId())
-                .set(Order::getOrderStatus, 1)
-                .set(Order::getPayTime, payTime);
+        LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Orders::getOrderId, o.getOrderId())
+                .set(Orders::getOrderStatus, 1)
+                .set(Orders::getPayTime, payTime);
         orderMapper.update(null, updateWrapper);
 
         PaymentSearchResponse r = new PaymentSearchResponse();
@@ -203,7 +203,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<PaymentSearchResponse> pay(CreatePaymentRequest req) {
-        Order o = orderMapper.selectById(req.getOrderNo());
+        Orders o = orderMapper.selectById(req.getOrderNo());
         if (o == null) {
             return Result.fail(404, "order not found");
         }

@@ -19,5 +19,7 @@ public interface AdminOrderService {
     Result<Boolean> cancel(Long orderId);
 
     Result<Boolean> delete(Long orderId);
-}
 
+    // 【新增】审核订单接口
+    Result<Boolean> auditOrder(Long orderId, Boolean pass);
+}

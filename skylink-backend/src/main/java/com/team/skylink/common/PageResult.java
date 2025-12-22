@@ -8,6 +8,6 @@ import java.util.List;
 @AllArgsConstructor
 public class PageResult<T> {
     private long total;
-    private List<T> items;
+    private List<T> data;
 }
 

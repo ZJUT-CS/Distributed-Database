@@ -9,7 +9,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 @RestController
-@RequestMapping("/debug")
+@RequestMapping("/api/v1/system")
 public class DbTestController {
     private final DataSource dataSource;
 
@@ -17,12 +17,12 @@ public class DbTestController {
         this.dataSource = dataSource;
     }
 
-    @GetMapping("/hello")
+    @GetMapping("/health")
     public String hello() {
         return "Hello, SkyLink";
     }
 
-    @GetMapping("/test-db")
+    @GetMapping("/db-connection")
     public String testDb() {
         try (Connection connection = dataSource.getConnection()) {
             String dbUrl = connection.getMetaData().getURL();

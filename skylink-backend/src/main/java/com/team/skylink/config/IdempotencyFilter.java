@@ -22,12 +22,9 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     private static final String HEADER_IDEMPOTENCY_KEY = "Idempotency-Key";
 
     private static final Set<String> IDEMPOTENT_PATHS = Set.of(
-            "/orders/create",
-            "/api/v1/orders/create",
-            "/payments/pay",
-            "/api/v1/payments/pay",
-            "/refund-change/apply",
-            "/api/v1/refund-change/apply"
+            "/api/v1/orders",
+            "/api/v1/payments",
+            "/api/v1/refund-change-requests"
     );
 
     private final Cache<String, StoredResponse> cache = Caffeine.newBuilder()

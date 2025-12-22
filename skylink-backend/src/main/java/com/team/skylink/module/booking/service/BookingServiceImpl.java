@@ -1,60 +1,109 @@
 package com.team.skylink.module.booking.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.team.skylink.module.user.mapper.UserMapper;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.team.skylink.common.Result;
+import com.team.skylink.common.enums.TripTypeEnum;
+import com.team.skylink.module.aircraft.entity.AircraftCabinConfig; // 替换
+import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper; // 替换
 import com.team.skylink.module.booking.dto.BookingFlightDto;
+import com.team.skylink.module.booking.dto.BookingRequest;
 import com.team.skylink.module.booking.dto.BookingResponse;
-import com.team.skylink.module.flight.entity.Cabin;
+import com.team.skylink.module.booking.service.BookingService;
 import com.team.skylink.module.flight.entity.Flight;
-import com.team.skylink.module.flight.mapper.CabinMapper;
 import com.team.skylink.module.flight.mapper.FlightMapper;
-import com.team.skylink.module.order.entity.Order;
+import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
 import com.team.skylink.module.user.entity.User;
-
+import com.team.skylink.module.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class BookingServiceImpl implements BookingService {
+
     private final OrderMapper orderMapper;
     private final FlightMapper flightMapper;
-    private final CabinMapper cabinMapper;
+    private final AircraftCabinConfigMapper configMapper; // 替换
     private final UserMapper userMapper;
 
-    public BookingServiceImpl(OrderMapper orderMapper, FlightMapper flightMapper, CabinMapper cabinMapper, UserMapper userMapper) {
+    public BookingServiceImpl(OrderMapper orderMapper, FlightMapper flightMapper, 
+                              AircraftCabinConfigMapper configMapper, UserMapper userMapper) {
         this.orderMapper = orderMapper;
         this.flightMapper = flightMapper;
-        this.cabinMapper = cabinMapper;
+        this.configMapper = configMapper;
         this.userMapper = userMapper;
     }
 
     @Override
-    public List<BookingResponse> listBookings(Long userId) {
-        List<Order> orders = orderMapper.selectList(new QueryWrapper<Order>().eq("user_id", userId));
-        if (orders == null || orders.isEmpty()) {
-            return new ArrayList<>();
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Boolean> submitBooking(BookingRequest req) {
+        if (req.getFlightIds() == null || req.getFlightIds().isEmpty()) {
+            return Result.fail(400, "请至少选择一个航班");
         }
 
-        User user = userMapper.selectById(userId);
+        boolean isInterline = Boolean.TRUE.equals(req.getIsInterline()) && req.getFlightIds().size() > 1;
 
+        if (isInterline) {
+            createInterlineOrders(req);
+        } else {
+            createIndependentOrders(req);
+        }
+        return Result.ok(true);
+    }
+
+    private void createInterlineOrders(BookingRequest req) {
+        long parentOrderId = IdWorker.getId();
+        List<Long> flightIds = req.getFlightIds();
+        for (int i = 0; i < flightIds.size(); i++) {
+            saveSingleOrder(req.getUserId(), flightIds.get(i), parentOrderId,
+                    i == 0 ? TripTypeEnum.INTERLINE_FIRST.getCode() : TripTypeEnum.INTERLINE_NEXT.getCode());
+        }
+    }
+
+    private void createIndependentOrders(BookingRequest req) {
+        for (Long flightId : req.getFlightIds()) {
+            saveSingleOrder(req.getUserId(), flightId, null, TripTypeEnum.INDEPENDENT.getCode());
+        }
+    }
+
+    private void saveSingleOrder(Long userId, Long flightId, Long parentOrderId, Integer tripType) {
+        Flight flight = flightMapper.selectById(flightId);
+        Orders order = new Orders();
+        order.setUserId(userId);
+        order.setFlightId(flightId);
+        order.setTotalAmount(flight.getLowestPrice()); // 默认最低价
+        order.setOrderStatus(0); // 待审核
+        order.setParentOrderId(parentOrderId);
+        order.setTripType(tripType);
+        order.setOrderTime(LocalDateTime.now());
+        orderMapper.insert(order);
+    }
+
+    @Override
+    public List<BookingResponse> listBookings(Long userId) {
+        List<Orders> orders = orderMapper.selectList(new QueryWrapper<Orders>()
+                .eq("user_id", userId).orderByDesc("order_time"));
+        
+        User user = userMapper.selectById(userId);
         List<BookingResponse> resp = new ArrayList<>();
-        for (Order o : orders) {
+
+        for (Orders o : orders) {
             Flight f = flightMapper.selectById(o.getFlightId());
-            Cabin c = cabinMapper.selectById(o.getCabinId());
+            // 订单中的 cabinId 对应 aircraft_cabin_configs 的 configId
+            AircraftCabinConfig c = (o.getCabinId() != null) ? configMapper.selectById(o.getCabinId()) : null;
 
             BookingFlightDto flightDto = mapFlight(f, c);
 
             BookingResponse r = new BookingResponse();
             r.setId(String.valueOf(o.getOrderId()));
-            r.setPassengerName(user != null && user.getRealName() != null ? user.getRealName() : String.valueOf(userId));
-            r.setPassportNumber("******");
-            r.setContactEmail(user != null ? user.getEmail() : null);
-            r.setPhone(user != null ? user.getPhoneNumber() : null);
-            r.setCabinClass("economy");
+            r.setPassengerName(user != null ? user.getRealName() : String.valueOf(userId));
             r.setTotalPrice(o.getTotalAmount());
             r.setBookingDate(o.getOrderTime());
             r.setStatus(mapOrderStatus(o.getOrderStatus()));
@@ -62,69 +111,51 @@ public class BookingServiceImpl implements BookingService {
             r.setFlights(flightDto != null ? List.of(flightDto) : List.of());
             resp.add(r);
         }
-
         return resp;
     }
 
     private static String mapOrderStatus(Integer status) {
-        if (status == null) return "pending_payment";
+        if (status == null) return "unknown";
         return switch (status) {
-            case 0 -> "pending_payment";
-            case 1 -> "confirmed";
-            case 2 -> "cancelled";
-            case 3 -> "refunded";
+            case 0 -> "pending_audit";
+            case 1 -> "pending_payment";
+            case 2 -> "confirmed";
+            case 3 -> "rejected";
             case 4 -> "refunding";
-            case 5 -> "changed";
+            case 5 -> "refunded";
+            case 6 -> "cancelled";
             default -> "confirmed";
         };
     }
 
-    private static BookingFlightDto mapFlight(Flight f, Cabin c) {
+    private static BookingFlightDto mapFlight(Flight f, AircraftCabinConfig c) {
         if (f == null) return null;
-
         BookingFlightDto dto = new BookingFlightDto();
         dto.setId(f.getFlightNo());
-        dto.setAirline(f.getAirlineCompany() != null ? f.getAirlineCompany() : "");
-        dto.setAirlineCode(toAirlineCode(f.getFlightNo()));
         dto.setFlightNumber(f.getFlightNo());
-        dto.setCabinType(c != null ? c.getCabinType() : null);
         dto.setOrigin(f.getDeparturePlace());
         dto.setDestination(f.getDestination());
         dto.setDepartureTime(f.getDepartureTime());
         dto.setArrivalTime(f.getArrivalTime());
 
         if (c != null) {
-            dto.setPrice(c.getPrice());
-            dto.setRemainingSeats(c.getRemainingSeats());
+            // 动态计算：基准价 * 舱位系数
+            BigDecimal price = f.getLowestPrice().multiply(c.getCabinCoefficient());
+            dto.setPrice(price);
+            dto.setCabinType(c.getCabinType());
+        } else {
+            dto.setPrice(f.getLowestPrice());
         }
 
         if (f.getDepartureTime() != null && f.getArrivalTime() != null) {
             Duration d = Duration.between(f.getDepartureTime(), f.getArrivalTime());
-            long hours = d.toHours();
-            long minutes = d.toMinutes() % 60;
-            dto.setDuration(hours + "小时 " + minutes + "分");
-        } else {
-            dto.setDuration("");
+            dto.setDuration(d.toHours() + "小时 " + (d.toMinutes() % 60) + "分");
         }
-
-        dto.setStops(0);
-        dto.setBaggageWeight(23);
-
-        BookingFlightDto.Amenities amenities = new BookingFlightDto.Amenities();
-        amenities.setHasPower(false);
-        amenities.setHasMeal(true);
-        amenities.setHasWifi(false);
-        amenities.setHasEntertainment(false);
-        dto.setAmenities(amenities);
-
         return dto;
     }
 
     private static String toAirlineCode(String flightNo) {
         if (flightNo == null || flightNo.isBlank()) return "";
-        String letters = flightNo.replaceAll("[^A-Z]", "");
-        if (letters.isBlank()) return "";
-        return letters.length() >= 2 ? letters.substring(0, 2) : letters;
+        return flightNo.replaceAll("[^A-Z]", "");
     }
 }
-
