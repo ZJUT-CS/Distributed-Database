@@ -83,6 +83,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
         phoneNumber: isAdminMode ? undefined : account,
         createdAt: new Date().toISOString(),
         role: res.role,
+        adminRole: isAdminMode ? (res as any).adminRole : undefined,
         avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedUsername)}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`,
       });
     } catch (err: any) {

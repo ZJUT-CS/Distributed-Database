@@ -9,5 +9,6 @@ export interface User {
   gender?: 0 | 1 | 2;
   createdAt?: string;
   role: 'user' | 'admin';
+  adminRole?: number | string;
 }
 

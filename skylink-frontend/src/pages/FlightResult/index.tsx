@@ -160,10 +160,18 @@ const FlightResultPage: React.FC = () => {
 
   // Helper to parse duration string "X小时 Y分" to minutes
   const parseDuration = (dur: string): number => {
-    const hMatch = dur.match(/(\d+)小时/);
-    const mMatch = dur.match(/(\d+)分/);
-    const h = hMatch ? parseInt(hMatch[1]) : 0;
-    const m = mMatch ? parseInt(mMatch[1]) : 0;
+    const cnH = dur.match(/(\d+)小时/);
+    const cnM = dur.match(/(\d+)分/);
+    if (cnH || cnM) {
+      const h = cnH ? parseInt(cnH[1]) : 0;
+      const m = cnM ? parseInt(cnM[1]) : 0;
+      return h * 60 + m;
+    }
+
+    const enH = dur.match(/(\d+)\s*h/i);
+    const enM = dur.match(/(\d+)\s*m/i);
+    const h = enH ? parseInt(enH[1]) : 0;
+    const m = enM ? parseInt(enM[1]) : 0;
     return h * 60 + m;
   };
 

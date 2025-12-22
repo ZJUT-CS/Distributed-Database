@@ -75,6 +75,56 @@ public class UserController {
         }
     }
 
+    @PostMapping("/me/email-verification-codes")
+    public Result<Boolean> sendEmailVerificationCode(HttpServletRequest request, @RequestBody Map<String, String> body) {
+        Result<?> guard = ensureUser(request);
+        if (guard != null) return (Result<Boolean>) guard;
+
+        String target = body == null ? null : body.get("target");
+        String email = target == null ? "" : target.trim();
+        if (email.isEmpty()) return Result.fail(400, "missing target");
+        if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) return Result.fail(400, "invalid email");
+
+        // Demo behavior: code is validated as "123456" in AuthServiceImpl.
+        return Result.ok(Boolean.TRUE);
+    }
+
+    @PutMapping("/me/email")
+    public Result<UserProfileResponse> bindEmail(HttpServletRequest request, @Valid @RequestBody BindContactRequest body) {
+        Result<?> guard = ensureUser(request);
+        if (guard != null) return (Result<UserProfileResponse>) guard;
+
+        Long userId = getAuthedUserId(request);
+        Result<User> r = authService.bindEmail(userId, body.getValue(), body.getCode());
+        if (r.getCode() != 0) return Result.fail(r.getCode(), r.getMsg());
+        return Result.ok(UserProfileResponse.from(r.getData()));
+    }
+
+    @PostMapping("/me/phone-verification-codes")
+    public Result<Boolean> sendPhoneVerificationCode(HttpServletRequest request, @RequestBody Map<String, String> body) {
+        Result<?> guard = ensureUser(request);
+        if (guard != null) return (Result<Boolean>) guard;
+
+        String target = body == null ? null : body.get("target");
+        String phone = target == null ? "" : target.trim();
+        if (phone.isEmpty()) return Result.fail(400, "missing target");
+        if (!phone.matches("^1[3-9]\\d{9}$")) return Result.fail(400, "invalid phone");
+
+        // Demo behavior: code is validated as "123456" in AuthServiceImpl.
+        return Result.ok(Boolean.TRUE);
+    }
+
+    @PutMapping("/me/phone")
+    public Result<UserProfileResponse> bindPhone(HttpServletRequest request, @Valid @RequestBody BindContactRequest body) {
+        Result<?> guard = ensureUser(request);
+        if (guard != null) return (Result<UserProfileResponse>) guard;
+
+        Long userId = getAuthedUserId(request);
+        Result<User> r = authService.bindPhone(userId, body.getValue(), body.getCode());
+        if (r.getCode() != 0) return Result.fail(r.getCode(), r.getMsg());
+        return Result.ok(UserProfileResponse.from(r.getData()));
+    }
+
     // --- Helpers ---
     private Result<?> ensureUser(HttpServletRequest request) {
         String token = parseBearerToken(request);

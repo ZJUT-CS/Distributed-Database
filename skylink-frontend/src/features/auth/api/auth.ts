@@ -8,13 +8,15 @@ export interface LoginResponse {
   identifier?: string;
   role: 'user' | 'admin';
   token: string;
+  adminRole?: number | string;
 }
 
 type BackendLoginResponse = {
-  userId?: number | string;
-  identifier?: string | null;
+  id?: number | string;
+  displayName?: string | null;
   role?: string | null;
   token?: string | null;
+  adminRole?: number | string | null;
 };
 
 const normalizeRole = (role: unknown): 'user' | 'admin' => {
@@ -23,14 +25,17 @@ const normalizeRole = (role: unknown): 'user' | 'admin' => {
 };
 
 const normalizeLogin = (raw: BackendLoginResponse, fallbackIdentifier?: string): LoginResponse => {
-  const identifier = (raw.identifier ?? '') || (fallbackIdentifier ?? '');
+  const identifier = (raw.displayName ?? '') || (fallbackIdentifier ?? '');
+  const id = raw.id;
   return {
-    userId: raw.userId,
-    id: raw.userId,
+    userId: id,
+    id,
+    displayName: raw.displayName ?? undefined,
     identifier: identifier || undefined,
     username: identifier || undefined,
     role: normalizeRole(raw.role),
     token: String(raw.token ?? ''),
+    adminRole: raw.adminRole ?? undefined,
   };
 };
 
@@ -80,11 +85,13 @@ export async function adminRegisterApi(payload: AdminRegisterRequest): Promise<b
   if (!adminAccount) throw new Error('缺少 adminAccount');
   if (!password) throw new Error('缺少 password');
 
-  return request<boolean>({
+  await request<unknown>({
     method: 'POST',
     url: '/api/v1/admins',
     data: { adminAccount, password, role: payload.role },
   });
+
+  return true;
 }
 
 export interface UserProfileResponse {
