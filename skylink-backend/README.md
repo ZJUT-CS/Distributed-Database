@@ -1,5 +1,128 @@
 # SkyLink 后端接口文档
 
+## 🚀 增量任务：智能中转/联程航班业务 (Interline Flight Expansion)
+
+### 1. 模块架构图 (Module Architecture)
+```mermaid
+graph TD
+    User[用户/客户端] --> SearchService[航班搜索服务]
+    User --> BookingService[下单服务]
+    
+    subgraph Core[核心业务层]
+        SearchService --> Strategy[中转拼接策略]
+        Strategy --> Cache[Redis缓存 (热门中转)]
+        BookingService --> Transaction[分布式事务管理]
+        Transaction --> Lock[库存锁 (Select For Update)]
+    end
+    
+    subgraph Data[数据层]
+        SearchService --> FlightDB[(航班数据库)]
+        BookingService --> OrderDB[(订单数据库)]
+        Lock --> Inventory[(库存表)]
+    end
+    
+    OrderDB --> StateMachine[状态机联动]
+    StateMachine --> RefundService[退改服务]
+```
+
+### 2. 核心接口文档 (Core Interface Swagger)
+
+#### 2.1 航班搜索 (Enhanced Search)
+- **URL**: `GET /api/v1/flights`
+- **Response**: `FlightSearchResult`
+```json
+{
+  "directFlights": [
+    {
+      "flightNo": "MU1234",
+      "price": 1200.00,
+      "departureTime": "2025-12-20T10:00:00"
+    }
+  ],
+  "interlineFlights": [
+    {
+      "segments": [
+        { "flightNo": "MU1234", "departurePlace": "Shanghai", "destination": "Xi'an" },
+        { "flightNo": "MU5678", "departurePlace": "Xi'an", "destination": "Beijing" }
+      ],
+      "totalPrice": 2100.00,
+      "transferCity": "Xi'an",
+      "transferDuration": "3h 30m"
+    }
+  ]
+}
+```
+
+#### 2.2 联程下单 (Interline Booking)
+- **URL**: `POST /api/v1/bookings/interline`
+- **Request**: `InterlineBookingRequest`
+```json
+{
+  "userId": 1001,
+  "segments": [
+    { "flightId": 101, "cabinType": "Y", "date": "2025-12-20" },
+    { "flightId": 202, "cabinType": "Y", "date": "2025-12-20" }
+  ],
+  "passengerIds": [501, 502],
+  "contactName": "John Doe",
+  "contactPhone": "13800138000"
+}
+```
+
+### 3. 状态转换流程图 (State Transition Flowchart)
+```mermaid
+stateDiagram-v2
+    [*] --> PendingAudit: 提交订单(Status=0)
+    
+    state "联程订单状态联动" as Link {
+        PendingAudit --> PendingPayment: 审核通过 (两段同时)
+        PendingAudit --> Rejected: 审核拒绝 (任一段被拒 -> 全单拒绝)
+        PendingPayment --> Paid: 支付成功 (ParentID关联所有子单)
+        Paid --> Refunded: 全额退款 (触发级联退票)
+    }
+    
+    PendingPayment --> Cancelled: 超时未支付/用户取消
+    Paid --> [*]
+    Refunded --> [*]
+    Rejected --> [*]
+```
+
+### 4. 事务处理时序图 (Transaction Processing Sequence)
+```mermaid
+sequenceDiagram
+    participant User
+    participant BookingService
+    participant InventoryService
+    participant OrderDB
+    
+    User->>BookingService: submitInterlineBooking()
+    BookingService->>BookingService: Generate ParentID
+    BookingService->>InventoryService: acquireSortedLocks(List<FlightId>)
+    Note right of InventoryService: 按ID升序加锁防止死锁
+    
+    alt 库存充足
+        InventoryService-->>BookingService: Lock Acquired
+        BookingService->>OrderDB: Insert Order Leg 1
+        BookingService->>OrderDB: Insert Order Leg 2
+        BookingService->>InventoryService: batchDeduct(Seats)
+        BookingService-->>User: Order Created (Status=0)
+    else 库存不足/锁超时
+        InventoryService-->>BookingService: Exception
+        BookingService->>BookingService: Rollback Transaction
+        BookingService-->>User: InventoryShortageException
+    end
+```
+
+### 5. 异常处理对照表 (Exception Handling)
+
+| 异常类型 | 错误码 | 触发场景 | 处理策略 |
+|---------|-------|---------|---------|
+| `InventoryShortageException` | 4001 | 任一段航班库存不足 | 立即回滚，提示用户重新搜索 |
+| `InterlineTimeConflictException` | 4002 | 中转时间 < 2h 或 > 24h | 拒绝下单，前端应预先过滤 |
+| `PartialBookingException` | 5001 | 数据库插入一段成功一段失败 | 事务自动回滚，记录Dead-Letter日志 |
+| `SeatOccupiedException` | 4003 | 选座时座位已被占用 | 提示用户重选座位 |
+| `PriceChangedException` | 4004 | 验价发现价格变动 | 返回最新价格，需用户确认 |
+
 ## 项目概述
 基于 Spring Boot 4 + MyBatis-Plus 3.5 的分布式航班系统后端，提供用户端航班搜索、订单下单、支付退改等功能，以及管理员端航班/用户/订单/日志等全面管理接口。
 

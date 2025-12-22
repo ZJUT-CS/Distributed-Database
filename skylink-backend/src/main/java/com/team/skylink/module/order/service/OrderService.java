@@ -21,5 +21,7 @@ public interface OrderService {
     Result<OrderSearchResponse> create(CreateOrderRequest req);
 
     Result<Boolean> cancel(Long orderId);
+
+    Result<Boolean> audit(Long orderId, boolean approved);
 }
 
