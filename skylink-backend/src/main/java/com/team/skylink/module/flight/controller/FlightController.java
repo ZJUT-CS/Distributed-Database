@@ -20,7 +20,7 @@ import java.util.List;
 import org.springframework.cache.annotation.Cacheable;
 
 @RestController
-@RequestMapping({"/flights", "/api/v1/flights"})
+@RequestMapping("/api/v1/flights")
 public class FlightController {
     private final FlightService flightService;
 
@@ -28,11 +28,11 @@ public class FlightController {
         this.flightService = flightService;
     }
 
-    @GetMapping("/search")
-        @Cacheable(
-            cacheNames = "flightSearch",
-            key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo)"
-        )
+    @GetMapping("")
+    @Cacheable(
+        cacheNames = "flightSearch",
+        key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo)"
+    )
     public Result<List<FlightSearchResponse>> search(
             @RequestParam(required = false) String departurePlace,
             @RequestParam(required = false) String destination,
@@ -57,7 +57,7 @@ public class FlightController {
         );
     }
 
-    @PostMapping("/create")
+    @PostMapping("")
     public Result<Boolean> createFlight(@Valid @RequestBody FlightCreateRequest req) {
         return flightService.createFlight(req);
     }

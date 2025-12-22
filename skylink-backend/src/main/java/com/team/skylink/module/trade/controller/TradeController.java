@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/trade", "/api/v1/trade"})
+@RequestMapping("/api/v1/metrics")
 public class TradeController {
     private final TradeService tradeService;
 

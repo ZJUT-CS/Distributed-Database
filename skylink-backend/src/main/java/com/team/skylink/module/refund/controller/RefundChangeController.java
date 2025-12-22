@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping({"/refund-change", "/api/v1/refund-change"})
+@RequestMapping("/api/v1/refund-change-requests")
 public class RefundChangeController {
     private final RefundChangeService refundChangeService;
 
@@ -26,7 +26,7 @@ public class RefundChangeController {
         this.refundChangeService = refundChangeService;
     }
 
-    @GetMapping("/search")
+    @GetMapping("")
     public Result<List<RefundChangeSearchResponse>> search(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long orderNo
@@ -34,17 +34,17 @@ public class RefundChangeController {
         return refundChangeService.search(userId, orderNo);
     }
 
-    @PostMapping("/apply")
+    @PostMapping("")
     public Result<Long> apply(@Valid @RequestBody RefundChangeApplyRequest req) {
         return refundChangeService.apply(req);
     }
 
-    @PostMapping("/{recordId}/approve")
+    @PostMapping("/{recordId}/approvals")
     public Result<Boolean> approve(@PathVariable("recordId") Long recordId) {
         return refundChangeService.approve(recordId);
     }
 
-    @PostMapping("/{recordId}/reject")
+    @PostMapping("/{recordId}/rejections")
     public Result<Boolean> reject(@PathVariable("recordId") Long recordId) {
         return refundChangeService.reject(recordId);
     }

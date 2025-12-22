@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/global", "/api/v1/global"})
+@RequestMapping("/api/v1/metrics")
 public class GlobalController {
     private final GlobalService globalService;
 

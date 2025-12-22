@@ -36,7 +36,8 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException.class
     })
     public Result<Void> handleBadRequest(Exception ex) {
-        return Result.fail(HttpStatus.BAD_REQUEST.value(), "invalid request");
+        log.error("Bad Request details: ", ex);
+        return Result.fail(HttpStatus.BAD_REQUEST.value(), "invalid request: " + ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)

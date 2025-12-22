@@ -7,7 +7,7 @@ import com.team.skylink.module.admin.mapper.AdminMapper;
 import com.team.skylink.module.user.mapper.UserMapper;
 import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.mapper.FlightMapper;
-import com.team.skylink.module.order.entity.Order;
+import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
 import com.team.skylink.module.payment.entity.Payment;
 import com.team.skylink.module.payment.mapper.PaymentMapper;
@@ -79,7 +79,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         r.setUserCount(userMapper.selectCount(null));
 
         r.setTodayOrderCount(orderMapper.selectCount(
-                new QueryWrapper<Order>().ge("order_time", todayStart).lt("order_time", tomorrowStart)
+                new QueryWrapper<Orders>().ge("order_time", todayStart).lt("order_time", tomorrowStart)
         ));
         r.setTodayGmv(sumPaymentAmount(
                 new QueryWrapper<Payment>()

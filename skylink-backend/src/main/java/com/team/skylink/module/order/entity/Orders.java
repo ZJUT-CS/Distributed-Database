@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Data
 @TableName("orders")
 
-public class Order {
+public class Orders {
    
     @TableId(value = "order_id", type = IdType.ASSIGN_ID)
     private Long orderId;
@@ -33,5 +33,17 @@ public class Order {
     private LocalDateTime payTime;
     private LocalDateTime refundTime;
     private LocalDateTime changeTime;
+
+    // --- 新增下面这两个字段 ---
+
+    /**
+     * 父订单ID (联程票时才有值)
+     */
+    private Long parentOrderId;
+
+    /**
+     * 行程类型 (0-独立, 1-首段, 2-后段)
+     */
+    private Integer tripType;
 }
 

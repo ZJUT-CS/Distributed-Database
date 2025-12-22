@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping({"/payments", "/api/v1/payments"})
+@RequestMapping("/api/v1/payments")
 public class PaymentController {
     private final PaymentService paymentService;
 
@@ -28,7 +28,7 @@ public class PaymentController {
         this.paymentService = paymentService;
     }
 
-    @GetMapping("/search")
+    @GetMapping("")
     public Result<List<PaymentSearchResponse>> search(
             @RequestParam(required = false) Long orderNo,
             @RequestParam(required = false) Long userId,
@@ -40,17 +40,17 @@ public class PaymentController {
         return paymentService.search(orderNo, userId, paymentStatus, paymentMethod, paymentTimeStart, paymentTimeEnd);
     }
 
-    @PostMapping("/confirm-token")
+    @PostMapping("/confirmation-tokens")
     public Result<CreatePaymentTokenResponse> createConfirmToken(@Valid @RequestBody CreatePaymentTokenRequest req) {
         return paymentService.createConfirmToken(req);
     }
 
-    @PostMapping("/confirm")
+    @PostMapping("/confirmations")
     public Result<PaymentSearchResponse> confirmPay(@Valid @RequestBody ConfirmPaymentRequest req) {
         return paymentService.confirmPay(req);
     }
 
-    @PostMapping("/pay")
+    @PostMapping("")
     public Result<PaymentSearchResponse> pay(@Valid @RequestBody CreatePaymentRequest req) {
         return paymentService.pay(req);
     }

@@ -11,9 +11,10 @@ import com.team.skylink.module.flight.dto.FlightSearchResponse;
 import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.entity.Route;
 import com.team.skylink.module.flight.entity.Seat;
-import com.team.skylink.module.flight.mapper.CabinMapper;
 import com.team.skylink.module.flight.mapper.FlightMapper;
 import com.team.skylink.module.flight.mapper.RouteMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,20 +27,20 @@ import java.util.List;
 @Service
 public class FlightServiceImpl implements FlightService {
     private final FlightMapper flightMapper;
-    private final CabinMapper cabinMapper;
+    // 【删除】private final CabinMapper cabinMapper;
     private final AircraftModelMapper aircraftModelMapper;
     private final RouteMapper routeMapper;
     private final AircraftCabinConfigMapper cabinConfigMapper;
     private final SeatService seatService;
 
     public FlightServiceImpl(FlightMapper flightMapper,
-                             CabinMapper cabinMapper,
+                             // CabinMapper cabinMapper,
                              AircraftModelMapper aircraftModelMapper,
                              RouteMapper routeMapper,
                              AircraftCabinConfigMapper cabinConfigMapper,
                              SeatService seatService) {
         this.flightMapper = flightMapper;
-        this.cabinMapper = cabinMapper;
+        // this.cabinMapper = cabinMapper;
         this.aircraftModelMapper = aircraftModelMapper;
         this.routeMapper = routeMapper;
         this.cabinConfigMapper = cabinConfigMapper;
@@ -48,7 +49,50 @@ public class FlightServiceImpl implements FlightService {
 
     @Override
     public Result<List<FlightSearchResponse>> search(String departurePlace, String destination, String flightNo, String airlineCompany, String cabinType, Integer status, LocalDate departureDate, LocalDateTime departureTimeFrom, LocalDateTime departureTimeTo) {
-        return Result.ok(new ArrayList<>()); 
+        LambdaQueryWrapper<Flight> qw = Wrappers.lambdaQuery();
+
+        if (StringUtils.hasText(departurePlace)) qw.eq(Flight::getDepartureCity, departurePlace);
+        if (StringUtils.hasText(destination)) qw.eq(Flight::getArrivalCity, destination);
+        if (StringUtils.hasText(flightNo)) qw.eq(Flight::getFlightNo, flightNo);
+        if (StringUtils.hasText(airlineCompany)) qw.like(Flight::getAirlineCompany, airlineCompany);
+        if (status != null) qw.eq(Flight::getStatus, status);
+        else qw.eq(Flight::getStatus, 1); // Default to search only planned flights
+
+        if (departureDate != null) {
+            qw.ge(Flight::getDepartureTime, departureDate.atStartOfDay());
+            qw.lt(Flight::getDepartureTime, departureDate.plusDays(1).atStartOfDay());
+        }
+        if (departureTimeFrom != null) qw.ge(Flight::getDepartureTime, departureTimeFrom);
+        if (departureTimeTo != null) qw.le(Flight::getDepartureTime, departureTimeTo);
+
+        List<Flight> flights = flightMapper.selectList(qw);
+        List<FlightSearchResponse> responses = new ArrayList<>();
+
+        for (Flight f : flights) {
+            FlightSearchResponse res = new FlightSearchResponse();
+            res.setFlightNo(f.getFlightNo());
+            res.setDeparturePlace(f.getDepartureCity());
+            res.setDestination(f.getArrivalCity());
+            res.setDepartureTime(f.getDepartureTime());
+            res.setArrivalTime(f.getArrivalTime());
+            
+            // Duration
+            if (f.getDepartureTime() != null && f.getArrivalTime() != null) {
+                java.time.Duration d = java.time.Duration.between(f.getDepartureTime(), f.getArrivalTime());
+                long hours = d.toHours();
+                long minutes = d.toMinutesPart();
+                res.setDuration(hours + "h" + minutes + "m");
+            }
+
+            res.setPrice(f.getLowestPrice());
+            res.setRemainingSeats(f.getTotalSeats()); // Simplified: using total seats
+            res.setAirlineCompany(f.getAirlineCompany());
+            // res.setCabinType(cabinType); // Cannot determine specific cabin type from flight level
+            
+            responses.add(res);
+        }
+
+        return Result.ok(responses);
     }
 
     @Override
@@ -100,13 +144,13 @@ public class FlightServiceImpl implements FlightService {
         f.setUpdateTime(LocalDateTime.now());
         f.setStopoverInfo(req.getStopoverInfo());
 
-        // 3. 计算最低票价
+        // 3. 计算最低票价 (改用 AircraftCabinConfig)
         Integer layoutNo = req.getLayoutNo() != null ? req.getLayoutNo() : 1;
         List<AircraftCabinConfig> configs = cabinConfigMapper.selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
                 .eq(AircraftCabinConfig::getModelId, model.getModelId())
                 .eq(AircraftCabinConfig::getCabinLayoutNo, layoutNo));
 
-        BigDecimal minCoeff = null;
+        BigDecimal minCoeff = null; // 注意 config 里的系数通常是 Double
         for (AircraftCabinConfig cfg : configs) {
             if (cfg.getCabinCoefficient() != null) {
                 if (minCoeff == null || cfg.getCabinCoefficient().compareTo(minCoeff) < 0) {
@@ -153,7 +197,7 @@ public class FlightServiceImpl implements FlightService {
         f.setModelId(req.getModelId());
         f.setRouteId(req.getRouteId());
         f.setAirlineCompany(req.getAirlineCompany());
-        f.setDepartureTime(req.getDepartureTime()); // 修复：之前未更新起飞时间
+        f.setDepartureTime(req.getDepartureTime()); 
         f.setStatus(req.getStatus() != null ? req.getStatus() : 1);
         f.setUpdateTime(LocalDateTime.now());
         f.setStopoverInfo(req.getStopoverInfo());
