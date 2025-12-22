@@ -2,8 +2,10 @@ package com.team.skylink.module.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.common.PageResult;
 import com.team.skylink.common.Result;
+import com.team.skylink.common.enums.OrderStatusEnum;
 import com.team.skylink.module.admin.controller.AdminOrderController;
 import com.team.skylink.module.admin.service.AdminOrderService;
 import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper; // 替换
@@ -96,21 +98,22 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     public Result<Boolean> auditOrder(Long orderId, Boolean pass) {
         Orders currentOrder = orderMapper.selectById(orderId);
         if (currentOrder == null) return Result.fail(404, "订单不存在");
-        if (currentOrder.getOrderStatus() == null || currentOrder.getOrderStatus() != 0) {
+        
+        if (currentOrder.getOrderStatus() == null || currentOrder.getOrderStatus() != OrderStatusEnum.PENDING_AUDIT.getCode()) {
             return Result.fail(400, "该订单状态无需审核");
         }
 
-        int targetStatus = Boolean.TRUE.equals(pass) ? 1 : 3;
-
+        int newStatus = Boolean.TRUE.equals(pass) ? OrderStatusEnum.PENDING_PAYMENT.getCode() : OrderStatusEnum.REJECTED.getCode();
+        
         if (currentOrder.getParentOrderId() != null) {
-            UpdateWrapper<Orders> updateWrapper = new UpdateWrapper<>();
-            updateWrapper.eq("parent_order_id", currentOrder.getParentOrderId())
-                         .set("order_status", targetStatus);
-            orderMapper.update(null, updateWrapper);
+            orderMapper.update(null, Wrappers.<Orders>lambdaUpdate()
+                    .eq(Orders::getParentOrderId, currentOrder.getParentOrderId())
+                    .set(Orders::getOrderStatus, newStatus));
         } else {
-            currentOrder.setOrderStatus(targetStatus);
+            currentOrder.setOrderStatus(newStatus);
             orderMapper.updateById(currentOrder);
         }
+        
         return Result.ok(true);
     }
 

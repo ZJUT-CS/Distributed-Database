@@ -9,6 +9,7 @@ import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.entity.Route;
 import com.team.skylink.module.flight.mapper.FlightMapper;
 import com.team.skylink.module.flight.mapper.RouteMapper;
+import com.team.skylink.module.flight.service.SeatService;
 import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
 import com.team.skylink.module.payment.entity.Payment;
@@ -31,11 +32,11 @@ public class RefundChangeServiceImpl implements RefundChangeService {
     private final OrderMapper orderMapper;
     private final PaymentMapper paymentMapper;
     private final FlightMapper flightMapper;
-    // 【替换】
     private final AircraftCabinConfigMapper configMapper;
     private final RouteMapper routeMapper;
     private final RefundChangeRecordMapper refundChangeRecordMapper;
     private final UserMapper userMapper;
+    private final SeatService seatService;
 
     public RefundChangeServiceImpl(
             OrderMapper orderMapper,
@@ -44,7 +45,8 @@ public class RefundChangeServiceImpl implements RefundChangeService {
             AircraftCabinConfigMapper configMapper,
             RouteMapper routeMapper,
             RefundChangeRecordMapper refundChangeRecordMapper,
-            UserMapper userMapper
+            UserMapper userMapper,
+            SeatService seatService
     ) {
         this.orderMapper = orderMapper;
         this.paymentMapper = paymentMapper;
@@ -53,6 +55,7 @@ public class RefundChangeServiceImpl implements RefundChangeService {
         this.routeMapper = routeMapper;
         this.refundChangeRecordMapper = refundChangeRecordMapper;
         this.userMapper = userMapper;
+        this.seatService = seatService;
     }
 
     @Override
@@ -95,13 +98,10 @@ public class RefundChangeServiceImpl implements RefundChangeService {
                 
             if (newConfig == null) return Result.fail(404, "new cabin config not found");
             
-            // 动态查库存
-            Long soldCount = orderMapper.selectCount(Wrappers.<Orders>lambdaQuery()
-                .eq(Orders::getFlightId, newFlight.getFlightId())
-                .eq(Orders::getCabinId, newConfig.getConfigId())
-                .in(Orders::getOrderStatus, 1, 2));
+            // 动态查库存 (使用 SeatService)
+            Integer available = seatService.getAvailableCount(newFlight.getFlightId(), newConfig.getCabinType());
             
-            if (newConfig.getCapacity() - soldCount < o.getTicketNum()) {
+            if (available < o.getTicketNum()) {
                 return Result.fail(409, "insufficient seats in new flight");
             }
 
@@ -130,24 +130,26 @@ public class RefundChangeServiceImpl implements RefundChangeService {
         
         if (r.getOperType() == 1) { 
             // === 退票 ===
-            // 不需要手动还库存，状态改了就自动释放
+            // 释放座位
+            seatService.releaseSeats(o.getOrderId());
+            
             o.setOrderStatus(5); // 5=已退票
             o.setRefundTime(now);
             orderMapper.updateById(o);
 
-            // 如果有支付记录，也更新
-            // ...
         } else {
             // === 改签 ===
-            // 再次检查新航班库存 (防止审批期间被买空)
             AircraftCabinConfig newConfig = configMapper.selectById(r.getNewCabinId());
-            Long soldCount = orderMapper.selectCount(Wrappers.<Orders>lambdaQuery()
-                .eq(Orders::getFlightId, r.getNewFlightId())
-                .eq(Orders::getCabinId, r.getNewCabinId())
-                .in(Orders::getOrderStatus, 1, 2));
             
-            if (newConfig.getCapacity() - soldCount < o.getTicketNum()) {
-                return Result.fail(409, "insufficient seats now");
+            // 1. 释放原座位
+            seatService.releaseSeats(o.getOrderId());
+            
+            // 2. 锁定并确认新座位 (若失败会回滚)
+            try {
+                seatService.lockSeats(r.getNewFlightId(), newConfig.getCabinType(), o.getTicketNum(), o.getOrderId());
+                seatService.confirmSeats(o.getOrderId());
+            } catch (Exception e) {
+                return Result.fail(409, "insufficient seats now or locking failed");
             }
 
             Flight newFlight = flightMapper.selectById(r.getNewFlightId());
@@ -187,8 +189,17 @@ public class RefundChangeServiceImpl implements RefundChangeService {
     }
     
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result<Boolean> updatePending(Long recordId, RefundChangeApplyRequest req) {
-         // ...
-         return Result.ok(true);
+        RefundChangeRecord r = refundChangeRecordMapper.selectById(recordId);
+        if (r == null) return Result.fail(404, "record not found");
+        if (r.getAuditStatus() != 0) return Result.fail(409, "record not pending");
+
+        r.setRemark(req.getRemark());
+        r.setOperTime(LocalDateTime.now());
+        // 如果有其他字段需要更新，可以在这里添加
+
+        refundChangeRecordMapper.updateById(r);
+        return Result.ok(true);
     }
 }

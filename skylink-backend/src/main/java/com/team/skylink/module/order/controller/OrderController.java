@@ -48,4 +48,9 @@ public class OrderController {
     public Result<Boolean> cancel(@PathVariable("orderId") Long orderId) {
         return orderService.cancel(orderId);
     }
+
+    @PostMapping("/{orderId}/audit")
+    public Result<Boolean> audit(@PathVariable("orderId") Long orderId, @RequestParam boolean approved) {
+        return orderService.audit(orderId, approved);
+    }
 }

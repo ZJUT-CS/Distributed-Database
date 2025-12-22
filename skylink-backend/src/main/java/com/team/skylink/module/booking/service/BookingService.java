@@ -6,9 +6,11 @@ import com.team.skylink.module.booking.dto.BookingResponse;
 
 import java.util.List;
 
+import java.util.Map;
+
 public interface BookingService {
-    // 提交订单 (新增)
-    Result<Boolean> submitBooking(BookingRequest req);
+    // 提交订单 (返回订单ID信息)
+    Result<Map<String, Object>> submitBooking(BookingRequest req);
 
     // 查询订单列表 (保留你原有的)
     List<BookingResponse> listBookings(Long userId);

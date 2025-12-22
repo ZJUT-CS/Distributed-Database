@@ -1,7 +1,9 @@
 package com.team.skylink.module.flight.controller;
 
+import com.team.skylink.common.PageResult;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.flight.dto.FlightSearchResponse;
+import com.team.skylink.module.flight.dto.FlightSearchResult;
 import com.team.skylink.module.flight.service.FlightService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -31,9 +33,9 @@ public class FlightController {
     @GetMapping("")
     @Cacheable(
         cacheNames = "flightSearch",
-        key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo)"
+        key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo, #page, #size)"
     )
-    public Result<List<FlightSearchResponse>> search(
+    public Result<FlightSearchResult> search(
             @RequestParam(required = false) String departurePlace,
             @RequestParam(required = false) String destination,
             @RequestParam(required = false) String flightNo,
@@ -42,7 +44,9 @@ public class FlightController {
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate departureDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime departureTimeFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime departureTimeTo
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime departureTimeTo,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
         return flightService.search(
                 departurePlace,
@@ -53,7 +57,9 @@ public class FlightController {
                 status,
                 departureDate,
                 departureTimeFrom,
-                departureTimeTo
+                departureTimeTo,
+                page,
+                size
         );
     }
 

@@ -45,6 +45,21 @@ public class Seat {
     private LocalDateTime updateTime;
 
     /**
+     * 占用该座位的订单ID
+     */
+    private Long orderId;
+
+    /**
+     * 占用该座位的用户ID (可选)
+     */
+    private Long userId;
+
+    /**
+     * 对应订单乘客列表下标 (可选，用于区分同一订单下不同乘客)
+     */
+    private Integer passengerIndex;
+
+    /**
      * 乐观锁版本号
      */
     @Version

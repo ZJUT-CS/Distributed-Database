@@ -12,8 +12,15 @@ public class BookingRequest {
      */
     private List<Long> flightIds; 
     
-    // 乘客ID列表
-    private List<Long> passengerIds; 
+    /**
+     * 所选舱位配置ID (对应 aircraft_cabin_configs.config_id)
+     */
+    private Long cabinId;
+
+    /**
+     * 乘客信息列表
+     */
+    private List<PassengerInfo> passengers;
     
     // 当前用户ID (如果集成了登录，这个可能从Token获取，这里先模拟)
     private Long userId;
@@ -24,4 +31,11 @@ public class BookingRequest {
      * false = 拼凑 (生成独立单)
      */
     private Boolean isInterline; 
+
+    @Data
+    public static class PassengerInfo {
+        private String name;
+        private String idCard;
+        private String phone;
+    }
 }

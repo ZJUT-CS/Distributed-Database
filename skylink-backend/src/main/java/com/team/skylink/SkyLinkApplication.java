@@ -9,6 +9,7 @@ import org.mybatis.spring.annotation.MapperScan;
 @SpringBootApplication
 @MapperScan(basePackages = "com.team.skylink", annotationClass = Mapper.class)
 @EnableCaching
+@org.springframework.scheduling.annotation.EnableScheduling
 public class SkyLinkApplication {
     public static void main(String[] args) {
         SpringApplication.run(SkyLinkApplication.class, args);

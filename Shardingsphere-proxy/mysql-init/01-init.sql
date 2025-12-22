@@ -81,18 +81,21 @@ CREATE TABLE `orders` (
   `order_status` tinyint NOT NULL DEFAULT '0' COMMENT '订单状态：0-待支付，1-已支付，2-已取消，3-已退票，4-改签中，5-改签完成',
   `ticket_num` int NOT NULL DEFAULT '1' COMMENT '购票数量',
   `total_amount` decimal(10,2) NOT NULL COMMENT '订单总金额（元）',
-  `passenger_name` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '乘客姓名(下单时记录)',
-  `contact_email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '联系邮箱(下单时记录)',
-  `contact_phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '联系手机(下单时记录)',
-  `passengers_json` text COLLATE utf8mb4_unicode_ci COMMENT '乘客信息JSON(下单时记录)',
+  `passenger_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '乘客姓名(下单时记录)',
+  `contact_email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '联系邮箱(下单时记录)',
+  `contact_phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '联系手机(下单时记录)',
+  `passengers_json` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '乘客信息JSON(下单时记录)',
   `order_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
   `pay_time` datetime DEFAULT NULL COMMENT '支付完成时间',
   `refund_time` datetime DEFAULT NULL COMMENT '退票完成时间',
   `change_time` datetime DEFAULT NULL COMMENT '改签完成时间',
+  `parent_order_id` bigint DEFAULT NULL COMMENT '父订单ID(联程票关联键)',
+  `trip_type` tinyint DEFAULT '0' COMMENT '类型:0-独立,1-联程首段,2-联程后段',
   PRIMARY KEY (`order_id`),
   KEY `idx_user_order` (`user_id`,`order_time`) COMMENT '用户订单查询索引',
   KEY `idx_flight_order` (`flight_id`,`order_status`) COMMENT '航班订单统计索引',
-  KEY `idx_order_status` (`order_status`) COMMENT '订单状态筛选索引'
+  KEY `idx_order_status` (`order_status`) COMMENT '订单状态筛选索引',
+  KEY `idx_parent_order` (`parent_order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='机票订单核心表';
 
 -- sharding_db.payments definition
@@ -158,17 +161,20 @@ CREATE TABLE `routes` (
 CREATE TABLE `seat` (
   `seat_id` bigint NOT NULL AUTO_INCREMENT COMMENT '座位ID（自增主键）',
   `flight_id` bigint NOT NULL COMMENT '所属航班ID（关联航班表flight的主键）',
-  `seat_number` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '座位号（如：12A、3B）',
-  `cabin_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '舱位等级（如：ECONOMY/BUSINESS/FIRST）',
+  `seat_number` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '座位号（如：12A、3B）',
+  `cabin_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '舱位等级（如：ECONOMY/BUSINESS/FIRST）',
   `status` tinyint NOT NULL COMMENT '座位状态：1-可用，2-已售，3-锁定',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间（自动更新）',
   `version` int NOT NULL DEFAULT '0' COMMENT '乐观锁版本号',
+  `order_id` bigint DEFAULT NULL COMMENT '占用该座位的订单ID',
+  `passenger_index` int DEFAULT '0' COMMENT '对应订单中第几位乘客(处理多座订单)',
   PRIMARY KEY (`seat_id`),
   UNIQUE KEY `uk_flight` (`flight_id`,`seat_number`),
   KEY `idx_flight_id` (`flight_id`),
   KEY `idx_cabin_type` (`cabin_type`),
-  KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='航班座位信息表';
+  KEY `idx_status` (`status`),
+  KEY `idx_flight_status` (`flight_id`,`status`)
+) ENGINE=InnoDB AUTO_INCREMENT=1209529667754110978 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='航班座位信息表';
 
 -- sharding_db.system_config definition
 

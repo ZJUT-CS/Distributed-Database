@@ -27,5 +27,8 @@ public class CreateOrderRequest {
     private String contactEmail;
     private String contactPhone;
     private String passengersJson;
+    
+    // For interline flights
+    private java.util.List<String> flightNos;
 }
 

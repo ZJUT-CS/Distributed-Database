@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import java.util.Map;
+
 @Validated
 @RestController
 @RequestMapping("/api/v1/bookings")
@@ -22,7 +24,7 @@ public class BookingController {
 
     // 新增：提交订单 (下单接口)
     @PostMapping
-    public Result<Boolean> submitBooking(@RequestBody BookingRequest req) {
+    public Result<Map<String, Object>> submitBooking(@RequestBody BookingRequest req) {
         return bookingService.submitBooking(req);
     }
 

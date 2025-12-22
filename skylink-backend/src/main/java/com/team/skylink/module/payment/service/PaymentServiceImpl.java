@@ -3,6 +3,8 @@ package com.team.skylink.module.payment.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.team.skylink.common.Result;
+import com.team.skylink.common.enums.OrderStatusEnum;
+import com.team.skylink.module.flight.service.SeatService;
 import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
 import com.team.skylink.module.payment.dto.ConfirmPaymentRequest;
@@ -26,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PaymentServiceImpl implements PaymentService {
     private final PaymentMapper paymentMapper;
     private final OrderMapper orderMapper;
+    private final SeatService seatService;
 
     private static final long PAYMENT_TOKEN_TTL_MS = 30L * 60L * 1000L;
 
@@ -47,9 +50,10 @@ public class PaymentServiceImpl implements PaymentService {
 
     private static final ConcurrentHashMap<String, PaymentTokenRecord> PAYMENT_TOKENS = new ConcurrentHashMap<>();
 
-    public PaymentServiceImpl(PaymentMapper paymentMapper, OrderMapper orderMapper) {
+    public PaymentServiceImpl(PaymentMapper paymentMapper, OrderMapper orderMapper, SeatService seatService) {
         this.paymentMapper = paymentMapper;
         this.orderMapper = orderMapper;
+        this.seatService = seatService;
     }
 
     @Override
@@ -110,7 +114,7 @@ public class PaymentServiceImpl implements PaymentService {
         if (o == null) {
             return Result.fail(404, "order not found");
         }
-        if (o.getOrderStatus() != null && o.getOrderStatus() == 1) {
+        if (o.getOrderStatus() != null && o.getOrderStatus() == OrderStatusEnum.CONFIRMED.getCode()) {
             return Result.fail(409, "order already paid");
         }
         if (o.getTotalAmount() != null && req.getAmount() != null && o.getTotalAmount().compareTo(req.getAmount()) != 0) {
@@ -188,6 +192,42 @@ public class PaymentServiceImpl implements PaymentService {
                 .set(Orders::getPayTime, payTime);
         orderMapper.update(null, updateWrapper);
 
+        // 确认座位 (锁定 -> 已售)
+        seatService.confirmSeats(o.getOrderId());
+
+        // 级联确认联程订单 (如果有)
+        if (o.getParentOrderId() != null) {
+            List<Orders> siblings = orderMapper.selectList(new QueryWrapper<Orders>()
+                    .eq("parent_order_id", o.getParentOrderId())
+                    .ne("order_id", o.getOrderId()));
+            
+            for (Orders sib : siblings) {
+                if (sib.getOrderStatus() != null && sib.getOrderStatus() != 1 && sib.getOrderStatus() != OrderStatusEnum.CONFIRMED.getCode()) {
+                    // 为关联订单创建支付记录 (使用相同的交易号)
+                    Payment sibPayment = new Payment();
+                    sibPayment.setOrderId(sib.getOrderId());
+                    sibPayment.setPaymentAmount(sib.getTotalAmount());
+                    sibPayment.setPaymentMethod(p.getPaymentMethod());
+                    sibPayment.setPaymentStatus(1);
+                    sibPayment.setTradeNo(p.getTradeNo());
+                    sibPayment.setPaymentTime(p.getPaymentTime());
+                    sibPayment.setCreateTime(p.getCreateTime());
+                    sibPayment.setUpdateTime(p.getUpdateTime());
+                    paymentMapper.insert(sibPayment);
+
+                    // 更新订单状态
+                    LambdaUpdateWrapper<Orders> sibUpdate = new LambdaUpdateWrapper<>();
+                    sibUpdate.eq(Orders::getOrderId, sib.getOrderId())
+                            .set(Orders::getOrderStatus, 2) // 2=CONFIRMED
+                            .set(Orders::getPayTime, payTime);
+                    orderMapper.update(null, sibUpdate);
+
+                    // 确认座位
+                    seatService.confirmSeats(sib.getOrderId());
+                }
+            }
+        }
+
         PaymentSearchResponse r = new PaymentSearchResponse();
         r.setPaymentId(String.valueOf(p.getPaymentId()));
         r.setOrderNo(String.valueOf(p.getOrderId()));
@@ -222,9 +262,13 @@ public class PaymentServiceImpl implements PaymentService {
         p.setCreateTime(now);
         p.setUpdateTime(now);
         paymentMapper.insert(p);
-        o.setOrderStatus(1);
+        o.setOrderStatus(OrderStatusEnum.CONFIRMED.getCode());
         o.setPayTime(now);
         orderMapper.updateById(o);
+        
+        // 确认座位 (锁定 -> 已售)
+        seatService.confirmSeats(o.getOrderId());
+        
         PaymentSearchResponse r = new PaymentSearchResponse();
         r.setPaymentId(String.valueOf(p.getPaymentId()));
         r.setOrderNo(String.valueOf(p.getOrderId()));

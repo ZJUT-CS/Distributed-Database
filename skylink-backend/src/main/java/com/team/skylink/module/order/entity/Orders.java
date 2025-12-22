@@ -1,21 +1,14 @@
 package com.team.skylink.module.order.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
-
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @TableName("orders")
-
 public class Orders {
-   
+    
     @TableId(value = "order_id", type = IdType.ASSIGN_ID)
     private Long orderId;
 
@@ -29,21 +22,35 @@ public class Orders {
     private String contactEmail;
     private String contactPhone;
     private String passengersJson;
+    
     private LocalDateTime orderTime;
     private LocalDateTime payTime;
     private LocalDateTime refundTime;
     private LocalDateTime changeTime;
 
-    // --- 新增下面这两个字段 ---
+    // --- 系统审计字段 ---
+    @TableField(fill = FieldFill.INSERT)
+    private LocalDateTime createTime;
 
-    /**
-     * 父订单ID (联程票时才有值)
-     */
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;
+
+    // --- 联程新增字段 ---
     private Long parentOrderId;
-
-    /**
-     * 行程类型 (0-独立, 1-首段, 2-后段)
-     */
     private Integer tripType;
-}
+    private String flightSnapshot;
 
+    // --- 手动添加 Getter/Setter 以防 Lombok 失效 ---
+    
+    public LocalDateTime getCreateTime() { return createTime; }
+    public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }
+
+    public LocalDateTime getUpdateTime() { return updateTime; }
+    public void setUpdateTime(LocalDateTime updateTime) { this.updateTime = updateTime; }
+    
+    public Integer getOrderStatus() { return orderStatus; }
+    public void setOrderStatus(Integer orderStatus) { this.orderStatus = orderStatus; }
+    
+    public Long getParentOrderId() { return parentOrderId; }
+    public void setParentOrderId(Long parentOrderId) { this.parentOrderId = parentOrderId; }
+}
