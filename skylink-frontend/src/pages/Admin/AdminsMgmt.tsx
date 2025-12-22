@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Plus, Shield, UserCog, Mail, Phone, Filter, Lock, Trash2, RefreshCw } from 'lucide-react';
-import Pagination from '../../features/admin/components/Pagination';
-import TableActionMenu from '../../features/admin/components/TableActionMenu';
+import { Search, Plus, Shield, UserCog, Mail, Phone, Lock, Trash2, RefreshCw, Download } from 'lucide-react';
+import { Pagination, TableActionMenu, AdminPageHeader } from '@/features/admin';
 
 type AdminRole = 'super_admin' | 'ops' | 'auditor';
 type AdminStatus = 'active' | 'disabled';
@@ -90,15 +89,22 @@ const AdminsMgmt: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">管理员管理</h2>
-          <p className="text-gray-500 mt-1 text-sm">维护后台管理员账号与角色权限</p>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
-          <Plus className="w-4 h-4" /> 新增管理员
-        </button>
-      </div>
+      <AdminPageHeader
+        icon={Shield}
+        iconClassName="text-indigo-500"
+        title="管理员管理"
+        description="维护后台管理员账号与角色权限"
+        actions={
+          <div className="flex items-center gap-3">
+            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+              <Download className="w-4 h-4" /> 导出数据
+            </button>
+            <button className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 flex items-center gap-2">
+              <Plus className="w-4 h-4" /> 新增管理员
+            </button>
+          </div>
+        }
+      />
 
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative flex-1 md:max-w-md w-full">
@@ -106,7 +112,7 @@ const AdminsMgmt: React.FC = () => {
           <input
             type="text"
             placeholder="搜索管理员用户名、姓名或邮箱..."
-            className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -116,11 +122,6 @@ const AdminsMgmt: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-          <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 text-sm whitespace-nowrap">
-            <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">筛选</span>
-          </button>
-          <div className="h-6 w-px bg-gray-200 hidden md:block" />
           <div className="flex bg-gray-100 p-1 rounded-lg">
             {[
               { id: 'all', label: '全部角色' },
@@ -135,7 +136,7 @@ const AdminsMgmt: React.FC = () => {
                   setPage(1);
                 }}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                  roleFilter === opt.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  roleFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {opt.label}
@@ -155,7 +156,7 @@ const AdminsMgmt: React.FC = () => {
                   setPage(1);
                 }}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                  statusFilter === opt.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  statusFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {opt.label}
@@ -167,22 +168,22 @@ const AdminsMgmt: React.FC = () => {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+          <thead className="bg-gray-50/80">
             <tr>
-              <th className="px-6 py-4">管理员</th>
-              <th className="px-6 py-4">角色</th>
-              <th className="px-6 py-4">状态</th>
-              <th className="px-6 py-4">创建时间</th>
-              <th className="px-6 py-4">最后登录</th>
-              <th className="px-6 py-4 text-right">操作</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">管理员</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">角色</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">创建时间</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">最后登录</th>
+              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-100">
             {paginatedAdmins.map((a) => (
-              <tr key={a.id} className="hover:bg-gray-50/80 transition-colors group">
+              <tr key={a.id} className="hover:bg-indigo-50/30 transition-colors group">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-600/10 text-blue-600 flex items-center justify-center border border-blue-100">
+                    <div className="w-10 h-10 rounded-full bg-indigo-600/10 text-indigo-600 flex items-center justify-center border border-indigo-100">
                       <Shield className="w-5 h-5" />
                     </div>
                     <div>
@@ -209,7 +210,7 @@ const AdminsMgmt: React.FC = () => {
                       a.role === 'super_admin'
                         ? 'bg-purple-50 text-purple-700'
                         : a.role === 'ops'
-                        ? 'bg-blue-50 text-blue-700'
+                        ? 'bg-indigo-50 text-indigo-700'
                         : 'bg-amber-50 text-amber-700'
                     }`}
                   >
@@ -243,7 +244,7 @@ const AdminsMgmt: React.FC = () => {
                     onClose={() => setActiveActionId(null)}
                   >
                     <button className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                      <UserCog className="w-3.5 h-3.5 text-blue-500" /> 编辑角色
+                      <UserCog className="w-3.5 h-3.5 text-indigo-500" /> 编辑角色
                     </button>
                     <button className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                       <Lock className="w-3.5 h-3.5 text-orange-500" /> 重置密码
@@ -261,7 +262,7 @@ const AdminsMgmt: React.FC = () => {
             ))}
             {paginatedAdmins.length === 0 && (
               <tr>
-                <td className="px-6 py-10 text-center text-sm text-gray-400" colSpan={6}>
+                <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={6}>
                   暂无符合条件的管理员记录
                 </td>
               </tr>

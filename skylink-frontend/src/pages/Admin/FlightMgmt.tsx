@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X, Save } from 'lucide-react';
+import { Download, Plus, Search, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X, Save, Plane as PlaneIcon } from 'lucide-react';
 import { type FlightStatus } from '@/features/flight';
-import { Pagination, TableActionMenu, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminPageHeader, AdminModal, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem } from '@/features/admin';
 import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
 
@@ -257,72 +257,69 @@ const FlightMgmt: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">航班资源管理</h2>
-          <p className="text-sm text-gray-500 mt-1">管理全平台航班排期、座位及状态监控。</p>
-        </div>
-        <div className="flex gap-3">
-          <button onClick={() => alert('数据已导出至 CSV')} className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-gray-900 transition-colors">
-            <Download className="w-4 h-4" /> 导出数据
-          </button>
-          <button onClick={handleOpenCreateFlight} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
-            <Plus className="w-4 h-4" /> 新建航班
-          </button>
-        </div>
-      </div>
+      <AdminPageHeader
+        icon={PlaneIcon}
+        iconClassName="text-indigo-500"
+        title="航班资源管理"
+        description="管理全平台航班排期、座位及状态监控"
+        actions={
+          <div className="flex gap-3">
+            <button onClick={() => alert('数据已导出至 CSV')} className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+              <Download className="w-4 h-4" /> 导出数据
+            </button>
+            <button onClick={handleOpenCreateFlight} className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 flex items-center gap-2">
+              <Plus className="w-4 h-4" /> 新建航班
+            </button>
+          </div>
+        }
+      />
 
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative flex-1 md:max-w-md w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input type="text" placeholder="搜索航班号、航线..." className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          <input type="text" placeholder="搜索航班号、航线..." className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm" />
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-          <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 text-sm whitespace-nowrap">
-            <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">筛选</span>
-          </button>
-          <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
           <div className="flex bg-gray-100 p-1 rounded-lg">
             {['all', 'active', 'delayed', 'cancelled'].map(status => (
               <button
                 key={status}
                 onClick={() => { setFlightStatusFilter(status); setFlightPage(1); }}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${flightStatusFilter === status ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${flightStatusFilter === status ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
-                {status === 'all' ? '全部状态' : status}
+                {status === 'all' ? '全部状态' : status === 'active' ? '计划中' : status === 'delayed' ? '延误' : '已取消'}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
         <table className="w-full text-sm text-left">
-          <thead className="text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100">
+          <thead className="bg-gray-50/80">
             <tr>
-              <th className="px-6 py-4 font-semibold">航班信息</th>
-              <th className="px-6 py-4 font-semibold">航线 & 时间</th>
-              <th className="px-6 py-4 font-semibold">执飞机型</th>
-              <th className="px-6 py-4 font-semibold">基础票价</th>
-              <th className="px-6 py-4 font-semibold w-48">客座率 (Load Factor)</th>
-              <th className="px-6 py-4 font-semibold">当前状态</th>
-              <th className="px-6 py-4 font-semibold text-right">操作</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班信息</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航线 & 时间</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">执飞机型</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">基础票价</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-48">客座率</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">当前状态</th>
+              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50 relative">
+          <tbody className="divide-y divide-gray-100 relative">
             {paginatedFlights.map((flight) => {
               const loadFactor = flight.seats > 0 ? Math.round((flight.sold / flight.seats) * 100) : 0;
-              let barColor = 'bg-blue-500';
+              let barColor = 'bg-indigo-500';
               if (loadFactor > 90) barColor = 'bg-red-500';
               else if (loadFactor > 70) barColor = 'bg-green-500';
 
               return (
-                <tr key={flight.id} className="hover:bg-gray-50 transition-colors group relative">
+                <tr key={flight.id} className="hover:bg-indigo-50/30 transition-colors group relative">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs">
+                      <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs">
                         {flight.id.substring(0, 2)}
                       </div>
                       <div>
@@ -361,7 +358,7 @@ const FlightMgmt: React.FC = () => {
                         onClick={() => handleOpenEditFlight(flight)}
                         className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                       >
-                        <Edit2 className="w-3.5 h-3.5 text-blue-500" /> 编辑信息
+                        <Edit2 className="w-3.5 h-3.5 text-indigo-500" /> 编辑信息
                       </button>
                       <button
                         onClick={() => handleCancelFlight(flight)}
@@ -381,115 +378,116 @@ const FlightMgmt: React.FC = () => {
                 </tr>
               );
             })}
+            {paginatedFlights.length === 0 && (
+              <tr>
+                <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={7}>
+                  暂无航班数据
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
 
         <Pagination currentPage={flightPage} totalPages={totalFlightPages} setPage={setFlightPage} totalItems={totalFlights} itemsPerPage={FLIGHTS_PER_PAGE} />
       </div>
 
-      {isFlightModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-bold text-gray-800 text-lg">
-                {editingFlight ? '编辑航班信息' : '新建航班计划'}
-              </h3>
-              <button onClick={() => setIsFlightModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
+      <AdminModal
+        isOpen={isFlightModalOpen}
+        onClose={() => setIsFlightModalOpen(false)}
+        title={editingFlight ? '编辑航班信息' : '新建航班计划'}
+        theme="indigo-purple"
+        maxWidth="lg"
+      >
+        <form onSubmit={handleSaveFlight} className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">航班号</label>
+              <input name="flightNo" defaultValue={editingFlight?.flightNo ?? editingFlight?.id} required placeholder="例如: CA1234" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
             </div>
-            <form onSubmit={handleSaveFlight} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">航班号</label>
-                  <input name="flightNo" defaultValue={editingFlight?.flightNo ?? editingFlight?.id} required placeholder="例如: CA1234" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">航空公司</label>
-                  <input name="airlineCompany" defaultValue={editingFlight?.airlineCompany ?? editingFlight?.airline} required placeholder="例如: 中国国航" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">选择航线</label>
-                  <select
-                    name="routeId"
-                    value={selectedRouteId}
-                    onChange={(e) => setSelectedRouteId(e.target.value ? Number(e.target.value) : '')}
-                    required
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="">请选择航线</option>
-                    {routeOptions.map((r) => (
-                      <option key={r.routeId} value={r.routeId}>{r.label}</option>
-                    ))}
-                  </select>
-                  {selectedRouteId !== '' && (() => {
-                    const route = routeOptions.find((r) => r.routeId === selectedRouteId);
-                    return route ? (
-                      <p className="text-xs text-gray-400 mt-1">基准价: ¥{route.basePrice}{route.estimatedDuration ? ` | 约${route.estimatedDuration}分钟` : ''}</p>
-                    ) : null;
-                  })()}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">选择机型</label>
-                  <select
-                    name="modelId"
-                    value={selectedModelId}
-                    onChange={(e) => setSelectedModelId(e.target.value ? Number(e.target.value) : '')}
-                    required
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="">请选择机型</option>
-                    {modelOptions.map((m) => (
-                      <option key={m.modelId} value={m.modelId}>{m.label}</option>
-                    ))}
-                  </select>
-                  {selectedModelId !== '' && (() => {
-                    const model = modelOptions.find((m) => m.modelId === selectedModelId);
-                    return model ? (
-                      <p className="text-xs text-gray-400 mt-1">{model.manufacturer || '未知制造商'} | {model.totalPhysicalSeats}座</p>
-                    ) : null;
-                  })()}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">起飞时间</label>
-                  <input type="datetime-local" name="departureTime" defaultValue={editingFlight?.departureTime ? String(editingFlight.departureTime).slice(0, 16) : ''} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">到达时间(可选)</label>
-                  <input type="datetime-local" name="arrivalTime" defaultValue={editingFlight?.arrivalTime ? String(editingFlight.arrivalTime).slice(0, 16) : ''} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">总座位数(可选)</label>
-                  <input type="number" name="totalSeats" defaultValue={editingFlight?.totalSeats ?? editingFlight?.seats} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">当前状态</label>
-                <select name="status" defaultValue={editingFlight?.status || 'active'} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                  <option value="active">计划中 (Active)</option>
-                  <option value="delayed">延误 (Delayed)</option>
-                  <option value="cancelled">已取消 (Cancelled)</option>
-                  <option value="full">满员 (Full)</option>
-                </select>
-              </div>
-
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setIsFlightModalOpen(false)} className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors">取消</button>
-                <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/30 transition-colors flex items-center justify-center gap-2">
-                  <Save className="w-4 h-4" /> 保存航班
-                </button>
-              </div>
-            </form>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">航空公司</label>
+              <input name="airlineCompany" defaultValue={editingFlight?.airlineCompany ?? editingFlight?.airline} required placeholder="例如: 中国国航" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">选择航线</label>
+              <select
+                name="routeId"
+                value={selectedRouteId}
+                onChange={(e) => setSelectedRouteId(e.target.value ? Number(e.target.value) : '')}
+                required
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+              >
+                <option value="">请选择航线</option>
+                {routeOptions.map((r) => (
+                  <option key={r.routeId} value={r.routeId}>{r.label}</option>
+                ))}
+              </select>
+              {selectedRouteId !== '' && (() => {
+                const route = routeOptions.find((r) => r.routeId === selectedRouteId);
+                return route ? (
+                  <p className="text-xs text-gray-400 mt-1">基准价: ¥{route.basePrice}{route.estimatedDuration ? ` | 约${route.estimatedDuration}分钟` : ''}</p>
+                ) : null;
+              })()}
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">选择机型</label>
+              <select
+                name="modelId"
+                value={selectedModelId}
+                onChange={(e) => setSelectedModelId(e.target.value ? Number(e.target.value) : '')}
+                required
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+              >
+                <option value="">请选择机型</option>
+                {modelOptions.map((m) => (
+                  <option key={m.modelId} value={m.modelId}>{m.label}</option>
+                ))}
+              </select>
+              {selectedModelId !== '' && (() => {
+                const model = modelOptions.find((m) => m.modelId === selectedModelId);
+                return model ? (
+                  <p className="text-xs text-gray-400 mt-1">{model.manufacturer || '未知制造商'} | {model.totalPhysicalSeats}座</p>
+                ) : null;
+              })()}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">起飞时间</label>
+              <input type="datetime-local" name="departureTime" defaultValue={editingFlight?.departureTime ? String(editingFlight.departureTime).slice(0, 16) : ''} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">到达时间(可选)</label>
+              <input type="datetime-local" name="arrivalTime" defaultValue={editingFlight?.arrivalTime ? String(editingFlight.arrivalTime).slice(0, 16) : ''} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">总座位数(可选)</label>
+              <input type="number" name="totalSeats" defaultValue={editingFlight?.totalSeats ?? editingFlight?.seats} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500">当前状态</label>
+            <select name="status" defaultValue={editingFlight?.status || 'active'} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+              <option value="active">计划中 (Active)</option>
+              <option value="delayed">延误 (Delayed)</option>
+              <option value="cancelled">已取消 (Cancelled)</option>
+              <option value="full">满员 (Full)</option>
+            </select>
+          </div>
+
+          <div className="pt-4 flex gap-3">
+            <button type="button" onClick={() => setIsFlightModalOpen(false)} className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors">取消</button>
+            <button type="submit" className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-500/30 transition-colors flex items-center justify-center gap-2">
+              <Save className="w-4 h-4" /> 保存航班
+            </button>
+          </div>
+        </form>
+      </AdminModal>
     </div>
   );
 };

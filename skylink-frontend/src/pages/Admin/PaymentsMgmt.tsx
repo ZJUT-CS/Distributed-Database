@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Download, Eye, Filter, AlertCircle, FileText } from 'lucide-react';
+import { Search, Download, Eye, AlertCircle, FileText, CreditCard } from 'lucide-react';
 import { INITIAL_TRANSACTIONS } from '../../utils/mockData';
-import Pagination from '../../features/admin/components/Pagination';
-import TableActionMenu from '../../features/admin/components/TableActionMenu';
+import { Pagination, TableActionMenu, AdminPageHeader } from '@/features/admin';
 
 const PaymentsMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,15 +22,17 @@ const PaymentsMgmt: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-           <h2 className="text-2xl font-bold text-gray-800">支付管理</h2>
-           <p className="text-gray-500 mt-1 text-sm">查看支付/退款流水与对账状态</p>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
-            <Download className="w-4 h-4" /> 导出报表
-        </button>
-      </div>
+      <AdminPageHeader
+        icon={CreditCard}
+        iconClassName="text-indigo-500"
+        title="支付管理"
+        description="查看支付/退款流水与对账状态"
+        actions={
+          <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+            <Download className="w-4 h-4" /> 导出数据
+          </button>
+        }
+      />
 
       {/* Search & Filter Bar */}
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -40,18 +41,13 @@ const PaymentsMgmt: React.FC = () => {
             <input 
                 type="text" 
                 placeholder="搜索流水号、用户..." 
-                className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
         </div>
         
         <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-           <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 text-sm whitespace-nowrap">
-             <Filter className="w-4 h-4" />
-             <span className="hidden sm:inline">筛选</span>
-           </button>
-           <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
            <div className="flex bg-gray-100 p-1 rounded-lg">
               {[
                 { id: 'all', label: '全部' },
@@ -61,7 +57,7 @@ const PaymentsMgmt: React.FC = () => {
                 <button 
                  key={type.id}
                  onClick={() => { setTypeFilter(type.id); setPage(1); }}
-                 className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${typeFilter === type.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                 className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${typeFilter === type.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                   {type.label}
                 </button>
@@ -78,25 +74,25 @@ const PaymentsMgmt: React.FC = () => {
 
         <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50/50 text-gray-500 font-medium">
+            <thead className="bg-gray-50/80">
                 <tr>
-                <th className="px-6 py-4">流水号</th>
-                <th className="px-6 py-4">用户</th>
-                <th className="px-6 py-4">类型</th>
-                <th className="px-6 py-4">金额</th>
-                <th className="px-6 py-4">状态</th>
-                <th className="px-6 py-4">时间</th>
-                <th className="px-6 py-4 text-right">操作</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">流水号</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">用户</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">类型</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">金额</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">时间</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-100">
                 {paginatedTransactions.map(t => (
-                <tr key={t.id} className="hover:bg-gray-50/80 transition-colors group">
+                <tr key={t.id} className="hover:bg-indigo-50/30 transition-colors group">
                     <td className="px-6 py-4 font-mono text-gray-600">{t.id}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">{t.user}</td>
                     <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            t.type === 'payment' ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'
+                            t.type === 'payment' ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'
                         }`}>
                             {t.type === 'payment' ? '支付' : '退款'}
                         </span>
@@ -124,7 +120,7 @@ const PaymentsMgmt: React.FC = () => {
                           onClose={() => setActiveActionId(null)}
                         >
                             <button className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                                <Eye className="w-3.5 h-3.5 text-blue-500" /> 查看详情
+                                <Eye className="w-3.5 h-3.5 text-indigo-500" /> 查看详情
                             </button>
                             <button className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                                 <FileText className="w-3.5 h-3.5 text-gray-500" /> 电子回单

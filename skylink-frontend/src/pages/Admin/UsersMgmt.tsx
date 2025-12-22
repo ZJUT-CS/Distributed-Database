@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Edit, Trash2, Shield, Mail, Filter, Ban, Lock } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download } from 'lucide-react';
 import { createAdminUser, deleteAdminUser, listAdminUsers, resetAdminUserPassword, updateAdminUser, type AdminUserItem } from '../../features/admin/api/users';
-import Pagination from '../../features/admin/components/Pagination';
-import TableActionMenu from '../../features/admin/components/TableActionMenu';
+import { Pagination, TableActionMenu, AdminPageHeader, AdminModal } from '@/features/admin';
 
 const UsersMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -151,18 +150,25 @@ const UsersMgmt: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-           <h2 className="text-2xl font-bold text-gray-800">用户管理</h2>
-           <p className="text-gray-500 mt-1 text-sm">管理系统用户、角色与权限</p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all"
-        >
-            <Plus className="w-4 h-4" /> 添加用户
-        </button>
-      </div>
+      <AdminPageHeader
+        icon={Users}
+        iconClassName="text-indigo-500"
+        title="用户管理"
+        description="管理系统用户、角色与权限"
+        actions={
+          <div className="flex items-center gap-3">
+            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+              <Download className="w-4 h-4" /> 导出数据
+            </button>
+            <button
+              onClick={openCreate}
+              className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> 添加用户
+            </button>
+          </div>
+        }
+      />
 
       {/* Search & Filter Bar */}
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -171,7 +177,7 @@ const UsersMgmt: React.FC = () => {
             <input 
                 type="text" 
                 placeholder="搜索用户姓名、邮箱..." 
-                className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -180,12 +186,13 @@ const UsersMgmt: React.FC = () => {
             />
         </div>
         
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-           <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 text-sm whitespace-nowrap">
-             <Filter className="w-4 h-4" />
-             <span className="hidden sm:inline">筛选</span>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+           <button 
+             onClick={() => reload(page)}
+             className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors"
+           >
+             搜索
            </button>
-           <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
            <div className="text-xs text-gray-500">{loading ? '加载中...' : `共 ${total} 条`}</div>
         </div>
       </div>
@@ -193,21 +200,21 @@ const UsersMgmt: React.FC = () => {
       {/* Users Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm text-left">
-           <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+           <thead className="bg-gray-50/80">
              <tr>
-               <th className="px-6 py-4">用户</th>
-               <th className="px-6 py-4">角色</th>
-               <th className="px-6 py-4">状态</th>
-               <th className="px-6 py-4">最后登录</th>
-               <th className="px-6 py-4 text-right">操作</th>
+               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">用户</th>
+               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">角色</th>
+               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
+               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">最后登录</th>
+               <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
              </tr>
            </thead>
-           <tbody className="divide-y divide-gray-50">
+           <tbody className="divide-y divide-gray-100">
             {items.map((u) => (
-              <tr key={String(u.userId)} className="hover:bg-gray-50/80 transition-colors group">
+              <tr key={String(u.userId)} className="hover:bg-indigo-50/30 transition-colors group">
                 <td className="px-6 py-4">
                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-600/10 text-blue-700 flex items-center justify-center border-2 border-white shadow-sm font-bold">
+                        <div className="w-10 h-10 rounded-full bg-indigo-600/10 text-indigo-700 flex items-center justify-center border-2 border-white shadow-sm font-bold">
                           {(u.realName || u.phoneNumber || 'U').slice(0, 1).toUpperCase()}
                         </div>
                         <div>
@@ -242,7 +249,7 @@ const UsersMgmt: React.FC = () => {
                           onClick={() => openEdit(u)}
                           className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                         >
-                            <Edit className="w-3.5 h-3.5 text-blue-500" /> 编辑信息
+                            <Edit className="w-3.5 h-3.5 text-indigo-500" /> 编辑信息
                         </button>
                         <button
                           onClick={() => handleResetPassword(u)}
@@ -278,8 +285,8 @@ const UsersMgmt: React.FC = () => {
              ))}
             {!loading && items.length === 0 && (
               <tr>
-                <td className="px-6 py-10 text-center text-sm text-gray-400" colSpan={5}>
-                  暂无数据
+                <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={5}>
+                  暂无用户数据
                 </td>
               </tr>
             )}
@@ -296,76 +303,71 @@ const UsersMgmt: React.FC = () => {
         />
       </div>
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="font-bold text-gray-900">{editing ? '编辑用户' : '添加用户'}</div>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="text-sm text-gray-500 hover:text-gray-700"
-                type="button"
-              >
-                关闭
-              </button>
+      <AdminModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editing ? '编辑用户' : '添加用户'}
+        theme="indigo-purple"
+      >
+        <div className="p-6 space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500">手机号</label>
+            <input
+              value={formPhone}
+              onChange={(e) => setFormPhone(e.target.value)}
+              placeholder="请输入手机号"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500">姓名</label>
+            <input
+              value={formRealName}
+              onChange={(e) => setFormRealName(e.target.value)}
+              placeholder="请输入姓名"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500">邮箱</label>
+            <input
+              value={formEmail}
+              onChange={(e) => setFormEmail(e.target.value)}
+              placeholder="请输入邮箱"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+          {!editing && (
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">初始密码</label>
+              <input
+                type="password"
+                value={formPassword}
+                onChange={(e) => setFormPassword(e.target.value)}
+                placeholder="请输入初始密码"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
             </div>
-            <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                <div className="text-sm font-semibold text-gray-700">手机号</div>
-                <input
-                  value={formPhone}
-                  onChange={(e) => setFormPhone(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm font-semibold text-gray-700">姓名</div>
-                <input
-                  value={formRealName}
-                  onChange={(e) => setFormRealName(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm font-semibold text-gray-700">邮箱</div>
-                <input
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
-                />
-              </div>
-              {!editing && (
-                <div className="space-y-2">
-                  <div className="text-sm font-semibold text-gray-700">初始密码</div>
-                  <input
-                    type="password"
-                    value={formPassword}
-                    onChange={(e) => setFormPassword(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
-                  />
-                </div>
-              )}
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <button
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                  type="button"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={submit}
-                  className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
-                  type="button"
-                  disabled={loading}
-                >
-                  保存
-                </button>
-              </div>
-            </div>
+          )}
+          <div className="pt-4 flex gap-3">
+            <button
+              onClick={() => setModalOpen(false)}
+              className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors"
+              type="button"
+            >
+              取消
+            </button>
+            <button
+              onClick={submit}
+              className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-500/30 transition-colors"
+              type="button"
+              disabled={loading}
+            >
+              保存
+            </button>
           </div>
         </div>
-      )}
+      </AdminModal>
     </div>
   );
 };

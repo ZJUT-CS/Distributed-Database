@@ -55,7 +55,7 @@ const Pagination: React.FC<PaginationProps> = ({
                   onClick={() => setPage(p)}
                   className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${
                     currentPage === p
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
                       : 'text-gray-600 hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200'
                   }`}
                 >
@@ -90,7 +90,7 @@ const Pagination: React.FC<PaginationProps> = ({
             value={jumpPage}
             onChange={(e) => setJumpPage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleJump()}
-            className="w-10 h-8 rounded-lg border border-gray-200 text-center text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-10 h-8 rounded-lg border border-gray-200 text-center text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
           />
           <span className="text-xs text-gray-400">页</span>
         </div>

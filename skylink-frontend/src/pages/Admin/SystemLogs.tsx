@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Filter, FileText, Shield, User, Globe, AlertCircle } from 'lucide-react';
-import Pagination from '../../features/admin/components/Pagination';
+import { Search, FileText, Shield, User, Globe, AlertCircle, ScrollText, Download } from 'lucide-react';
+import { Pagination, AdminPageHeader } from '@/features/admin';
 
 type LogLevel = 'info' | 'warning' | 'error';
 
@@ -120,12 +120,17 @@ const SystemLogs: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">操作日志</h2>
-          <p className="text-gray-500 mt-1 text-sm">审计管理员关键操作，保障系统安全可追踪</p>
-        </div>
-      </div>
+      <AdminPageHeader
+        icon={ScrollText}
+        iconClassName="text-indigo-500"
+        title="操作日志"
+        description="审计管理员关键操作，保障系统安全可追踪"
+        actions={
+          <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+            <Download className="w-4 h-4" /> 导出数据
+          </button>
+        }
+      />
 
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative flex-1 md:max-w-md w-full">
@@ -133,7 +138,7 @@ const SystemLogs: React.FC = () => {
           <input
             type="text"
             placeholder="搜索日志编号、操作人、IP 或关键字..."
-            className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -143,11 +148,6 @@ const SystemLogs: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-          <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 text-sm whitespace-nowrap">
-            <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">筛选</span>
-          </button>
-          <div className="h-6 w-px bg-gray-200 hidden md:block" />
           <div className="flex bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => {
@@ -155,7 +155,7 @@ const SystemLogs: React.FC = () => {
                 setPage(1);
               }}
               className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                moduleFilter === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                moduleFilter === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               全部模块
@@ -168,7 +168,7 @@ const SystemLogs: React.FC = () => {
                   setPage(1);
                 }}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                  moduleFilter === m ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  moduleFilter === m ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {m}
@@ -189,7 +189,7 @@ const SystemLogs: React.FC = () => {
                   setPage(1);
                 }}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                  levelFilter === opt.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  levelFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {opt.label}
@@ -201,19 +201,19 @@ const SystemLogs: React.FC = () => {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+          <thead className="bg-gray-50/80">
             <tr>
-              <th className="px-6 py-4">时间</th>
-              <th className="px-6 py-4">管理员</th>
-              <th className="px-6 py-4">模块</th>
-              <th className="px-6 py-4">操作内容</th>
-              <th className="px-6 py-4">来源 IP</th>
-              <th className="px-6 py-4">结果</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">时间</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">管理员</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">模块</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">操作内容</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">来源 IP</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">结果</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-100">
             {paginatedLogs.map((log) => (
-              <tr key={log.id} className="hover:bg-gray-50/80 transition-colors group">
+              <tr key={log.id} className="hover:bg-indigo-50/30 transition-colors group">
                 <td className="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">{log.time}</td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
@@ -252,7 +252,7 @@ const SystemLogs: React.FC = () => {
             ))}
             {paginatedLogs.length === 0 && (
               <tr>
-                <td className="px-6 py-10 text-center text-sm text-gray-400" colSpan={6}>
+                <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={6}>
                   暂无符合条件的操作日志记录
                 </td>
               </tr>

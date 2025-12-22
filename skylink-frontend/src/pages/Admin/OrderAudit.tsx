@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Filter, CheckCircle2, XCircle, RefreshCw, User, Plane } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, RefreshCw, User, Plane, ClipboardCheck, Download } from 'lucide-react';
+import { AdminPageHeader } from '@/features/admin';
 
 type AuditStatus = 'all' | 'pending' | 'approved' | 'rejected';
 
@@ -80,17 +81,17 @@ const OrderAudit: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">退改签审核</h2>
-          <p className="text-gray-500 mt-1 text-sm">集中处理所有用户发起的退票与改签申请</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-            导出审核记录
+      <AdminPageHeader
+        icon={ClipboardCheck}
+        iconClassName="text-indigo-500"
+        title="退改签审核"
+        description="集中处理所有用户发起的退票与改签申请"
+        actions={
+          <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+            <Download className="w-4 h-4" /> 导出数据
           </button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative flex-1 md:max-w-md w-full">
@@ -98,18 +99,13 @@ const OrderAudit: React.FC = () => {
           <input
             type="text"
             placeholder="搜索申请单号、订单号或乘客姓名..."
-            className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-          <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 text-sm whitespace-nowrap">
-            <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">筛选</span>
-          </button>
-          <div className="h-6 w-px bg-gray-200 hidden md:block" />
           <div className="flex bg-gray-100 p-1 rounded-lg">
             {[
               { id: 'pending', label: '待审核' },
@@ -121,7 +117,7 @@ const OrderAudit: React.FC = () => {
                 key={opt.id}
                 onClick={() => setStatusFilter(opt.id as AuditStatus)}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                  statusFilter === opt.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  statusFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {opt.label}
@@ -133,26 +129,26 @@ const OrderAudit: React.FC = () => {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+          <thead className="bg-gray-50/80">
             <tr>
-              <th className="px-6 py-4">申请单号</th>
-              <th className="px-6 py-4">订单号</th>
-              <th className="px-6 py-4">乘客</th>
-              <th className="px-6 py-4">操作类型</th>
-              <th className="px-6 py-4">航班信息</th>
-              <th className="px-6 py-4">提交时间</th>
-              <th className="px-6 py-4">审核状态</th>
-              <th className="px-6 py-4 text-right">操作</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">申请单号</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">订单号</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">乘客</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">操作类型</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班信息</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">提交时间</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">审核状态</th>
+              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-100">
             {filteredAudits.map((a) => (
-              <tr key={a.id} className="hover:bg-gray-50/80 transition-colors group">
+              <tr key={a.id} className="hover:bg-indigo-50/30 transition-colors group">
                 <td className="px-6 py-4 font-mono text-gray-700">{a.id}</td>
                 <td className="px-6 py-4 font-mono text-gray-600">{a.orderId}</td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
                       <User className="w-4 h-4" />
                     </div>
                     <span className="font-medium text-gray-900">{a.passenger}</span>
@@ -171,7 +167,7 @@ const OrderAudit: React.FC = () => {
                 <td className="px-6 py-4">
                   <div className="text-xs text-gray-600">
                     <div>原航班：{a.oldFlight}</div>
-                    {a.newFlight !== '-' && <div className="mt-1 text-blue-600">新航班：{a.newFlight}</div>}
+                    {a.newFlight !== '-' && <div className="mt-1 text-indigo-600">新航班：{a.newFlight}</div>}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-xs text-gray-500">{a.applyTime}</td>
@@ -190,7 +186,7 @@ const OrderAudit: React.FC = () => {
             ))}
             {filteredAudits.length === 0 && (
               <tr>
-                <td className="px-6 py-10 text-center text-sm text-gray-400" colSpan={8}>
+                <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={8}>
                   暂无符合条件的退改签申请
                 </td>
               </tr>

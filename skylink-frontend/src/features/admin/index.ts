@@ -10,6 +10,7 @@ export { default as AdminSelect } from './components/AdminSelect';
 export { default as FilterBar } from './components/FilterBar';
 export { default as AdminPageHeader } from './components/AdminPageHeader';
 export { default as AdminTooltip } from './components/AdminTooltip';
+export { default as AdminModal } from './components/AdminModal';
 
 // API
 export * from './api/configs';
