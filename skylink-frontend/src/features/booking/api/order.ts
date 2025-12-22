@@ -43,7 +43,7 @@ export async function createOrder(body: {
 
   return request<CreateOrderResult>({
     method: 'POST',
-    url: '/api/v1/orders/create',
+    url: '/api/v1/orders',
     data: {
       userId: userId,
       flightNo,
@@ -63,7 +63,7 @@ export async function cancelOrder(orderId: string | number): Promise<void> {
 
   await request({
     method: 'POST',
-    url: `/api/v1/orders/${encodeURIComponent(id)}/cancel`,
+    url: `/api/v1/orders/${encodeURIComponent(id)}/cancellation`,
   });
 }
 
@@ -78,7 +78,7 @@ export async function searchOrders(params: {
 }): Promise<OrderSearchResult[]> {
   return request<OrderSearchResult[]>({
     method: 'GET',
-    url: '/api/v1/orders/search',
+    url: '/api/v1/orders',
     params: {
       ...params,
       userId: params.userId ? String(params.userId) : undefined,

@@ -30,7 +30,7 @@ const AdminApplyPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const ok = await adminRegisterApi({ username: u, password: p });
+      const ok = await adminRegisterApi({ adminAccount: u, password: p });
       if (!ok) throw new Error('提交失败');
 
       alert('入驻申请已提交（管理员账号已创建），请使用该账号在管理员登录入口登录');

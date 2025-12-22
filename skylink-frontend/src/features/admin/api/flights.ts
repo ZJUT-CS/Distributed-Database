@@ -39,7 +39,7 @@ export async function listAdminFlights(params: {
 
   return request<PageResult<AdminFlightItem>>({
     method: 'GET',
-    url: '/api/v1/admin/flights',
+    url: '/api/v1/admins/flights',
     params: qp,
   });
 }
@@ -92,7 +92,7 @@ export async function createAdminFlight(body: AdminFlightUpsertRequest): Promise
 
   return request<boolean>({
     method: 'POST',
-    url: '/api/v1/admin/flights',
+    url: '/api/v1/admins/flights',
     data: {
       flightNo,
       modelId,
@@ -127,7 +127,7 @@ export async function updateAdminFlight(flightId: string | number, body: AdminFl
 
   return request<boolean>({
     method: 'PUT',
-    url: `/api/v1/admin/flights/${encodeURIComponent(id)}`,
+    url: `/api/v1/admins/flights/${encodeURIComponent(id)}`,
     data: {
       flightNo,
       modelId,
@@ -149,6 +149,6 @@ export async function deleteAdminFlight(flightId: string | number): Promise<bool
 
   return request<boolean>({
     method: 'DELETE',
-    url: `/api/v1/admin/flights/${encodeURIComponent(id)}`,
+    url: `/api/v1/admins/flights/${encodeURIComponent(id)}`,
   });
 }

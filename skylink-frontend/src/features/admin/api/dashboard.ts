@@ -25,7 +25,7 @@ export interface AdminDashboardMetrics {
 export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics> {
   return request<AdminDashboardMetrics>({
     method: 'GET',
-    url: '/api/v1/admin/dashboard/metrics',
+    url: '/api/v1/admins/dashboard/metrics',
   });
 }
 

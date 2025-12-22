@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Plus, Search, Filter, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X, Save } from 'lucide-react';
 import { type FlightStatus } from '@/features/flight';
 import { Pagination, TableActionMenu, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem } from '@/features/admin';
+import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';
+import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
 
 type UiFlight = {
   id: string; // 展示用（航班号）
@@ -107,13 +109,29 @@ const FlightMgmt: React.FC = () => {
   const [editingFlight, setEditingFlight] = useState<any | null>(null);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
 
+  // 下拉选项数据
+  const [routeOptions, setRouteOptions] = useState<RouteOption[]>([]);
+  const [modelOptions, setModelOptions] = useState<AircraftModelOption[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<number | ''>('');
+  const [selectedModelId, setSelectedModelId] = useState<number | ''>('');
+
+  // 加载下拉选项
+  useEffect(() => {
+    listRouteOptions().then(setRouteOptions).catch(console.error);
+    listAircraftModelOptions().then(setModelOptions).catch(console.error);
+  }, []);
+
   const handleOpenCreateFlight = () => {
     setEditingFlight(null);
+    setSelectedRouteId('');
+    setSelectedModelId('');
     setIsFlightModalOpen(true);
   };
 
   const handleOpenEditFlight = (flight: any) => {
     setEditingFlight(flight);
+    setSelectedRouteId(flight.routeId || '');
+    setSelectedModelId(flight.modelId || '');
     setIsFlightModalOpen(true);
     setActiveActionId(null);
   };
@@ -394,12 +412,46 @@ const FlightMgmt: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">航线ID (routeId)</label>
-                  <input type="number" name="routeId" defaultValue={editingFlight?.routeId} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="text-xs font-bold text-gray-500">选择航线</label>
+                  <select
+                    name="routeId"
+                    value={selectedRouteId}
+                    onChange={(e) => setSelectedRouteId(e.target.value ? Number(e.target.value) : '')}
+                    required
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  >
+                    <option value="">请选择航线</option>
+                    {routeOptions.map((r) => (
+                      <option key={r.routeId} value={r.routeId}>{r.label}</option>
+                    ))}
+                  </select>
+                  {selectedRouteId !== '' && (() => {
+                    const route = routeOptions.find((r) => r.routeId === selectedRouteId);
+                    return route ? (
+                      <p className="text-xs text-gray-400 mt-1">基准价: ¥{route.basePrice}{route.estimatedDuration ? ` | 约${route.estimatedDuration}分钟` : ''}</p>
+                    ) : null;
+                  })()}
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500">机型ID (modelId)</label>
-                  <input type="number" name="modelId" defaultValue={editingFlight?.modelId} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="text-xs font-bold text-gray-500">选择机型</label>
+                  <select
+                    name="modelId"
+                    value={selectedModelId}
+                    onChange={(e) => setSelectedModelId(e.target.value ? Number(e.target.value) : '')}
+                    required
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  >
+                    <option value="">请选择机型</option>
+                    {modelOptions.map((m) => (
+                      <option key={m.modelId} value={m.modelId}>{m.label}</option>
+                    ))}
+                  </select>
+                  {selectedModelId !== '' && (() => {
+                    const model = modelOptions.find((m) => m.modelId === selectedModelId);
+                    return model ? (
+                      <p className="text-xs text-gray-400 mt-1">{model.manufacturer || '未知制造商'} | {model.totalPhysicalSeats}座</p>
+                    ) : null;
+                  })()}
                 </div>
               </div>
 

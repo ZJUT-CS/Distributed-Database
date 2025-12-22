@@ -15,7 +15,7 @@ export async function listRefundChanges(params: {
 
   return request<RefundChangeRecord[]>({
     method: 'GET',
-    url: '/api/v1/refund-change/search',
+    url: '/api/v1/refund-change-requests',
     params: qp,
   });
 }
@@ -40,7 +40,7 @@ export async function applyRefundChange(body: {
 
   return request<number>({
     method: 'POST',
-    url: '/api/v1/refund-change/apply',
+    url: '/api/v1/refund-change-requests',
     data: {
       orderNo: Number(orderNo),
       operType: body.operType,
@@ -57,7 +57,7 @@ export async function revokeRefundChange(recordId: string | number): Promise<boo
 
   return request<boolean>({
     method: 'DELETE',
-    url: `/api/v1/refund-change/${encodeURIComponent(id)}`,
+    url: `/api/v1/refund-change-requests/${encodeURIComponent(id)}`,
   });
 }
 
@@ -70,7 +70,7 @@ export async function updateRefundChange(
 
   return request<boolean>({
     method: 'PUT',
-    url: `/api/v1/refund-change/${encodeURIComponent(id)}`,
+    url: `/api/v1/refund-change-requests/${encodeURIComponent(id)}`,
     data: {
       remark: body.remark,
       newFlightNo: body.newFlightNo,

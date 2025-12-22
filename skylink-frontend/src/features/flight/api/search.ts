@@ -34,7 +34,7 @@ export async function searchFlights(params: {
     }>
   >({
     method: 'GET',
-    url: '/flights/search',
+    url: '/api/v1/flights',
     params: {
       departurePlace: toCity(o),
       destination: toCity(d),

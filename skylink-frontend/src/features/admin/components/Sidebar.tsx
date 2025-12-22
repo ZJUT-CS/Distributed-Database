@@ -12,6 +12,8 @@ import {
   Shield,
   FileText,
   Home,
+  MapPin,
+  Sliders,
 } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/useAuth';
 
@@ -30,6 +32,14 @@ const Sidebar: React.FC = () => {
         { id: 'orders', icon: Ticket, label: '订单管理', path: '/admin/orders' },
         { id: 'order-audit', icon: Ticket, label: '退改签审核', path: '/admin/orders/audit' },
         { id: 'payments', icon: CreditCard, label: '支付流水', path: '/admin/payments' },
+      ],
+    },
+    {
+      title: 'BASE DATA',
+      items: [
+        { id: 'routes', icon: MapPin, label: '航线管理', path: '/admin/routes' },
+        { id: 'aircraft-models', icon: Plane, label: '机型管理', path: '/admin/aircraft-models' },
+        { id: 'cabin-configs', icon: Sliders, label: '舱位配置', path: '/admin/cabin-configs' },
       ],
     },
     {
