@@ -1,4 +1,4 @@
-ggimport React from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 
 export type AdminModalProps = {
