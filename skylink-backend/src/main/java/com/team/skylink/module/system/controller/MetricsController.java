@@ -1,17 +1,17 @@
-package com.team.skylink.module.trade.controller;
+package com.team.skylink.module.system.controller;
 
 import com.team.skylink.common.Result;
-import com.team.skylink.module.trade.service.TradeService;
+import com.team.skylink.module.system.service.TradeService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/metrics")
-public class TradeController {
+public class MetricsController {
     private final TradeService tradeService;
 
-    public TradeController(TradeService tradeService) {
+    public MetricsController(TradeService tradeService) {
         this.tradeService = tradeService;
     }
 

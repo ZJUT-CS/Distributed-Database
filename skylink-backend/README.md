@@ -22,11 +22,11 @@
 认证与用户
 - `POST /api/v1/users/sessions` 用户登录（创建会话）
   - 入参: `phoneNumber`, `password`
-  - 返回: `LoginResponse`（`userId`, `identifier`, `role`, `token`）
+  - 返回: `LoginResponse`（`id`, `displayName`, `role='user'`, `token`）
   - 位置: `skylink-backend/src/main/java/com/team/skylink/module/auth/controller/AuthController.java`
 - `POST /api/v1/admins/sessions` 管理员登录（创建会话）
   - 入参: `adminAccount`, `password`
-  - 返回: `String`（Token）
+  - 返回: `AdminLoginResponse`（`id`, `displayName`, `role='admin'`, `token`, `userType=2`, `adminRole`）
   - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java`
 - `POST /api/v1/users` 用户注册
   - 入参: `phoneNumber`, `password`, `realName?`, `email?`, `idCard?`, `gender?`
@@ -159,14 +159,50 @@
 - `GET /api/v1/admins/refund-change-requests/count` 退票/改签记录数量  
   - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java`
 - `GET /api/v1/metrics/orders/count` 订单总数  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/trade/controller/TradeController.java`
+  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/MetricsController.java`
 - `GET /api/v1/metrics/payments/count` 支付总数  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/trade/controller/TradeController.java`
+  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/MetricsController.java`
 - `GET /api/v1/metrics/refunds/count` 退款记录总数  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/trade/controller/TradeController.java`
+  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/MetricsController.java`
 - `GET /api/v1/metrics/flights/count` 航班总数  
   - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/GlobalController.java`
+  
+模块结构调整
+- `module/trade` 已合并至 `module/system/service`
+- `TradeService` 与 `TradeServiceImpl` 迁移至 `com.team.skylink.module.system.service`
+- 受影响引用已更新为 `com.team.skylink.module.system.service.TradeService`，接口路径与功能不变
 
+权限与角色
+- 管理员识别：请求头 `X-User-Type: 2`
+- 管理员角色：请求头 `X-Admin-Role`，取值 `1`=普通管理员，`2`=超级管理员
+- 普通管理员（role=1）
+  - 可访问与管理业务功能：航班、订单、用户、支付、退改等
+  - 禁止管理员账号的增删改查
+  - 禁止对系统核心配置的新增、修改、删除（仅可查询）
+- 超级管理员（role=2）
+  - 可访问所有功能，包括管理员账号管理、系统配置新增/修改/删除
+  - 不受权限限制
+
+接口权限要求
+- `POST /api/v1/admins` 创建管理员  
+  - 需 `X-User-Type: 2` 且 `X-Admin-Role: 2`
+  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java:29-40`
+- `GET /api/v1/admins/system-configs` 查询系统配置  
+  - 需 `X-User-Type: 2`
+  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminConfigController.java:30-40`
+- `POST /api/v1/admins/system-configs` 创建系统配置  
+  - 需 `X-User-Type: 2` 且 `X-Admin-Role: 2`
+  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminConfigController.java:42-47`
+- `PUT /api/v1/admins/system-configs/{configId}` 更新系统配置  
+  - 需 `X-User-Type: 2` 且 `X-Admin-Role: 2`
+  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminConfigController.java:49-58`
+- `DELETE /api/v1/admins/system-configs/{configId}` 删除系统配置  
+  - 需 `X-User-Type: 2` 且 `X-Admin-Role: 2`
+  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminConfigController.java:60-65`
+
+前端使用建议
+- 管理员登录后，将 `AdminLoginResponse.userType` 作为 `X-User-Type`，将 `AdminLoginResponse.adminRole` 作为 `X-Admin-Role` 随后续请求发送
+- 用户登录后，仅需带上 `Authorization: Bearer <token>` 用于用户端接口；管理员接口必须携带上述两个头
 调试
 - `GET /api/v1/system/health` 健康测试（返回 `Hello, SkyLink`）
   - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/DbTestController.java:20`

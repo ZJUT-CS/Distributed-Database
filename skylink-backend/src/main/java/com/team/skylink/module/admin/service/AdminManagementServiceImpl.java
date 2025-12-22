@@ -58,7 +58,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
     // ▼▼▼▼▼▼ 新增：登录逻辑实现 ▼▼▼▼▼▼
     @Override
-    public Result<String> login(String adminAccount, String password) {
+    public Result<com.team.skylink.module.admin.dto.AdminLoginResponse> login(String adminAccount, String password) {
         // 1. 查数据库
         Admin admin = adminMapper.selectOne(new QueryWrapper<Admin>().eq("admin_account", adminAccount));
         
@@ -79,7 +79,14 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         admin.setLastLoginTime(System.currentTimeMillis());
         adminMapper.updateById(admin);
 
-        return Result.ok(token);
+        return Result.ok(new com.team.skylink.module.admin.dto.AdminLoginResponse(
+                admin.getAdminId(),
+                admin.getAdminAccount(),
+                "admin",
+                token,
+                2,
+                admin.getRole()
+        ));
     }
     // ▲▲▲▲▲▲ 新增结束 ▲▲▲▲▲▲
 
