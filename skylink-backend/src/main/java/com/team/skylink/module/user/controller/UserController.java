@@ -1,9 +1,9 @@
 package com.team.skylink.module.user.controller;
 
 import com.team.skylink.common.Result;
-import com.team.skylink.module.auth.service.AuthService;
-import com.team.skylink.module.auth.service.SessionIdentity;
-import com.team.skylink.module.auth.service.SessionStore;
+import com.team.skylink.module.user.service.AuthService;
+import com.team.skylink.module.user.service.SessionIdentity;
+import com.team.skylink.module.user.service.SessionStore;
 import com.team.skylink.module.user.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;

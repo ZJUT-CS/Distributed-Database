@@ -23,7 +23,7 @@
 - `POST /api/v1/users/sessions` 用户登录（创建会话）
   - 入参: `phoneNumber`, `password`
   - 返回: `LoginResponse`（`id`, `displayName`, `role='user'`, `token`）
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/auth/controller/AuthController.java`
+  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/user/controller/UserAuthController.java`
 - `POST /api/v1/admins/sessions` 管理员登录（创建会话）
   - 入参: `adminAccount`, `password`
   - 返回: `AdminLoginResponse`（`id`, `displayName`, `role='admin'`, `token`, `userType=2`, `adminRole`）
@@ -171,6 +171,12 @@
 - `module/trade` 已合并至 `module/system/service`
 - `TradeService` 与 `TradeServiceImpl` 迁移至 `com.team.skylink.module.system.service`
 - 受影响引用已更新为 `com.team.skylink.module.system.service.TradeService`，接口路径与功能不变
+ - `module/auth` 已合并至 `module/user`
+   - 用户登录控制器迁移并重命名为 `UserAuthController`，路径不变 `/api/v1/users/sessions`
+   - `LoginRequest` 与 `LoginResponse` 迁移至 `com.team.skylink.module.user.dto`
+   - `AuthService` 与 `AuthServiceImpl` 迁移至 `com.team.skylink.module.user.service`
+   - 会话相关 `SessionStore`、`SessionIdentity`、`InMemorySessionStore` 迁移至 `com.team.skylink.module.user.service`
+   - 管理员登录请求 `AdminLoginRequest` 迁移至 `com.team.skylink.module.admin.dto`
 
 权限与角色
 - 管理员识别：请求头 `X-User-Type: 2`
