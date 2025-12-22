@@ -17,7 +17,7 @@ export async function listAdminConfigs(params: {
 }): Promise<PageResult<AdminConfigItem>> {
   return request<PageResult<AdminConfigItem>>({
     method: 'GET',
-    url: '/api/v1/admins/configs',
+    url: '/api/v1/admins/system-configs',
     params: {
       page: String(params.page),
       size: String(params.size),
@@ -39,7 +39,7 @@ export async function createAdminConfig(body: {
 
   return request<AdminConfigItem>({
     method: 'POST',
-    url: '/api/v1/admins/configs',
+    url: '/api/v1/admins/system-configs',
     data: {
       configName,
       configValue,
@@ -58,7 +58,7 @@ export async function updateAdminConfig(
 
   return request<boolean>({
     method: 'PUT',
-    url: `/api/v1/admins/configs/${encodeURIComponent(id)}`,
+    url: `/api/v1/admins/system-configs/${encodeURIComponent(id)}`,
     data: body,
   });
 }
@@ -69,7 +69,7 @@ export async function deleteAdminConfig(configId: string | number): Promise<bool
 
   return request<boolean>({
     method: 'DELETE',
-    url: `/api/v1/admins/configs/${encodeURIComponent(id)}`,
+    url: `/api/v1/admins/system-configs/${encodeURIComponent(id)}`,
   });
 }
 

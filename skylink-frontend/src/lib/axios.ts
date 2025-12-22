@@ -1,4 +1,7 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
+import JSONBig from 'json-bigint';
+
+const JSONbig = JSONBig({ storeAsString: true });
 
 export interface ApiResult<T> {
   code: number;
@@ -8,7 +11,7 @@ export interface ApiResult<T> {
 
 export interface PageResult<T> {
   total: number;
-  items: T[];
+  data: T[];
 }
 
 export class ApiError extends Error {
@@ -27,15 +30,47 @@ export class ApiError extends Error {
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:9999',
   timeout: 10000,
+  // 避免雪花ID等超大整数在前端 JSON.parse 后丢失精度
+  // storeAsString: true -> 超过安全整数范围的数字会被解析为字符串
+  transformResponse: [
+    (data) => {
+      if (typeof data !== 'string') return data;
+      const raw = data.trim();
+      if (!raw) return data;
+      // 只对 JSON 文本尝试解析
+      if (!(raw.startsWith('{') || raw.startsWith('['))) return data;
+      try {
+        return JSONbig.parse(raw);
+      } catch {
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return data;
+        }
+      }
+    },
+  ],
 });
 
-const parseStoredUser = (): { id?: number | string; role?: string } | null => {
+const normalizeUserRole = (role: unknown): 'user' | 'admin' => {
+  if (role === 2 || role === '2') return 'admin';
+  const r = String(role ?? '').trim().toLowerCase();
+  return r.includes('admin') ? 'admin' : 'user';
+};
+
+const parseStoredUser = (): { id?: number | string; role?: 'user' | 'admin'; adminRole?: string } | null => {
   const raw = localStorage.getItem('user');
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as any;
     if (!parsed || typeof parsed !== 'object') return null;
-    return { id: parsed.id, role: parsed.role };
+
+    const id = parsed.id ?? parsed.userId;
+    const role = normalizeUserRole(parsed.role);
+    const adminRoleRaw = parsed.adminRole ?? parsed.admin_role ?? parsed.roleId ?? parsed.role_id;
+    const adminRole = adminRoleRaw == null ? undefined : String(adminRoleRaw).trim();
+
+    return { id, role, adminRole };
   } catch {
     return null;
   }
@@ -63,9 +98,19 @@ api.interceptors.request.use(
     }
 
     const user = parseStoredUser();
-    if (user?.id !== undefined && user?.id !== null && String(user.id).trim() !== '') {
-      headers['X-User-Id'] ??= String(user.id);
-      headers['X-User-Type'] ??= user.role === 'admin' ? '2' : '1';
+    if (user) {
+      const userType = user.role === 'admin' ? '2' : '1';
+      headers['X-User-Type'] ??= userType;
+
+      if (user?.id !== undefined && user?.id !== null && String(user.id).trim() !== '') {
+        headers['X-User-Id'] ??= String(user.id);
+      }
+
+      // 部分后台接口要求超级管理员：X-Admin-Role=2
+      // 如果 localStorage.user 里带了 adminRole，则优先使用；否则 admin 一律按 2 发送。
+      if (userType === '2') {
+        headers['X-Admin-Role'] ??= user.adminRole && user.adminRole !== '' ? user.adminRole : '2';
+      }
     }
 
     headers['X-Request-Id'] ??= genRequestId();

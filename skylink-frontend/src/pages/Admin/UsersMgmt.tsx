@@ -33,7 +33,7 @@ const UsersMgmt: React.FC = () => {
         size: ITEMS_PER_PAGE,
         keyword: normalizedSearch || undefined,
       });
-      setItems(res.items || []);
+      setItems(res.data || []);
       setTotal(res.total || 0);
     } finally {
       setLoading(false);

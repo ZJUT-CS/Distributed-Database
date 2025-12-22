@@ -20,7 +20,7 @@ const AircraftModelsMgmt: React.FC = () => {
     setLoading(true);
     try {
       const res = await listAircraftModels({ page, size: PAGE_SIZE, keyword: keyword || undefined });
-      setModels(res.items ?? []);
+      setModels(res.data ?? []);
       setTotal(res.total ?? 0);
     } catch (err: any) {
       console.error('加载机型失败', err);

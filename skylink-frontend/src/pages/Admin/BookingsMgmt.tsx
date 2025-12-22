@@ -32,7 +32,7 @@ const BookingsMgmt: React.FC = () => {
         orderNo,
         orderStatus,
       });
-      setItems(res.items || []);
+      setItems(res.data || []);
       setTotal(res.total || 0);
     } finally {
       setLoading(false);
@@ -51,7 +51,7 @@ const BookingsMgmt: React.FC = () => {
     return { id: 'other', label: '其他' };
   };
 
-  const handleCancel = async (orderNo: number) => {
+  const handleCancel = async (orderNo: string | number) => {
     if (!confirm('确定要取消该订单吗？')) return;
     setLoading(true);
     try {

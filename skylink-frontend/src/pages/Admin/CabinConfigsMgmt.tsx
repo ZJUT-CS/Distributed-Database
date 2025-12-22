@@ -42,7 +42,7 @@ const CabinConfigsMgmt: React.FC = () => {
         modelId: filterModelId !== '' ? filterModelId : undefined,
         cabinType: filterCabinType || undefined,
       });
-      setConfigs(res.items ?? []);
+      setConfigs(res.data ?? []);
       setTotal(res.total ?? 0);
     } catch (err: any) {
       console.error('加载舱位配置失败', err);

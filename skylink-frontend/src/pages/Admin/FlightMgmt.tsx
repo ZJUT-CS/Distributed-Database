@@ -225,7 +225,7 @@ const FlightMgmt: React.FC = () => {
     try {
       const res = await listAdminFlights({ page: flightPage, size: FLIGHTS_PER_PAGE });
       setTotalFlights(Number(res.total ?? 0));
-      setFlights((res.items ?? []).map(mapAdminFlight));
+      setFlights((res.data ?? []).map(mapAdminFlight));
     } catch (err: any) {
       alert(err?.message || '航班列表加载失败');
     } finally {

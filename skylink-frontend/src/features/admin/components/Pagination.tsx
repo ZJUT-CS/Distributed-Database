@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
-  setPage: (p: any) => void;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
   totalItems: number;
   itemsPerPage: number;
 }
@@ -19,18 +19,21 @@ const Pagination: React.FC<PaginationProps> = ({
   const [jumpPage, setJumpPage] = useState('');
 
   const handleJump = () => {
-    const p = parseInt(jumpPage);
+    const p = parseInt(jumpPage, 10);
     if (p >= 1 && p <= totalPages) {
       setPage(p);
       setJumpPage('');
     }
   };
 
+  const resolvedTotalItems = Math.max(0, Number(totalItems) || 0);
+  const startItem = resolvedTotalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const endItem = resolvedTotalItems === 0 ? 0 : Math.min(currentPage * itemsPerPage, resolvedTotalItems);
+
   return (
     <div className="mt-auto px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/30">
       <div className="text-xs text-gray-500">
-        显示 {(currentPage - 1) * itemsPerPage + 1} 至 {Math.min(currentPage * itemsPerPage, totalItems)} 条，共{' '}
-        {totalItems} 条
+        显示 {startItem} 至 {endItem} 条，共 {resolvedTotalItems} 条
       </div>
 
       <div className="flex items-center gap-2">

@@ -1,8 +1,8 @@
 import { request, type PageResult } from '../../../lib/axios';
 
 export interface AdminOrderItem {
-  orderNo: number;
-  userId?: number | null;
+  orderNo: string | number;
+  userId?: string | number | null;
   orderStatus?: number | null;
   ticketNum?: number | null;
   totalAmount?: number | null;
@@ -52,7 +52,7 @@ export async function cancelAdminOrder(orderId: string | number): Promise<boolea
 
   return request<boolean>({
     method: 'PUT',
-    url: `/api/v1/admins/orders/${encodeURIComponent(id)}/cancel`,
+    url: `/api/v1/admins/orders/${encodeURIComponent(id)}/cancellation`,
   });
 }
 

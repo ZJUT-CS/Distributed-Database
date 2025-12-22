@@ -39,7 +39,7 @@ export async function listAircraftModels(params: {
 /** 获取机型下拉选项（全量或前N条） */
 export async function listAircraftModelOptions(limit = 200): Promise<AircraftModelOption[]> {
   const res = await listAircraftModels({ page: 1, size: limit });
-  return (res.items ?? []).map((m: AircraftModelItem) => ({
+  return (res.data ?? []).map((m: AircraftModelItem) => ({
     modelId: m.modelId,
     label: `${m.modelName}${m.manufacturer ? ` (${m.manufacturer})` : ''} - ${m.totalPhysicalSeats}座`,
     modelName: m.modelName,

@@ -1,7 +1,7 @@
 import { request, type PageResult } from '../../../lib/axios';
 
 export interface AdminUserItem {
-  userId: number;
+  userId: string | number;
   phoneNumber?: string | null;
   realName?: string | null;
   email?: string | null;

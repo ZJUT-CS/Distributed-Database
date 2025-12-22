@@ -52,7 +52,7 @@ export async function listRoutes(params: {
 /** 获取航线下拉选项（全量或前N条） */
 export async function listRouteOptions(limit = 200): Promise<RouteOption[]> {
   const res = await listRoutes({ page: 1, size: limit });
-  return (res.items ?? []).map((r: RouteItem) => ({
+  return (res.data ?? []).map((r: RouteItem) => ({
     routeId: r.routeId,
     label: `${r.departureCity}(${r.departureAirport}) → ${r.arrivalCity}(${r.arrivalAirport})`,
     departureCity: r.departureCity,

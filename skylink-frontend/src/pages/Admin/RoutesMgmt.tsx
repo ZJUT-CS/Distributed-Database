@@ -20,7 +20,7 @@ const RoutesMgmt: React.FC = () => {
     setLoading(true);
     try {
       const res = await listRoutes({ page, size: PAGE_SIZE, keyword: keyword || undefined });
-      setRoutes(res.items ?? []);
+      setRoutes(res.data ?? []);
       setTotal(res.total ?? 0);
     } catch (err: any) {
       console.error('加载航线失败', err);
