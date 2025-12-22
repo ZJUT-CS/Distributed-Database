@@ -150,7 +150,7 @@ const AircraftModelsMgmt: React.FC = () => {
                       <AdminBadge size="sm" variant="primary">{m.modelName}</AdminBadge>
                     </td>
                     <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="neutral">{m.manufacturer || '-'}</AdminBadge>
+                      <AdminBadge size="sm" variant="info">{m.manufacturer || '-'}</AdminBadge>
                     </td>
                     <td className="px-6 py-4">
                       <AdminBadge size="sm" variant="success">{m.totalPhysicalSeats} 座</AdminBadge>

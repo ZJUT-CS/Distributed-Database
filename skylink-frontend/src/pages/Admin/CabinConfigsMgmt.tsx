@@ -160,8 +160,8 @@ const CabinConfigsMgmt: React.FC = () => {
       />
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative flex-1 md:max-w-md w-full">
+      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-3">
+        <div className="relative w-full md:max-w-md">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -169,7 +169,7 @@ const CabinConfigsMgmt: React.FC = () => {
             className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
           />
         </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3">
           <select
             value={filterModelId}
             onChange={(e) => setFilterModelId(e.target.value ? Number(e.target.value) : '')}
@@ -204,23 +204,21 @@ const CabinConfigsMgmt: React.FC = () => {
               <tr>
                 <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">配置ID</th>
                 <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">机型</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">舱位类型</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">系数</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">布局号</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">座位数</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">起始行</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">列布局</th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">舱位 & 系数</th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">布局 & 座位</th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">行李</th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">座位规则</th>
                 <th className="px-4 py-4 text-right text-xs font-semibold text-gray-500 uppercase">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-gray-400">加载中...</td>
+                  <td colSpan={7} className="text-center py-12 text-gray-400">加载中...</td>
                 </tr>
               ) : configs.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-gray-400">暂无舱位配置数据</td>
+                  <td colSpan={7} className="text-center py-12 text-gray-400">暂无舱位配置数据</td>
                 </tr>
               ) : (
                 configs.map((c) => (
@@ -232,27 +230,41 @@ const CabinConfigsMgmt: React.FC = () => {
                       </AdminBadge>
                     </td>
                     <td className="px-4 py-3">
-                      <AdminBadge
-                        size="sm"
-                        variant={c.cabinType === 'FIRST' ? 'warning' : c.cabinType === 'BUSINESS' ? 'info' : 'neutral'}
-                      >
-                        {CABIN_TYPE_MAP[c.cabinType] || c.cabinType}
-                      </AdminBadge>
+                      <div className="flex flex-col gap-1">
+                        <AdminBadge
+                          size="sm"
+                          variant={c.cabinType === 'FIRST' ? 'warning' : c.cabinType === 'BUSINESS' ? 'info' : 'primary'}
+                        >
+                          {CABIN_TYPE_MAP[c.cabinType] || c.cabinType}
+                        </AdminBadge>
+                        <AdminBadge size="sm" variant="success">×{Number(c.cabinCoefficient).toFixed(1)}</AdminBadge>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
-                      <AdminBadge size="sm" variant="success">×{Number(c.cabinCoefficient).toFixed(1)}</AdminBadge>
+                      <div className="flex flex-col gap-1">
+                        <AdminBadge size="sm" variant="info">布局 {c.cabinLayoutNo}</AdminBadge>
+                        <AdminBadge size="sm" variant="primary">{c.capacity} 座</AdminBadge>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
-                      <AdminBadge size="sm" variant="neutral">布局 {c.cabinLayoutNo}</AdminBadge>
+                      {(() => {
+                        const carryOn = String(c.defaultCarryOn ?? '').trim() || '-';
+                        const checked = String(c.defaultChecked ?? '').trim() || '-';
+                        return (
+                          <div className="flex flex-col gap-1">
+                            <AdminBadge size="sm" variant="info">随身 {carryOn}</AdminBadge>
+                            <AdminBadge size="sm" variant="warning">托运 {checked}</AdminBadge>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3">
-                      <AdminBadge size="sm" variant="primary">{c.capacity} 座</AdminBadge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">第{c.startRowNum}排</td>
-                    <td className="px-4 py-3">
-                      <AdminBadge size="sm" variant="purple" className="font-mono">
-                        {c.seatColLayout}
-                      </AdminBadge>
+                      <div className="flex flex-col gap-1">
+                        <AdminBadge size="sm" variant="info">从第 {c.startRowNum} 排</AdminBadge>
+                        <AdminBadge size="sm" variant="primary" className="font-mono">
+                          {c.seatColLayout}
+                        </AdminBadge>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <TableActionMenu

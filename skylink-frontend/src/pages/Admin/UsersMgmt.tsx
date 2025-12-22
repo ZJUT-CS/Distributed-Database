@@ -226,12 +226,12 @@ const UsersMgmt: React.FC = () => {
                     </div>
                  </td>
                  <td className="px-6 py-4">
-                    <AdminBadge icon={Shield} variant="neutral">
+                    <AdminBadge icon={Shield} variant="info">
                       USER
                     </AdminBadge>
                  </td>
                  <td className="px-6 py-4">
-                    <AdminBadge dot variant={u.userStatus === 1 ? 'success' : 'neutral'}>
+                    <AdminBadge dot variant={u.userStatus === 1 ? 'success' : 'danger'}>
                       {u.userStatus === 1 ? '正常' : '禁用'}
                     </AdminBadge>
                  </td>

@@ -169,19 +169,19 @@ const RoutesMgmt: React.FC = () => {
                       <AdminBadge size="sm" variant="info">{r.departureCity || '-'}</AdminBadge>
                     </td>
                     <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="neutral" className="font-mono">{r.departureAirport || '-'}</AdminBadge>
+                      <AdminBadge size="sm" variant="info" className="font-mono">{r.departureAirport || '-'}</AdminBadge>
                     </td>
                     <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="purple">{r.arrivalCity || '-'}</AdminBadge>
+                      <AdminBadge size="sm" variant="primary">{r.arrivalCity || '-'}</AdminBadge>
                     </td>
                     <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="neutral" className="font-mono">{r.arrivalAirport || '-'}</AdminBadge>
+                      <AdminBadge size="sm" variant="info" className="font-mono">{r.arrivalAirport || '-'}</AdminBadge>
                     </td>
                     <td className="px-6 py-4">
                       <AdminBadge size="sm" variant="success">¥{Number(r.basePrice).toFixed(0)}</AdminBadge>
                     </td>
                     <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant={r.estimatedDuration ? 'warning' : 'neutral'}>
+                      <AdminBadge size="sm" variant={r.estimatedDuration ? 'warning' : 'info'}>
                         {r.estimatedDuration ? `${r.estimatedDuration}分钟` : '-'}
                       </AdminBadge>
                     </td>

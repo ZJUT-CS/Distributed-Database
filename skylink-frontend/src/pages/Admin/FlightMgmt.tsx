@@ -291,7 +291,7 @@ const FlightMgmt: React.FC = () => {
         );
       case 'full':
         return (
-          <AdminBadge size="sm" icon={Users} variant="purple">
+          <AdminBadge size="sm" icon={Users} variant="primary">
             满员
           </AdminBadge>
         );
@@ -385,7 +385,7 @@ const FlightMgmt: React.FC = () => {
                               {from}
                             </AdminBadge>
                             <span className="text-xs text-gray-400">→</span>
-                            <AdminBadge size="sm" variant="purple">
+                            <AdminBadge size="sm" variant="primary">
                               {to || '-'}
                             </AdminBadge>
                           </div>
