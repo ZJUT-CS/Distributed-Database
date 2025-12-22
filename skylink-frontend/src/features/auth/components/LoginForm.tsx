@@ -59,7 +59,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
       }
 
       const res = isAdminMode
-        ? await adminLoginApi({ username: account, password: pwd })
+        ? await adminLoginApi({ adminAccount: account, password: pwd })
         : await loginApi({ phoneNumber: account, password: pwd });
       if (!res) {
         throw new Error('登录失败：服务端未返回用户信息');

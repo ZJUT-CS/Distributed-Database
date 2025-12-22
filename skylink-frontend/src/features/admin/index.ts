@@ -11,3 +11,6 @@ export * from './api/dashboard';
 export * from './api/flights';
 export * from './api/orders';
 export * from './api/users';
+export * from './api/routes';
+export * from './api/aircraftModels';
+export * from './api/cabinConfigs';

@@ -17,7 +17,7 @@ export async function payOrder(body: { orderNo: string | number; amount: number;
 
   await request({
     method: 'POST',
-    url: '/api/v1/payments/pay',
+    url: '/api/v1/payments',
     data: {
       orderNo: orderNo,
       amount: body.amount,
@@ -36,7 +36,7 @@ export async function createPaymentConfirmToken(body: {
 
   return request<PaymentConfirmToken>({
     method: 'POST',
-    url: '/api/v1/payments/confirm-token',
+    url: '/api/v1/payments/confirmation-tokens',
     data: {
       orderNo: orderNo,
       amount: body.amount,
@@ -62,7 +62,7 @@ export async function confirmPayment(body: {
 
   await request({
     method: 'POST',
-    url: '/api/v1/payments/confirm',
+    url: '/api/v1/payments/confirmations',
     data: {
       orderNo: orderNo,
       amount: body.amount,

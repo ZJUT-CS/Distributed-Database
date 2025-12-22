@@ -41,7 +41,7 @@ export async function listAdminOrders(params: {
 
   return request<PageResult<AdminOrderItem>>({
     method: 'GET',
-    url: '/api/v1/admin/orders',
+    url: '/api/v1/admins/orders',
     params: qp,
   });
 }
@@ -52,7 +52,7 @@ export async function cancelAdminOrder(orderId: string | number): Promise<boolea
 
   return request<boolean>({
     method: 'PUT',
-    url: `/api/v1/admin/orders/${encodeURIComponent(id)}/cancel`,
+    url: `/api/v1/admins/orders/${encodeURIComponent(id)}/cancel`,
   });
 }
 
@@ -63,7 +63,7 @@ export async function updateAdminOrderStatus(orderId: string | number, orderStat
 
   return request<boolean>({
     method: 'PUT',
-    url: `/api/v1/admin/orders/${encodeURIComponent(id)}/status`,
+    url: `/api/v1/admins/orders/${encodeURIComponent(id)}/status`,
     data: { orderStatus },
   });
 }
@@ -74,7 +74,7 @@ export async function deleteAdminOrder(orderId: string | number): Promise<boolea
 
   return request<boolean>({
     method: 'DELETE',
-    url: `/api/v1/admin/orders/${encodeURIComponent(id)}`,
+    url: `/api/v1/admins/orders/${encodeURIComponent(id)}`,
   });
 }
 

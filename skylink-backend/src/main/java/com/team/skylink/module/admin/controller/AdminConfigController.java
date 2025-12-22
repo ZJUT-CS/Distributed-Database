@@ -33,7 +33,8 @@ public class AdminConfigController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) String keyword
-    ) {
+    ) 
+    {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<PageResult<SystemConfig>>) adminGuard;
         return adminConfigService.list(page, size, keyword);

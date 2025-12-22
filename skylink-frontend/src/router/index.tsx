@@ -123,6 +123,9 @@ const AdminSettings = React.lazy(() => import('@/pages/Admin/Settings'));
 const OrderAudit = React.lazy(() => import('@/pages/Admin/OrderAudit'));
 const AdminsMgmt = React.lazy(() => import('@/pages/Admin/AdminsMgmt'));
 const SystemLogs = React.lazy(() => import('@/pages/Admin/SystemLogs'));
+const RoutesMgmt = React.lazy(() => import('@/pages/Admin/RoutesMgmt'));
+const AircraftModelsMgmt = React.lazy(() => import('@/pages/Admin/AircraftModelsMgmt'));
+const CabinConfigsMgmt = React.lazy(() => import('@/pages/Admin/CabinConfigsMgmt'));
 
 // =====================
 // 辅助函数：包装懒加载组件
@@ -171,6 +174,9 @@ export const router = createBrowserRouter([
       { path: 'payments', element: withSuspense(PaymentsMgmt) },
       { path: 'system/config', element: withSuspense(AdminSettings) },
       { path: 'system/logs', element: withSuspense(SystemLogs) },
+      { path: 'routes', element: withSuspense(RoutesMgmt) },
+      { path: 'aircraft-models', element: withSuspense(AircraftModelsMgmt) },
+      { path: 'cabin-configs', element: withSuspense(CabinConfigsMgmt) },
     ]
   }
 ]);

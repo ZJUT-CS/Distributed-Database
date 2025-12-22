@@ -17,7 +17,7 @@ export async function listAdminUsers(params: {
 }): Promise<PageResult<AdminUserItem>> {
   return request<PageResult<AdminUserItem>>({
     method: 'GET',
-    url: '/api/v1/admin/users',
+    url: '/api/v1/admins/users',
     params: {
       page: String(params.page),
       size: String(params.size),
@@ -40,7 +40,7 @@ export async function createAdminUser(body: {
 
   return request<AdminUserItem>({
     method: 'POST',
-    url: '/api/v1/admin/users',
+    url: '/api/v1/admins/users',
     data: {
       phoneNumber,
       password,
@@ -58,7 +58,7 @@ export async function updateAdminUser(
   if (!id) throw new Error('缺少 userId');
   return request<boolean>({
     method: 'PUT',
-    url: `/api/v1/admin/users/${encodeURIComponent(id)}`,
+    url: `/api/v1/admins/users/${encodeURIComponent(id)}`,
     data: body,
   });
 }
@@ -71,7 +71,7 @@ export async function resetAdminUserPassword(userId: string | number, password: 
 
   return request<boolean>({
     method: 'PUT',
-    url: `/api/v1/admin/users/${encodeURIComponent(id)}/password`,
+    url: `/api/v1/admins/users/${encodeURIComponent(id)}/password`,
     data: { password: pwd },
   });
 }
@@ -82,7 +82,7 @@ export async function deleteAdminUser(userId: string | number): Promise<boolean>
 
   return request<boolean>({
     method: 'DELETE',
-    url: `/api/v1/admin/users/${encodeURIComponent(id)}`,
+    url: `/api/v1/admins/users/${encodeURIComponent(id)}`,
   });
 }
 
