@@ -1,7 +1,6 @@
-package com.team.skylink.module.auth.service;
+package com.team.skylink.module.user.service;
 
 import org.springframework.stereotype.Service;
-
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 

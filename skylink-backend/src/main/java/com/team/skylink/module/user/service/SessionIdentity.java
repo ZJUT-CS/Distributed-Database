@@ -1,4 +1,4 @@
-package com.team.skylink.module.auth.service;
+package com.team.skylink.module.user.service;
 
 public record SessionIdentity(Long userId, Integer userType) {
 }

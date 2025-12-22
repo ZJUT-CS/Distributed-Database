@@ -1,4 +1,4 @@
-package com.team.skylink.module.auth.dto;
+package com.team.skylink.module.admin.dto;
 
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
@@ -6,8 +6,9 @@ import jakarta.validation.constraints.NotBlank;
 @Data
 public class AdminLoginRequest {
     @NotBlank(message = "adminAccount is required")
-    private String adminAccount; // 改名：username -> adminAccount
+    private String adminAccount;
 
     @NotBlank(message = "password is required")
     private String password;
 }
+
