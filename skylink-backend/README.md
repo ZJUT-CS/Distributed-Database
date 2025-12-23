@@ -1,8 +1,61 @@
-# SkyLink 后端接口文档
+# ✈️ SkyLink Backend - 分布式航空订票系统
 
-## 🚀 增量任务：智能中转/联程航班业务 (Interline Flight Expansion)
+SkyLink 是一个基于 **Spring Boot 4** 和 **MyBatis-Plus** 构建的高性能分布式航空订票系统后端。支持航班搜索、智能联程拼接、分布式事务订单处理、支付对接以及完整的后台管理功能。
 
-### 1. 模块架构图 (Module Architecture)
+本项目集成了 **ShardingSphere** 进行分库分表，并采用 **RESTful** 风格设计 API，旨在提供稳定、高效的航空业务支撑。
+
+---
+
+## 📚 目录 (Table of Contents)
+
+- [核心特性 (Features)](#-核心特性-features)
+- [技术栈 (Tech Stack)](#-技术栈-tech-stack)
+- [系统架构 (Architecture)](#-系统架构-architecture)
+- [前端对接指南 (Frontend Integration)](#-前端对接指南-frontend-integration)
+- [API 接口文档 (API Documentation)](#-api-接口文档-api-documentation)
+  - [公共/用户接口](#1-公共用户接口-publicuser-apis)
+  - [管理后台接口](#2-管理后台接口-admin-apis)
+- [快速开始 (Getting Started)](#-快速开始-getting-started)
+- [异常处理与状态码](#-异常处理与状态码)
+
+---
+
+## 🌟 核心特性 (Features)
+
+### 🛫 航班业务
+- **智能联程搜索**：支持跨航段拼接，自动计算中转时间与总价。
+- **动态定价**：基于航线基础价 × 舱位系数自动计算最低票价。
+- **自动座位生成**：根据机型配置自动生成 `行号+列字母` (如 1A, 12F) 的座位布局。
+
+### 📦 订单交易
+- **分布式事务**：保障联程订单（多航段）的数据一致性，任一段失败自动回滚。
+- **并发控制**：基于 Redis/DB 锁机制防止库存超卖。
+- **状态机管理**：完整的订单生命周期（待审核 -> 待支付 -> 已支付/已取消/已退款）。
+
+### 🛡️ 系统与安全
+- **RBAC 权限模型**：区分普通用户、普通管理员、超级管理员。
+- **数据分片**：集成 ShardingSphere-Proxy 处理海量业务数据。
+- **操作审计**：全量记录管理员操作日志。
+
+---
+
+## 🛠 技术栈 (Tech Stack)
+
+| 类别 | 技术/组件 | 说明 |
+| --- | --- | --- |
+| **Language** | Java 21 | 最新 LTS 版本 |
+| **Framework** | Spring Boot 4.0 | 核心应用框架 |
+| **ORM** | MyBatis-Plus 3.5.15 | 持久层框架，Lambda 风格调用 |
+| **Database** | MySQL 9.3 | 关系型数据库 |
+| **Sharding** | ShardingSphere-Proxy | 分库分表中间件 |
+| **Docs** | SpringDoc OpenAPI | 自动生成 Swagger 文档 |
+| **Build** | Maven | 项目构建工具 |
+
+---
+
+## 🏗 系统架构 (Architecture)
+
+### 1. 模块交互图
 ```mermaid
 graph TD
     User[用户/客户端] --> SearchService[航班搜索服务]
@@ -12,7 +65,7 @@ graph TD
         SearchService --> Strategy[中转拼接策略]
         Strategy --> Cache[Redis缓存 (热门中转)]
         BookingService --> Transaction[分布式事务管理]
-        Transaction --> Lock[库存锁 (Select For Update)]
+        Transaction --> Lock[库存锁]
     end
     
     subgraph Data[数据层]
@@ -25,54 +78,10 @@ graph TD
     StateMachine --> RefundService[退改服务]
 ```
 
-### 2. 核心接口文档 (Core Interface Swagger)
-
-#### 2.1 航班搜索 (Enhanced Search)
-- **URL**: `GET /api/v1/flights`
-- **Response**: `FlightSearchResult`
-```json
-{
-  "directFlights": [
-    {
-      "flightNo": "MU1234",
-      "price": 1200.00,
-      "departureTime": "2025-12-20T10:00:00"
-    }
-  ],
-  "interlineFlights": [
-    {
-      "segments": [
-        { "flightNo": "MU1234", "departurePlace": "Shanghai", "destination": "Xi'an" },
-        { "flightNo": "MU5678", "departurePlace": "Xi'an", "destination": "Beijing" }
-      ],
-      "totalPrice": 2100.00,
-      "transferCity": "Xi'an",
-      "transferDuration": "3h 30m"
-    }
-  ]
-}
-```
-
-#### 2.2 联程下单 (Interline Booking)
-- **URL**: `POST /api/v1/bookings/interline`
-- **Request**: `InterlineBookingRequest`
-```json
-{
-  "userId": 1001,
-  "segments": [
-    { "flightId": 101, "cabinType": "Y", "date": "2025-12-20" },
-    { "flightId": 202, "cabinType": "Y", "date": "2025-12-20" }
-  ],
-  "passengerIds": [501, 502],
-  "contactName": "John Doe",
-  "contactPhone": "13800138000"
-}
-```
-
-### 3. 状态转换流程图 (State Transition Flowchart)
+### 2. 订单状态流转
 ```mermaid
 stateDiagram-v2
-    [*] --> PendingAudit: 提交订单(Status=0)
+    [*] --> PendingAudit: 提交订单 (Status=0)
     
     state "联程订单状态联动" as Link {
         PendingAudit --> PendingPayment: 审核通过 (两段同时)
@@ -87,313 +96,149 @@ stateDiagram-v2
     Rejected --> [*]
 ```
 
-### 4. 事务处理时序图 (Transaction Processing Sequence)
-```mermaid
-sequenceDiagram
-    participant User
-    participant BookingService
-    participant InventoryService
-    participant OrderDB
-    
-    User->>BookingService: submitInterlineBooking()
-    BookingService->>BookingService: Generate ParentID
-    BookingService->>InventoryService: acquireSortedLocks(List<FlightId>)
-    Note right of InventoryService: 按ID升序加锁防止死锁
-    
-    alt 库存充足
-        InventoryService-->>BookingService: Lock Acquired
-        BookingService->>OrderDB: Insert Order Leg 1
-        BookingService->>OrderDB: Insert Order Leg 2
-        BookingService->>InventoryService: batchDeduct(Seats)
-        BookingService-->>User: Order Created (Status=0)
-    else 库存不足/锁超时
-        InventoryService-->>BookingService: Exception
-        BookingService->>BookingService: Rollback Transaction
-        BookingService-->>User: InventoryShortageException
-    end
+---
+
+## 💻 前端对接指南 (Frontend Integration)
+
+### 1. 统一响应格式
+所有接口均返回统一的 JSON 结构：
+```json
+{
+  "code": 200,      // 200: 成功, 非200: 业务异常
+  "msg": "success", // 提示信息
+  "data": { ... }   // 业务数据
+}
 ```
 
-### 5. 异常处理对照表 (Exception Handling)
+### 2. 认证鉴权 (Headers)
 
-| 异常类型 | 错误码 | 触发场景 | 处理策略 |
-|---------|-------|---------|---------|
-| `InventoryShortageException` | 4001 | 任一段航班库存不足 | 立即回滚，提示用户重新搜索 |
-| `InterlineTimeConflictException` | 4002 | 中转时间 < 2h 或 > 24h | 拒绝下单，前端应预先过滤 |
-| `PartialBookingException` | 5001 | 数据库插入一段成功一段失败 | 事务自动回滚，记录Dead-Letter日志 |
-| `SeatOccupiedException` | 4003 | 选座时座位已被占用 | 提示用户重选座位 |
-| `PriceChangedException` | 4004 | 验价发现价格变动 | 返回最新价格，需用户确认 |
+| 角色 | Header Key | Header Value | 说明 |
+| --- | --- | --- | --- |
+| **所有已登录用户** | `Authorization` | `Bearer <token>` | 登录接口返回的 Token |
+| **管理员 (必须)** | `X-User-Type` | `2` | 标识当前请求为管理员操作 |
+| **管理员 (权限)** | `X-Admin-Role` | `1` 或 `2` | `1`: 普通管理员, `2`: 超级管理员 |
 
-## 项目概述
-基于 Spring Boot 4 + MyBatis-Plus 3.5 的分布式航班系统后端，提供用户端航班搜索、订单下单、支付退改等功能，以及管理员端航班/用户/订单/日志等全面管理接口。
+> ⚠️ **注意**：管理员调用接口时，除了 `Authorization` 外，**必须**同时携带 `X-User-Type` 和 `X-Admin-Role`，否则会报 403 错误。
 
-### 核心特性
-- **航班管理**（V2.0）
-  - ✓ 创建航班时自动计算最低票价（航线基础价 × 最小舱位系数）
-  - ✓ 创建航班时自动按机型舱位配置填充座位表（座位号格式: `行号+列字母`）
-  - ✓ 修改航班时：若改机型则重新生成座位，若不改机型则座位不变
-  - ✓ 删除航班时级联删除所有座位
+### 3. 基础环境
+- **Base URL**: `http://localhost:9999`
+- **Swagger UI**: `http://localhost:9999/swagger-ui/index.html`
 
-- **分布式数据库** 通过 ShardingSphere-Proxy 支持数据分片，config-sharding_db.yaml 配置见 `Shardingsphere-proxy/conf/`
+---
 
-- **实时日志** 所有增删改操作自动记录至 `system_log` 表，支持审计追踪
+## 📖 API 接口文档 (API Documentation)
 
-## 基础信息
-- 基础地址: `http://localhost:9999`
-- 统一返回: `Result<T>`，字段 `code`、`msg`、`data`（实现见 `skylink-backend/src/main/java/com/team/skylink/common/Result.java`）
-- 在线文档: `http://localhost:9999/swagger-ui/index.html`（配置见 `skylink-backend/src/main/java/com/team/skylink/config/SwaggerConfig.java:8`）
+### 1. 公共/用户接口 (Public/User APIs)
 
-认证与用户
-- `POST /api/v1/users/sessions` 用户登录（创建会话）
-  - 入参: `phoneNumber`, `password`
-  - 返回: `LoginResponse`（`id`, `displayName`, `role='user'`, `token`）
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/user/controller/UserAuthController.java`
-- `POST /api/v1/admins/sessions` 管理员登录（创建会话）
-  - 入参: `adminAccount`, `password`
-  - 返回: `AdminLoginResponse`（`id`, `displayName`, `role='admin'`, `token`, `userType=2`, `adminRole`）
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java`
-- `POST /api/v1/users` 用户注册
-  - 入参: `phoneNumber`, `password`, `realName?`, `email?`, `idCard?`, `gender?`
-  - 返回: `boolean`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/user/controller/UserController.java`
-- `GET /api/v1/users/me` 获取当前用户信息
-  - Header: `Authorization: Bearer <token>`
-  - 返回: `UserProfileResponse`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/user/controller/UserController.java`
-- `PUT /api/v1/users/me` 更新当前用户信息
-  - 入参: `email`, `avatarUrl`, `gender`, `realName`, `idCard`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/user/controller/UserController.java`
-- `PUT /api/v1/users/me/password` 修改密码
-  - 入参: `oldPassword`, `newPassword`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/user/controller/UserController.java`
-- `POST /api/v1/users/me/contacts` 绑定联系方式 (Email/Phone)
-  - 入参: `value`, `code`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/user/controller/UserController.java`
+#### 🔐 认证 (Auth)
+- **用户登录**: `POST /api/v1/users/sessions`
+  - Body: `{ "phoneNumber": "...", "password": "..." }`
+- **用户注册**: `POST /api/v1/users`
+  - Body: `{ "phoneNumber": "...", "password": "...", "realName": "..." }`
 
-已完成所有端口（API 接口）的命名规范化，并更新了 README.md 。
+#### ✈️ 航班 (Flights)
+- **搜索航班**: `GET /api/v1/flights`
+  - Params: `departurePlace`, `destination`, `departureDate`
+  - Response: 包含直飞 (`directFlights`) 和联程 (`interlineFlights`) 列表。
 
-主要修改内容：
+#### 📦 订单 (Orders)
+- **创建订单 (支持单程/联程)**: `POST /api/v1/orders`
+  - **支持多航段**：通过 `flightNos` 数组传递多个航班号。
+  - Body:
+    ```json
+    {
+      "userId": 1001,
+      "flightNos": ["MU1234", "CA5678"], // 联程时传多个，单程传一个
+      "cabinType": "ECONOMY",
+      "passengerName": "John Doe",
+      "contactPhone": "13800138000"
+    }
+    ```
+- **我的订单**: `GET /api/v1/orders`
+  - Header: `Authorization: Bearer ...`
 
-1. 接口标准化 (RESTful 风格) ：
-   
-   - FlightController ( /api/v1/flights )：
-     - GET /search -> GET / (搜索航班)
-     - POST /create -> POST / (创建航班)
-   - OrderController ( /api/v1/orders )：
-     - GET /search -> GET / (搜索订单)
-     - POST /create -> POST / (创建订单)
-  - PaymentController ( /api/v1/payments )：
-    - GET /search -> GET / (搜索支付)
-    - POST /pay -> POST / (创建支付)
-    - POST /confirm-token -> POST /confirmation-tokens
-    - POST /confirm -> POST /confirmations
-  - RefundChangeController ( /api/v1/refund-change-requests )：
-    - GET /search -> GET / (搜索申请)
-    - POST /apply -> POST / (提交申请)
-    - POST /approve -> POST /approvals
-    - POST /reject -> POST /rejections
-2. AdminController 检查 ：
-  
-  - 管理员接口统一前缀为 `/api/v1/admins`，管理员会话为 `POST /api/v1/admins/sessions`，管理员账号集合为 `POST /api/v1/admins`。
-3. 文档更新 ：
-   
-   - README.md 已全面更新，所有接口路径均已修正为最新的 RESTful 格式。
-   - PowerShell 示例脚本也已同步更新。
-4. 验证 ：
-   
-   - 运行 mvn compile 成功，代码无语法错误。
-现在所有 Controller 都遵循统一的 RESTful 资源路径规范（ /api/v1/{resource} ），不再混用 /create 、 /search 等动作后缀。航班
-- `GET /api/v1/flights` 航班搜索（用户端）
-  - 过滤: `departurePlace`, `destination`, `flightNo`, `airlineCompany`, `cabinType`, `status`, `departureDate`, `departureTimeFrom`, `departureTimeTo`
-  - 返回: `flightNo`, `departurePlace`, `destination`, `departureTime`, `arrivalTime`, `duration`, `price`, `remainingSeats`, `airlineCompany`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/flight/controller/FlightController.java:31`
-- `POST /api/v1/flights` 创建航班（用户端，通常仅用于测试或特定权限）
-  - 入参: `FlightCreateRequest`（`flightNo`, `departurePlace`, `destination`, `departureTime`, `arrivalTime`, `airlineCompany`, `totalSeats`, `status`）
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/flight/controller/FlightController.java:60`
-  - DTO: `skylink-backend/src/main/java/com/team/skylink/module/flight/dto/FlightCreateRequest.java`
+### 2. 管理后台接口 (Admin APIs)
+> **Base Path**: `/api/v1/admins`
+> **Required Headers**: `X-User-Type: 2`, `X-Admin-Role: <role>`
 
-航班管理（管理员端）
-- `GET /api/v1/admins/flights` 航班列表
-  - 过滤: `keyword`, `flightNo`, `departureCity`, `arrivalCity`, `page`, `size`
-  - 返回: 分页的航班列表（含 `lowestPrice` 自动计算字段）
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminFlightController.java:34`
-- `POST /api/v1/admins/flights` 创建航班（自动计算最低价、自动填充座位）
-  - 入参: `FlightCreateRequest`（`modelId`、`routeId` 必填；自动从Route填充城市、机场；自动根据AircraftCabinConfig生成座位）
-  - 特性:
-    - ✓ 自动计算最低票价 = 航线基础价 × 舱位系数（最小值）
-    - ✓ 自动按机型舱位配置生成座位（座位号格式: `行号+列字母`，如`1A`, `2B`）
-    - ✓ 支持布局方案（layoutNo）
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminFlightController.java:78`
-- `PUT /api/v1/admins/flights/{flightId}` 修改航班
-  - 功能:
-    - 修改航班基础信息（航班号、时间、航空公司等）
-    - 若改变机型，自动删除旧座位、重新按新机型舱配生成座位
-    - 若不改机型，座位保持不变
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminFlightController.java:88`
-- `DELETE /api/v1/admins/flights/{flightId}` 删除航班
-  - 功能:
-    - 级联删除所有关联座位
-    - 删除航班记录
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminFlightController.java:100`
+#### 🖥 管理员会话
+- **管理员登录**: `POST /api/v1/admins/sessions`
+  - Body: `{ "adminAccount": "admin", "password": "..." }`
+  - Returns: `token`, `adminRole` (前端需保存这两个值用于后续请求)
 
-订单
-- `GET /api/v1/orders` 订单搜索
-  - 过滤: `userId`, `orderNo`, `orderStatus`, `createTimeStart`, `createTimeEnd`, `flightNo`, `cabinType`
-  - 返回: `orderNo`, `flightNo`, `passengerName`, `orderStatus`, `totalAmount`, `orderTime`, `payTime`, `refundTime`, `changeTime`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/order/controller/OrderController.java:29`
-- `POST /api/v1/orders` 创建订单
-  - 入参: `userId`, `flightNo`, `cabinType`, `ticketNum`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/order/controller/OrderController.java:42`
-- `POST /api/v1/orders/{orderId}/cancellation` 取消订单
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/order/controller/OrderController.java`
+#### ✈️ 航班管理
+- **创建航班**: `POST /api/v1/admins/flights`
+  - 自动计算最低价、自动生成座位。
+- **修改航班**: `PUT /api/v1/admins/flights/{id}`
+  - 修改机型会触发座位重置。
 
-支付
-- `GET /api/v1/payments` 支付搜索
-  - 过滤: `orderNo`, `userId`, `paymentStatus`, `paymentMethod`, `paymentTimeStart`, `paymentTimeEnd`
-  - 返回: `paymentId`, `orderNo`, `paymentAmount`, `paymentMethod`, `paymentStatus`, `tradeNo`, `paymentTime`, `refundTime`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/payment/controller/PaymentController.java:31`
-- `POST /api/v1/payments` 创建支付并更新订单为已支付
-  - 入参: `orderNo`, `amount`, `method`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/payment/controller/PaymentController.java:53`
-- `POST /api/v1/payments/confirmation-tokens` 创建支付确认 Token
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/payment/controller/PaymentController.java`
-- `POST /api/v1/payments/confirmations` 确认支付
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/payment/controller/PaymentController.java`
+#### ✅ 订单审核
+- **审核通过/拒绝**: `POST /api/v1/orders/{orderId}/audit` (示例路径，具体见代码)
+  - 联程订单审核其中一段，系统会自动级联更新关联航段状态。
 
-退票/改签
-- `POST /api/v1/refund-change-requests` 退票/改签申请
-  - 入参: 
-    - 退票: `operType=1`, `orderNo`, `remark?`
-    - 改签: `operType=2`, `orderNo`, `newFlightNo`, `newCabinType`, `remark?`
-  - 效果: 退票返还座位、支付记录标记退款；改签返还旧座位、扣减新座位、订单金额与改签时间更新
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/refund/controller/RefundChangeController.java`
+---
 
-管理与统计
-- `POST /api/v1/admins` 创建管理员
-  - 入参: `adminAccount`, `password`, `role`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java`
-- `GET /api/v1/admins/count` 管理员数量  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java`
-- `GET /api/v1/admins/system-configs/count` 系统配置数量  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java`
-- `GET /api/v1/admins/operation-logs/count` 系统操作日志数量  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java`
-- `GET /api/v1/admins/user-behavior-stats/count` 用户行为统计数量  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java`
-- `GET /api/v1/admins/refund-change-requests/count` 退票/改签记录数量  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java`
-- `GET /api/v1/metrics/orders/count` 订单总数  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/MetricsController.java`
-- `GET /api/v1/metrics/payments/count` 支付总数  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/MetricsController.java`
-- `GET /api/v1/metrics/refunds/count` 退款记录总数  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/MetricsController.java`
-- `GET /api/v1/metrics/flights/count` 航班总数  
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/GlobalController.java`
-  
-模块结构调整
-- `module/trade` 已合并至 `module/system/service`
-- `TradeService` 与 `TradeServiceImpl` 迁移至 `com.team.skylink.module.system.service`
-- 受影响引用已更新为 `com.team.skylink.module.system.service.TradeService`，接口路径与功能不变
- - `module/auth` 已合并至 `module/user`
-   - 用户登录控制器迁移并重命名为 `UserAuthController`，路径不变 `/api/v1/users/sessions`
-   - `LoginRequest` 与 `LoginResponse` 迁移至 `com.team.skylink.module.user.dto`
-   - `AuthService` 与 `AuthServiceImpl` 迁移至 `com.team.skylink.module.user.service`
-   - 会话相关 `SessionStore`、`SessionIdentity`、`InMemorySessionStore` 迁移至 `com.team.skylink.module.user.service`
-   - 管理员登录请求 `AdminLoginRequest` 迁移至 `com.team.skylink.module.admin.dto`
+## 🚀 快速开始 (Getting Started)
 
-权限与角色
-- 管理员识别：请求头 `X-User-Type: 2`
-- 管理员角色：请求头 `X-Admin-Role`，取值 `1`=普通管理员，`2`=超级管理员
-- 普通管理员（role=1）
-  - 可访问与管理业务功能：航班、订单、用户、支付、退改等
-  - 禁止管理员账号的增删改查
-  - 禁止对系统核心配置的新增、修改、删除（仅可查询）
-- 超级管理员（role=2）
-  - 可访问所有功能，包括管理员账号管理、系统配置新增/修改/删除
-  - 不受权限限制
+### 环境要求
+- JDK 21+
+- Maven 3.8+
+- MySQL 8.0+ (推荐 9.3)
 
-接口权限要求
-- `POST /api/v1/admins` 创建管理员  
-  - 需 `X-User-Type: 2` 且 `X-Admin-Role: 2`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminController.java:29-40`
-- `GET /api/v1/admins/system-configs` 查询系统配置  
-  - 需 `X-User-Type: 2`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminConfigController.java:30-40`
-- `POST /api/v1/admins/system-configs` 创建系统配置  
-  - 需 `X-User-Type: 2` 且 `X-Admin-Role: 2`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminConfigController.java:42-47`
-- `PUT /api/v1/admins/system-configs/{configId}` 更新系统配置  
-  - 需 `X-User-Type: 2` 且 `X-Admin-Role: 2`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminConfigController.java:49-58`
-- `DELETE /api/v1/admins/system-configs/{configId}` 删除系统配置  
-  - 需 `X-User-Type: 2` 且 `X-Admin-Role: 2`
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/admin/controller/AdminConfigController.java:60-65`
+### 安装步骤
 
-前端使用建议
-- 管理员登录后，将 `AdminLoginResponse.userType` 作为 `X-User-Type`，将 `AdminLoginResponse.adminRole` 作为 `X-Admin-Role` 随后续请求发送
-- 用户登录后，仅需带上 `Authorization: Bearer <token>` 用于用户端接口；管理员接口必须携带上述两个头
-调试
-- `GET /api/v1/system/health` 健康测试（返回 `Hello, SkyLink`）
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/DbTestController.java:20`
-- `GET /api/v1/system/db-connection` 数据库连通测试（成功返回数据库 URL，失败返回异常信息）
-  - 位置: `skylink-backend/src/main/java/com/team/skylink/module/system/controller/DbTestController.java:25`
+1. **克隆项目**
+   ```bash
+   git clone https://github.com/your-repo/skylink-backend.git
+   cd skylink-backend
+   ```
 
-示例（PowerShell）
-```powershell
-$base = 'http://localhost:9999'
+2. **数据库初始化**
+   - 执行 `Shardingsphere-proxy/mysql-init/01-init.sql` 初始化表结构。
+   - 确保 `application.yml` 中的数据库连接配置正确。
 
-# ============ 管理员操作：创建航班（自动计算价格、自动填充座位） ============
-$headers = @{
-  'Content-Type' = 'application/json'
-  'X-User-Type' = '2'  # 管理员标识
-}
+3. **编译与运行**
+   ```bash
+   # 编译
+   mvn clean package -DskipTests
 
-$flightBody = @{
-  flightNo='MU1234'
-  modelId=1              # 指定机型ID（如Boeing 737-800）
-  routeId=1              # 指定航线ID（如上海->北京）
-  departureTime='2025-12-20T09:00:00'
-  airlineCompany='中国东方航空'
-  status=1
-} | ConvertTo-Json
+   # 运行
+   java -jar target/skylink-backend-0.0.1-SNAPSHOT.jar
+   ```
 
-# 创建航班：自动计算最低价为 基础价×最小舱位系数，自动按舱配生成座位
-$response = Invoke-RestMethod -Method Post -Uri "$base/api/v1/admins/flights" `
-  -Headers $headers -Body $flightBody
-Write-Output "创建航班成功，航班ID: $($response.data)"
+4. **验证**
+   访问 `http://localhost:9999/api/v1/system/health`，应返回 `Hello, SkyLink`。
 
-# ============ 管理员操作：查询航班列表 ============
-$listResponse = Invoke-RestMethod -Method Get -Uri "$base/api/v1/admins/flights?page=1&size=10" `
-  -Headers $headers
-Write-Output "航班总数: $($listResponse.data.total)"
-foreach ($flight in $listResponse.data.data) {
-  Write-Output "  - 航班: $($flight.flightNo) | 起飞: $($flight.departureTime) | 最低价: $($flight.lowestPrice) | 座位数: $($flight.totalSeats)"
-}
+---
 
-# ============ 管理员操作：修改航班（若不改机型，座位不变；若改机型，自动重生成座位） ============
-$updateBody = @{
-  flightNo='MU1234-UPDATED'
-  modelId=1
-  routeId=1
-  departureTime='2025-12-20T10:00:00'
-  airlineCompany='中国东方航空'
-  status=1
-} | ConvertTo-Json
+## ⚠️ 异常处理与状态码
 
-$flightId = 123456789  # 替换为实际航班ID
-$updateResponse = Invoke-RestMethod -Method Put `
-  -Uri "$base/api/v1/admins/flights/$flightId" `
-  -Headers $headers -Body $updateBody
-Write-Output "修改航班成功: $($updateResponse.data)"
+| 异常类型 | 错误码 | 触发场景 | 前端处理建议 |
+| :--- | :--- | :--- | :--- |
+| `InventoryShortageException` | **4001** | 库存不足 | 提示"余票不足"，引导重新搜索 |
+| `InterlineTimeConflictException` | **4002** | 中转时间冲突 | 提示"中转时间不足"，禁止下单 |
+| `SeatOccupiedException` | **4003** | 座位已被占用 | 刷新选座图，提示重选 |
+| `PriceChangedException` | **4004** | 价格变动 | 弹窗提示最新价格，需用户确认 |
+| `PartialBookingException` | **5001** | 部分航段失败 | 系统自动回滚，提示"系统繁忙" |
 
-# ============ 管理员操作：删除航班（级联删除座位） ============
-$deleteResponse = Invoke-RestMethod -Method Delete `
-  -Uri "$base/api/v1/admins/flights/$flightId" `
-  -Headers $headers
-Write-Output "删除航班成功: $($deleteResponse.data)"
+---
 
-# ============ 用户操作：搜索航班 ============
-$searchResponse = Invoke-RestMethod -Method Get `
-  -Uri "$base/api/v1/flights?departurePlace=上海&destination=北京&departureDate=2025-12-20"
-Write-Output "找到 $($searchResponse.data.Count) 个航班"
+## 📂 项目结构说明
 
+```text
+skylink-backend/
+├── src/main/java/com/team/skylink/
+│   ├── common/          # 通用模块 (Result, Exception, Enums)
+│   ├── config/          # 全局配置 (Swagger, Security, MyBatis)
+│   ├── module/
+│   │   ├── admin/       # 管理员模块 (Controller, Service)
+│   │   ├── flight/      # 航班模块 (Search, Seat, Route)
+│   │   ├── order/       # 订单模块 (Booking, Audit, Transaction)
+│   │   ├── payment/     # 支付模块
+│   │   ├── user/        # 用户模块 (Auth, Profile)
+│   │   └── system/      # 系统级服务 (Metrics, Logs)
+│   └── SkyLinkApplication.java
+└── pom.xml
+```
+
+> **前端开发注意**: 请重点关注 `module/*/controller` 下的接口定义以及 `module/*/dto` 下的数据传输对象结构。
