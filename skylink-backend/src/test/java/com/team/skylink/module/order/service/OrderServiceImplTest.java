@@ -17,6 +17,7 @@ import com.team.skylink.module.order.dto.CreateOrderRequest;
 import com.team.skylink.module.order.dto.OrderSearchResponse;
 import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
+import com.team.skylink.module.user.entity.User;
 import com.team.skylink.module.user.mapper.UserMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeEach;
@@ -280,5 +281,200 @@ class OrderServiceImplTest {
 
         // Verify that selectCount was called at least 10 times (once per thread)
         verify(orderMapper, atLeast(10)).selectCount(any());
+    }
+
+    @Test
+    void testSearch_flightNoNotFound_returnsEmptyList() {
+        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(null);
+        Result<List<OrderSearchResponse>> result = orderService.search(null, null, null, null, null, "NOPE", null);
+        assertEquals(0, result.getCode());
+        assertNotNull(result.getData());
+        assertTrue(result.getData().isEmpty());
+    }
+
+    @Test
+    void testSearch_mapsPassengerNameFromUserWhenBlank() {
+        Orders o = new Orders();
+        o.setOrderId(1L);
+        o.setUserId(10L);
+        o.setFlightId(99L);
+        o.setCabinId(50L);
+        o.setOrderStatus(0);
+        o.setPassengerName("");
+
+        when(orderMapper.selectList(any(QueryWrapper.class))).thenReturn(List.of(o));
+
+        Flight f = new Flight();
+        f.setFlightId(99L);
+        f.setFlightNo("FL001");
+        f.setDepartureCity("A");
+        f.setArrivalCity("B");
+        when(flightMapper.selectById(99L)).thenReturn(f);
+
+        User u = new User();
+        u.setUserId(10L);
+        u.setRealName("Real Name");
+        when(userMapper.selectById(10L)).thenReturn(u);
+
+        Result<List<OrderSearchResponse>> result = orderService.search(10L, null, null, null, null, null, null);
+        assertEquals(0, result.getCode());
+        assertEquals(1, result.getData().size());
+        assertEquals("Real Name", result.getData().get(0).getPassengerName());
+        assertEquals("FL001", result.getData().get(0).getFlightNo());
+    }
+
+    @Test
+    void testCreate_missingFlightNo_returns400() {
+        CreateOrderRequest req = new CreateOrderRequest();
+        req.setUserId(1L);
+        req.setTicketNum(1);
+        req.setCabinType("ECONOMY");
+        req.setPassengerName("P");
+
+        Result<OrderSearchResponse> result = orderService.create(req);
+        assertEquals(400, result.getCode());
+    }
+
+    @Test
+    void testCreate_flightNotFound_returns404() {
+        CreateOrderRequest req = new CreateOrderRequest();
+        req.setUserId(1L);
+        req.setTicketNum(1);
+        req.setCabinType("ECONOMY");
+        req.setPassengerName("P");
+        req.setFlightNo("NOPE");
+
+        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(null);
+        Result<OrderSearchResponse> result = orderService.create(req);
+        assertEquals(404, result.getCode());
+    }
+
+    @Test
+    void testCreate_cabinConfigNotFound_returns404() {
+        CreateOrderRequest req = new CreateOrderRequest();
+        req.setUserId(1L);
+        req.setTicketNum(1);
+        req.setCabinType("ECONOMY");
+        req.setPassengerName("P");
+        req.setFlightNo("FL001");
+
+        Flight f = new Flight();
+        f.setFlightId(1L);
+        f.setFlightNo("FL001");
+        f.setModelId(10L);
+        f.setRouteId(100L);
+        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(f);
+        when(configMapper.selectOne(any())).thenReturn(null);
+
+        Result<OrderSearchResponse> result = orderService.create(req);
+        assertEquals(404, result.getCode());
+    }
+
+    @Test
+    void testCreate_routeNotFound_returns404() {
+        CreateOrderRequest req = new CreateOrderRequest();
+        req.setUserId(1L);
+        req.setTicketNum(1);
+        req.setCabinType("ECONOMY");
+        req.setPassengerName("P");
+        req.setFlightNo("FL001");
+
+        Flight f = new Flight();
+        f.setFlightId(1L);
+        f.setFlightNo("FL001");
+        f.setModelId(10L);
+        f.setRouteId(100L);
+        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(f);
+
+        AircraftCabinConfig config = new AircraftCabinConfig();
+        config.setConfigId(50L);
+        config.setCapacity(100);
+        config.setCabinCoefficient(BigDecimal.ONE);
+        when(configMapper.selectOne(any())).thenReturn(config);
+        when(orderMapper.selectCount(any())).thenReturn(0L);
+
+        when(routeMapper.selectById(100L)).thenReturn(null);
+
+        Result<OrderSearchResponse> result = orderService.create(req);
+        assertEquals(404, result.getCode());
+    }
+
+    @Test
+    void testCreate_insufficientSeats_returns409() {
+        CreateOrderRequest req = new CreateOrderRequest();
+        req.setUserId(1L);
+        req.setTicketNum(2);
+        req.setCabinType("ECONOMY");
+        req.setPassengerName("P");
+        req.setFlightNo("FL001");
+
+        Flight f = new Flight();
+        f.setFlightId(1L);
+        f.setFlightNo("FL001");
+        f.setModelId(10L);
+        f.setRouteId(100L);
+        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(f);
+
+        AircraftCabinConfig config = new AircraftCabinConfig();
+        config.setConfigId(50L);
+        config.setCapacity(1);
+        config.setCabinCoefficient(BigDecimal.ONE);
+        when(configMapper.selectOne(any())).thenReturn(config);
+        when(orderMapper.selectCount(any())).thenReturn(0L);
+
+        Result<OrderSearchResponse> result = orderService.create(req);
+        assertEquals(409, result.getCode());
+    }
+
+    @Test
+    void testCancel_nullOrderId_returns400() {
+        Result<Boolean> result = orderService.cancel(null);
+        assertEquals(400, result.getCode());
+    }
+
+    @Test
+    void testCancel_orderNotFound_returns404() {
+        when(orderMapper.selectById(1L)).thenReturn(null);
+        Result<Boolean> result = orderService.cancel(1L);
+        assertEquals(404, result.getCode());
+    }
+
+    @Test
+    void testCancel_statusConflict_returns409() {
+        Orders o = new Orders();
+        o.setOrderId(1L);
+        o.setOrderStatus(2);
+        when(orderMapper.selectById(1L)).thenReturn(o);
+
+        Result<Boolean> result = orderService.cancel(1L);
+        assertEquals(409, result.getCode());
+    }
+
+    @Test
+    void testCancel_interline_updatesByParent() {
+        Orders o = new Orders();
+        o.setOrderId(1L);
+        o.setOrderStatus(0);
+        o.setParentOrderId(999L);
+        when(orderMapper.selectById(1L)).thenReturn(o);
+
+        Result<Boolean> result = orderService.cancel(1L);
+        assertEquals(0, result.getCode());
+        verify(orderMapper).update(eq(null), any(LambdaUpdateWrapper.class));
+    }
+
+    @Test
+    void testAudit_orderNotFound_throws() {
+        when(orderMapper.selectById(1L)).thenReturn(null);
+        assertThrows(RuntimeException.class, () -> orderService.audit(1L, true));
+    }
+
+    @Test
+    void testAudit_statusNotPending_throws() {
+        Orders o = new Orders();
+        o.setOrderId(1L);
+        o.setOrderStatus(1);
+        when(orderMapper.selectById(1L)).thenReturn(o);
+        assertThrows(RuntimeException.class, () -> orderService.audit(1L, true));
     }
 }
