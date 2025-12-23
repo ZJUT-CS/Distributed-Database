@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Download, Plus, Search, Users, Edit2, Ban, Trash2, Save, Plane as PlaneIcon, RefreshCw } from 'lucide-react';
 import { type FlightStatus } from '@/features/flight';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem, FLIGHT_STATUS_STR_META, useAdminList, AdminTableState } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem, FLIGHT_STATUS_STR_META, useAdminList, AdminTableState, useAdminOptions } from '@/features/admin';
+import { formatApiError } from '@/utils/apiError';
 import EntityCell from '@/components/common/EntityCell';
 import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
@@ -153,13 +154,23 @@ const FlightMgmt: React.FC = () => {
   const [editingFlight, setEditingFlight] = useState<UiFlight | null>(null);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
 
-  // 下拉选项数据
+  // 下拉选项数据（使用 useAdminOptions 缓存）
+  const { options: routeOptionsRaw } = useAdminOptions<RouteOption, number>('routes', {
+    fetchFn: listRouteOptions,
+    transform: (r) => ({ value: r.routeId, label: `${r.departureCity}(${r.departureAirport}) → ${r.arrivalCity}(${r.arrivalAirport})` }),
+  });
+  const { options: modelOptionsRaw } = useAdminOptions<AircraftModelOption, number>('aircraftModels', {
+    fetchFn: listAircraftModelOptions,
+    transform: (m) => ({ value: m.modelId, label: `${m.modelName}${m.manufacturer ? ` (${m.manufacturer})` : ''}` }),
+  });
+
+  // 保持原有数据格式兼容
   const [routeOptions, setRouteOptions] = useState<RouteOption[]>([]);
   const [modelOptions, setModelOptions] = useState<AircraftModelOption[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<number | ''>('');
   const [selectedModelId, setSelectedModelId] = useState<number | ''>('');
 
-  // 加载下拉选项
+  // 加载原始数据用于 map 查找
   useEffect(() => {
     listRouteOptions().then(setRouteOptions).catch(console.error);
     listAircraftModelOptions().then(setModelOptions).catch(console.error);
@@ -245,7 +256,7 @@ const FlightMgmt: React.FC = () => {
       setIsFlightModalOpen(false);
       toast.success(editingFlight ? '航班信息已更新' : '航班创建成功');
     } catch (err: any) {
-      toast.error(err?.message || '请求失败，请稍后再试');
+      toast.error(formatApiError(err));
     }
   };
 
@@ -263,7 +274,7 @@ const FlightMgmt: React.FC = () => {
       await refreshFlights();
       toast.success('航班已删除');
     } catch (err: any) {
-      toast.error(err?.message || '请求失败，请稍后再试');
+      toast.error(formatApiError(err));
     } finally {
       setActiveActionId(null);
     }
@@ -292,7 +303,7 @@ const FlightMgmt: React.FC = () => {
       await refreshFlights();
       toast.success('航班已取消');
     } catch (err: any) {
-      toast.error(err?.message || '请求失败，请稍后再试');
+      toast.error(formatApiError(err));
     } finally {
       setActiveActionId(null);
     }

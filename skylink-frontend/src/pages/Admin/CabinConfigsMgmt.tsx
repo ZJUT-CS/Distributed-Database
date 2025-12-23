@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, Save, Sliders, Plane as PlaneIcon, Download, Search, X } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, TableSkeleton, EmptyState } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, AdminTableState, ErrorBanner, useConfirm, useToast } from '@/features/admin';
 import {
   listCabinConfigs,
   createCabinConfig,
@@ -12,12 +12,16 @@ import {
 } from '@/features/admin/api/cabinConfigs';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
 import EntityCell from '@/components/common/EntityCell';
+import { formatApiError } from '@/utils/apiError';
 
 const CabinConfigsMgmt: React.FC = () => {
+  const { confirm } = useConfirm();
+  const toast = useToast();
   const [configs, setConfigs] = useState<CabinConfigItem[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filterModelId, setFilterModelId] = useState<number | ''>('');
   const [filterCabinType, setFilterCabinType] = useState('');
 
@@ -36,6 +40,7 @@ const CabinConfigsMgmt: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await listCabinConfigs({
         page,
@@ -46,7 +51,9 @@ const CabinConfigsMgmt: React.FC = () => {
       setConfigs(res.data ?? []);
       setTotal(res.total ?? 0);
     } catch (err: any) {
-      console.error('加载舱位配置失败', err);
+      setLoadError(formatApiError(err));
+      setConfigs([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -115,19 +122,28 @@ const CabinConfigsMgmt: React.FC = () => {
         });
       }
       setIsModalOpen(false);
+      toast.success(editingItem ? '保存成功' : '创建成功');
       loadData();
     } catch (err: any) {
-      alert(err?.message || '操作失败');
+      toast.error(formatApiError(err));
     }
   };
 
   const handleDelete = async (configId: number) => {
-    if (!confirm('确定删除该舱位配置吗？')) return;
+    const ok = await confirm({
+      title: '删除确认',
+      message: '确定删除该舱位配置吗？',
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await deleteCabinConfig(configId);
+      toast.success('删除成功');
       loadData();
     } catch (err: any) {
-      alert(err?.message || '删除失败');
+      toast.error(formatApiError(err));
     }
   };
 
@@ -193,20 +209,20 @@ const CabinConfigsMgmt: React.FC = () => {
         }
       />
 
+      {loadError && <ErrorBanner message={loadError} onRetry={loadData} />}
+
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
-        {loading ? (
-          <TableSkeleton rows={5} columns={6} />
-        ) : configs.length === 0 ? (
-          <EmptyState
-            icon={Sliders}
-            title="暂无舱位配置数据"
-            description="点击上方按钮创建第一个舱位配置"
-            actionText="新增配置"
-            onAction={handleOpenCreate}
-          />
-        ) : (
-          <>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible min-h-[400px] flex flex-col">
+        <AdminTableState
+          loading={loading}
+          error={loadError}
+          isEmpty={configs.length === 0}
+          onRetry={loadData}
+          emptyTitle="暂无舱位配置数据"
+          emptyDescription="点击上方按钮创建第一个舱位配置"
+          skeletonRows={5}
+          skeletonColumns={6}
+        >
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50/80">
@@ -288,10 +304,9 @@ const CabinConfigsMgmt: React.FC = () => {
                 ))}
                 </tbody>
               </table>
-            </div>
-            <Pagination currentPage={page} totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))} setPage={setPage} totalItems={total} itemsPerPage={PAGE_SIZE} />
-          </>
-        )}
+          </div>
+          <Pagination currentPage={page} totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))} setPage={setPage} totalItems={total} itemsPerPage={PAGE_SIZE} />
+        </AdminTableState>
       </div>
 
       {/* Modal */}

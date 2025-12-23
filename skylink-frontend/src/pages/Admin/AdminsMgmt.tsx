@@ -170,7 +170,7 @@ const AdminsMgmt: React.FC = () => {
         }
       />
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
         {paginatedAdmins.length === 0 ? (
           <EmptyState icon={Shield} title={searchTerm ? '未找到匹配管理员' : '暂无管理员'} description={searchTerm ? '请尝试调整搜索条件' : '当前无管理员记录'} />
         ) : (

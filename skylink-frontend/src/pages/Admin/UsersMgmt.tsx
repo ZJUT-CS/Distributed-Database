@@ -7,8 +7,7 @@ import {
   AdminPageHeader,
   AdminModal,
   AdminBadge,
-  TableSkeleton,
-  EmptyState,
+  AdminTableState,
   FilterBar,
   ErrorBanner,
   SensitiveField,
@@ -16,6 +15,8 @@ import {
   useConfirm,
   useToast,
   useSensitiveAudit,
+  GENDER_MAP,
+  GENDER_OPTIONS,
 } from '@/features/admin';
 import EntityCell from '@/components/common/EntityCell';
 
@@ -292,19 +293,17 @@ const UsersMgmt: React.FC = () => {
       {/* Users Table */}
       {loadError ? <ErrorBanner message={loadError} onRetry={() => reload(page)} /> : null}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {loading ? (
-          <TableSkeleton rows={5} columns={5} />
-        ) : loadError ? (
-          <EmptyState icon={Users} title="加载失败" description={loadError} actionText="重试" onAction={() => reload(page)} />
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={Users}
-            title={normalizedSearch ? '未找到匹配用户' : '暂无用户数据'}
-            description={normalizedSearch ? '请尝试调整搜索条件' : '当前没有符合条件的用户记录'}
-          />
-        ) : (
-          <>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+        <AdminTableState
+          loading={loading}
+          error={loadError}
+          isEmpty={items.length === 0}
+          onRetry={() => reload(page)}
+          emptyTitle={normalizedSearch ? '未找到匹配用户' : '暂无用户数据'}
+          emptyDescription={normalizedSearch ? '请尝试调整搜索条件' : '当前没有符合条件的用户记录'}
+          skeletonRows={5}
+          skeletonColumns={5}
+        >
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-50/80">
                 <tr>
@@ -407,15 +406,14 @@ const UsersMgmt: React.FC = () => {
               </tbody>
             </table>
 
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              setPage={setPage}
-              totalItems={total}
-              itemsPerPage={ITEMS_PER_PAGE}
-            />
-          </>
-        )}
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            setPage={setPage}
+            totalItems={total}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </AdminTableState>
       </div>
 
       <AdminModal
@@ -460,9 +458,9 @@ const UsersMgmt: React.FC = () => {
               onChange={(e) => setFormGender(e.target.value === '' ? '' : Number(e.target.value))}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
             >
-              <option value="">未知</option>
-              <option value="1">男</option>
-              <option value="2">女</option>
+              {GENDER_OPTIONS.map((opt) => (
+                <option key={String(opt.value)} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
 
@@ -605,7 +603,7 @@ const UsersMgmt: React.FC = () => {
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <div className="text-xs text-gray-500 mb-1">性别</div>
                   <div className="text-sm text-gray-900">
-                    {selectedUser.gender === 1 ? '男' : selectedUser.gender === 2 ? '女' : '未设置'}
+                    {selectedUser.gender != null ? (GENDER_MAP[selectedUser.gender] || '未设置') : '未设置'}
                   </div>
                 </div>
                 <div className="p-3 bg-gray-50 rounded-lg">

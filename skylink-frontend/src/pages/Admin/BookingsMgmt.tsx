@@ -6,13 +6,14 @@ import {
   TableActionMenu,
   AdminBadge,
   AdminPageHeader,
-  TableSkeleton,
-  EmptyState,
+  AdminTableState,
   FilterBar,
   ErrorBanner,
   AdminDrawer,
+  SensitiveField,
   useConfirm,
   useToast,
+  useSensitiveAudit,
   ORDER_STATUS,
   ORDER_STATUS_MAP,
 } from '@/features/admin';
@@ -21,6 +22,7 @@ import EntityCell from '@/components/common/EntityCell';
 const BookingsMgmt: React.FC = () => {
   const { confirm } = useConfirm();
   const toast = useToast();
+  const { createRevealAudit, createCopyAudit } = useSensitiveAudit();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -182,17 +184,17 @@ const BookingsMgmt: React.FC = () => {
       />
 
       {/* Bookings Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {loading ? (
-          <TableSkeleton rows={5} columns={5} />
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={ShoppingCart}
-            title={searchTerm ? '未找到匹配订单' : '暂无订单数据'}
-            description={searchTerm ? '请尝试调整搜索条件' : '当前没有符合条件的订单记录'}
-          />
-        ) : (
-          <>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+        <AdminTableState
+          loading={loading}
+          error={loadError}
+          isEmpty={items.length === 0}
+          onRetry={() => load(page)}
+          emptyTitle={searchTerm ? '未找到匹配订单' : '暂无订单数据'}
+          emptyDescription={searchTerm ? '请尝试调整搜索条件' : '当前没有符合条件的订单记录'}
+          skeletonRows={5}
+          skeletonColumns={5}
+        >
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50/80">
@@ -225,7 +227,14 @@ const BookingsMgmt: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="font-medium text-gray-900">{customerName}</div>
-                          <div className="text-xs text-gray-400">{b.email || '-'}</div>
+                          <div className="text-xs text-gray-400">
+                            <SensitiveField
+                              value={b.email}
+                              type="email"
+                              onRevealAudit={createRevealAudit('email', String(b.orderNo))}
+                              onCopyAudit={createCopyAudit('email', String(b.orderNo))}
+                            />
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
@@ -269,27 +278,19 @@ const BookingsMgmt: React.FC = () => {
                       </tr>
                     )
                   })}
-                  {!loading && items.length === 0 && (
-                    <tr>
-                      <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={6}>
-                        暂无订单数据
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
 
-            {/* Pagination */}
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              setPage={setPage}
-              totalItems={total}
-              itemsPerPage={ITEMS_PER_PAGE}
-            />
-          </>
-        )}
+          {/* Pagination */}
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            setPage={setPage}
+            totalItems={total}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </AdminTableState>
       </div>
 
       {/* 订单详情 Drawer */}
@@ -351,7 +352,14 @@ const BookingsMgmt: React.FC = () => {
                 </div>
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <div className="text-xs text-gray-500 mb-1">联系电话</div>
-                  <div className="text-sm text-gray-900">{selectedOrder.phoneNumber || '-'}</div>
+                  <div className="text-sm text-gray-900">
+                    <SensitiveField
+                      value={selectedOrder.phoneNumber}
+                      type="phone"
+                      onRevealAudit={createRevealAudit('phone', String(selectedOrder.orderNo))}
+                      onCopyAudit={createCopyAudit('phone', String(selectedOrder.orderNo))}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

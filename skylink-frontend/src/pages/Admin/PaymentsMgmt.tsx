@@ -65,7 +65,7 @@ const PaymentsMgmt: React.FC = () => {
       />
 
       {/* Transactions */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
         {paginatedTransactions.length === 0 ? (
           <EmptyState
             icon={Wallet}

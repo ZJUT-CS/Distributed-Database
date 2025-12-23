@@ -14,7 +14,7 @@ const ErrorBanner: React.FC<ErrorBannerProps> = ({ message, onRetry, className }
 
   return (
     <div
-      className={`rounded-admin border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
+      className={`rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
         className ?? ''
       }`.trim()}
       role="alert"

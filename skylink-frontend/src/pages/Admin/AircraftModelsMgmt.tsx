@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Save, Plane as PlaneIcon, Search, X, RefreshCw, AlertCircle } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, EmptyState, TableSkeleton, useAdminList } from '@/features/admin';
+import { Plus, Edit2, Trash2, Save, Plane as PlaneIcon, Search, X, RefreshCw } from 'lucide-react';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, useAdminList, AdminTableState } from '@/features/admin';
+import { formatApiError } from '@/utils/apiError';
 import { listAircraftModels, createAircraftModel, updateAircraftModel, deleteAircraftModel, type AircraftModelItem } from '@/features/admin/api/aircraftModels';
 import EntityCell from '@/components/common/EntityCell';
 
@@ -80,7 +81,7 @@ const AircraftModelsMgmt: React.FC = () => {
       setIsModalOpen(false);
       refresh();
     } catch (err: any) {
-      alert(err?.message || '操作失败');
+      alert(formatApiError(err));
     }
   };
 
@@ -90,7 +91,7 @@ const AircraftModelsMgmt: React.FC = () => {
       await deleteAircraftModel(modelId);
       refresh();
     } catch (err: any) {
-      alert(err?.message || '删除失败');
+      alert(formatApiError(err));
     }
   };
 
@@ -141,27 +142,20 @@ const AircraftModelsMgmt: React.FC = () => {
       />
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
-        {loading ? (
-          <TableSkeleton rows={5} columns={4} />
-        ) : error ? (
-          <EmptyState
-            icon={AlertCircle}
-            title="加载失败"
-            description={error}
-            actionText="重试"
-            onAction={retry}
-          />
-        ) : models.length === 0 ? (
-          <EmptyState
-            icon={PlaneIcon}
-            title={filters.keyword ? '未找到匹配结果' : '暂无机型数据'}
-            description={filters.keyword ? '请尝试调整搜索关键词' : '点击上方按钮创建第一个机型'}
-            actionText={filters.keyword ? undefined : '新增机型'}
-            onAction={filters.keyword ? undefined : handleOpenCreate}
-          />
-        ) : (
-          <>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible min-h-[400px] flex flex-col">
+        <AdminTableState
+          loading={loading}
+          error={error}
+          isEmpty={models.length === 0}
+          onRetry={retry}
+          emptyIcon={PlaneIcon}
+          emptyTitle={filters.keyword ? '未找到匹配结果' : '暂无机型数据'}
+          emptyDescription={filters.keyword ? '请尝试调整搜索关键词' : '点击上方按钮创建第一个机型'}
+          emptyActionText={filters.keyword ? undefined : '新增机型'}
+          onEmptyAction={filters.keyword ? undefined : handleOpenCreate}
+          skeletonRows={5}
+          skeletonColumns={4}
+        >
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50/80">
@@ -212,8 +206,7 @@ const AircraftModelsMgmt: React.FC = () => {
               </table>
             </div>
             <Pagination currentPage={page} totalPages={totalPages} setPage={setPage} totalItems={total} itemsPerPage={PAGE_SIZE} />
-          </>
-        )}
+        </AdminTableState>
       </div>
 
       {/* Modal */}

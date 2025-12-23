@@ -5,9 +5,8 @@ import {
   AdminPageHeader,
   Pagination,
   FilterBar,
-  TableSkeleton,
-  EmptyState,
   ErrorBanner,
+  AdminTableState,
   approveRefundChangeRequest,
   listRefundChangeRequests,
   rejectRefundChangeRequest,
@@ -274,17 +273,18 @@ const OrderAudit: React.FC = () => {
       )}
 
       {tab === 'orders' ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px] flex flex-col">
-          {orderLoading ? (
-            <TableSkeleton rows={5} columns={6} />
-          ) : orderItems.length === 0 ? (
-            <EmptyState
-              icon={ClipboardCheck}
-              title={normalizedSearch ? '未找到匹配订单' : '暂无待审核订单'}
-              description={normalizedSearch ? '请尝试调整搜索条件' : '当前没有需要审核的订单'}
-            />
-          ) : (
-            <>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+          <AdminTableState
+            loading={orderLoading}
+            error={orderError}
+            isEmpty={orderItems.length === 0}
+            onRetry={() => refreshOrders(orderPage)}
+            emptyIcon={ClipboardCheck}
+            emptyTitle={normalizedSearch ? '未找到匹配订单' : '暂无待审核订单'}
+            emptyDescription={normalizedSearch ? '请尝试调整搜索条件' : '当前没有需要审核的订单'}
+            skeletonRows={5}
+            skeletonColumns={6}
+          >
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50/80">
                   <tr>
@@ -368,21 +368,21 @@ const OrderAudit: React.FC = () => {
                 totalItems={orderTotal}
                 itemsPerPage={ITEMS_PER_PAGE}
               />
-            </>
-          )}
+          </AdminTableState>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px] flex flex-col">
-          {loading ? (
-            <TableSkeleton rows={5} columns={8} />
-          ) : filteredAudits.length === 0 ? (
-            <EmptyState
-              icon={ClipboardCheck}
-              title={normalizedSearch ? '未找到匹配申请' : '暂无退改签申请'}
-              description={normalizedSearch ? '请尝试调整搜索条件' : '当前没有符合条件的退改签申请'}
-            />
-          ) : (
-            <>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+          <AdminTableState
+            loading={loading}
+            error={error}
+            isEmpty={filteredAudits.length === 0}
+            onRetry={refresh}
+            emptyIcon={ClipboardCheck}
+            emptyTitle={normalizedSearch ? '未找到匹配申请' : '暂无退改签申请'}
+            emptyDescription={normalizedSearch ? '请尝试调整搜索条件' : '当前没有符合条件的退改签申请'}
+            skeletonRows={5}
+            skeletonColumns={8}
+          >
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50/80">
                   <tr>
@@ -451,8 +451,7 @@ const OrderAudit: React.FC = () => {
                 ))}
               </tbody>
             </table>
-            </>
-          )}
+          </AdminTableState>
         </div>
       )}
     </div>

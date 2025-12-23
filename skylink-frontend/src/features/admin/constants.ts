@@ -70,6 +70,23 @@ export const USER_STATUS_OPTIONS = [
   { value: USER_STATUS.DISABLED, label: '禁用' },
 ];
 
+// ==================== 性别 ====================
+export const GENDER = {
+  MALE: 1,
+  FEMALE: 2,
+} as const;
+
+export const GENDER_MAP: Record<number, string> = {
+  [GENDER.MALE]: '男',
+  [GENDER.FEMALE]: '女',
+};
+
+export const GENDER_OPTIONS = [
+  { value: '', label: '请选择' },
+  { value: GENDER.MALE, label: '男' },
+  { value: GENDER.FEMALE, label: '女' },
+];
+
 // ==================== 航班状态 ====================
 export const FLIGHT_STATUS = {
   ACTIVE: 1,     // 计划中
