@@ -5,6 +5,10 @@ export interface AdminUserItem {
   phoneNumber?: string | null;
   realName?: string | null;
   email?: string | null;
+  avatarUrl?: string | null;
+  gender?: number | null;
+  idCardMasked?: string | null;
+  idCardPresent?: boolean | null;
   userStatus?: number | null;
   createTime?: string | null;
 }
@@ -52,7 +56,15 @@ export async function createAdminUser(body: {
 
 export async function updateAdminUser(
   userId: string | number,
-  body: { phoneNumber?: string; email?: string; realName?: string; userStatus?: number },
+  body: {
+    phoneNumber?: string;
+    email?: string;
+    realName?: string;
+    avatarUrl?: string;
+    idCard?: string;
+    gender?: number;
+    userStatus?: number;
+  },
 ): Promise<boolean> {
   const id = String(userId ?? '').trim();
   if (!id) throw new Error('缺少 userId');

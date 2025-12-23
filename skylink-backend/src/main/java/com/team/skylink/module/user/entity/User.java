@@ -3,6 +3,7 @@ package com.team.skylink.module.user.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ public class User {
     private Long userId;
 
     private String phoneNumber; // 手机号(唯一)
+    @JsonIgnore
     private String passwordHash; // 加密密码
     private String realName; // 真实姓名
     private String email; // 邮箱

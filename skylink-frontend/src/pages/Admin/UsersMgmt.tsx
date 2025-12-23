@@ -1,8 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download, Phone, Hash, CreditCard, User as UserIcon } from 'lucide-react';
 import { createAdminUser, deleteAdminUser, listAdminUsers, resetAdminUserPassword, updateAdminUser, type AdminUserItem } from '../../features/admin/api/users';
 import { Pagination, TableActionMenu, AdminPageHeader, AdminModal, AdminBadge } from '@/features/admin';
 import EntityCell from '@/components/common/EntityCell';
+
+const maskPhone = (v?: string | number | null) => {
+  const s = String(v ?? '').trim();
+  if (!s) return '-';
+  if (s.length < 7) return s;
+  return `${s.slice(0, 3)}****${s.slice(-4)}`;
+};
 
 const UsersMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,6 +28,8 @@ const UsersMgmt: React.FC = () => {
   const [formRealName, setFormRealName] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formPassword, setFormPassword] = useState('');
+  const [formGender, setFormGender] = useState<number | ''>('');
+  const [formIdCard, setFormIdCard] = useState('');
 
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
 
@@ -64,6 +73,8 @@ const UsersMgmt: React.FC = () => {
     setFormRealName('');
     setFormEmail('');
     setFormPassword('');
+    setFormGender('');
+    setFormIdCard('');
     setModalOpen(true);
   };
 
@@ -73,6 +84,8 @@ const UsersMgmt: React.FC = () => {
     setFormRealName(u.realName ? String(u.realName) : '');
     setFormEmail(u.email ? String(u.email) : '');
     setFormPassword('');
+    setFormGender(u.gender != null ? Number(u.gender) : '');
+    setFormIdCard('');
     setModalOpen(true);
   };
 
@@ -80,6 +93,8 @@ const UsersMgmt: React.FC = () => {
     const phoneNumber = formPhone.trim();
     const realName = formRealName.trim();
     const email = formEmail.trim();
+    const gender = formGender === '' ? undefined : Number(formGender);
+    const idCard = formIdCard.trim() || undefined;
     if (!phoneNumber) {
       alert('请输入手机号');
       return;
@@ -88,7 +103,7 @@ const UsersMgmt: React.FC = () => {
     setLoading(true);
     try {
       if (editing?.userId) {
-        await updateAdminUser(editing.userId, { phoneNumber, realName, email });
+        await updateAdminUser(editing.userId, { phoneNumber, realName, email, gender, idCard });
       } else {
         if (!formPassword.trim()) {
           alert('请输入初始密码');
@@ -110,7 +125,8 @@ const UsersMgmt: React.FC = () => {
     if (!confirm('确定要禁用该账号吗？')) return;
     setLoading(true);
     try {
-      await updateAdminUser(u.userId, { userStatus: 0 });
+      // 后端 user_status: 1-正常,2-锁定,3-注销
+      await updateAdminUser(u.userId, { userStatus: 2 });
       await reload(page);
     } catch (e: any) {
       alert(e?.message || '操作失败');
@@ -239,8 +255,13 @@ const UsersMgmt: React.FC = () => {
                         {(u.realName || u.phoneNumber || 'U').slice(0, 1).toUpperCase()}
                       </div>
                     }
-                    title={u.realName || u.phoneNumber || '-'}
-                    meta={[{ icon: Mail, text: u.email || '-' }]}
+                      title={u.realName || maskPhone(u.phoneNumber) || '-'}
+                      subtitle={u.userId != null ? `UID:${String(u.userId)}` : undefined}
+                      meta={[
+                        { icon: Phone, text: maskPhone(u.phoneNumber) },
+                        { icon: Mail, text: u.email || '-' },
+                        { icon: CreditCard, text: u.idCardPresent ? (u.idCardMasked || '已实名') : '未实名' },
+                      ]}
                   />
                  </td>
                  <td className="px-6 py-4">
@@ -249,11 +270,11 @@ const UsersMgmt: React.FC = () => {
                     </AdminBadge>
                  </td>
                  <td className="px-6 py-4">
-                    <AdminBadge dot variant={u.userStatus === 1 ? 'success' : 'danger'}>
-                      {u.userStatus === 1 ? '正常' : '禁用'}
+                      <AdminBadge dot variant={u.userStatus === 1 ? 'success' : 'danger'}>
+                        {u.userStatus === 1 ? '正常' : u.userStatus === 2 ? '锁定' : u.userStatus === 3 ? '注销' : '异常'}
                     </AdminBadge>
                  </td>
-                 <td className="px-6 py-4 text-xs text-gray-500">{u.createTime ? String(u.createTime).replace('T', ' ').slice(0, 16) : '-'}</td>
+                   <td className="px-6 py-4 text-xs text-gray-500">{u.createTime ? String(u.createTime).replace('T', ' ').slice(0, 16) : '-'}</td>
                  <td className="px-6 py-4 text-right">
                     <TableActionMenu
                       isOpen={activeActionId === String(u.userId)}
@@ -351,6 +372,32 @@ const UsersMgmt: React.FC = () => {
               placeholder="请输入邮箱"
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
             />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500">性别</label>
+            <select
+              value={formGender}
+              onChange={(e) => setFormGender(e.target.value === '' ? '' : Number(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+            >
+              <option value="">未知</option>
+              <option value="1">男</option>
+              <option value="2">女</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500">身份证号</label>
+            <input
+              value={formIdCard}
+              onChange={(e) => setFormIdCard(e.target.value)}
+              placeholder={editing?.idCardPresent ? `已实名：${editing.idCardMasked || '已设置'}（不可覆盖，留空即可）` : '未实名：请输入身份证号（可选）'}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+            {editing?.idCardPresent ? (
+              <div className="text-xs text-gray-400">提示：为保护身份信息，系统不支持覆盖已实名证件号。</div>
+            ) : null}
           </div>
           {!editing && (
             <div className="space-y-1">
