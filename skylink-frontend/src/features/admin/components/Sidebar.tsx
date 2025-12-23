@@ -30,7 +30,7 @@ const Sidebar: React.FC = () => {
       items: [
         { id: 'flights', icon: Plane, label: '航班管理', path: '/admin/flights' },
         { id: 'orders', icon: Ticket, label: '订单管理', path: '/admin/orders' },
-        { id: 'order-audit', icon: Ticket, label: '退改签审核', path: '/admin/orders/audit' },
+        { id: 'order-audit', icon: Ticket, label: '审核中心', path: '/admin/orders/audit' },
         { id: 'payments', icon: CreditCard, label: '支付流水', path: '/admin/payments' },
       ],
     },
