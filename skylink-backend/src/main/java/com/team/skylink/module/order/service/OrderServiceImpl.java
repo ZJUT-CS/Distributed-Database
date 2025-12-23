@@ -258,4 +258,39 @@ public class OrderServiceImpl implements OrderService {
         
         return Result.ok(true);
     }
+
+    @Override
+    public Result<List<OrderSearchResponse>> listMyOrders(Long userId) {
+        QueryWrapper<Orders> qw = new QueryWrapper<>();
+        qw.eq("user_id", userId)
+          .ne("order_status", 0)
+          .orderByDesc("order_time");
+        List<Orders> orders = orderMapper.selectList(qw);
+        List<OrderSearchResponse> resp = new ArrayList<>();
+        for (Orders o : orders) {
+            Flight f = flightMapper.selectById(o.getFlightId());
+            User u = userMapper.selectById(o.getUserId());
+            OrderSearchResponse r = new OrderSearchResponse();
+            r.setOrderNo(String.valueOf(o.getOrderId()));
+            r.setFlightNo(f != null ? f.getFlightNo() : null);
+            r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName() : (u != null ? u.getRealName() : null));
+            r.setContactEmail(o.getContactEmail());
+            r.setContactPhone(o.getContactPhone());
+            r.setPassengersJson(o.getPassengersJson());
+            r.setOrderStatus(o.getOrderStatus());
+            r.setTotalAmount(o.getTotalAmount());
+            r.setOrderTime(o.getOrderTime());
+            r.setPayTime(o.getPayTime());
+            r.setRefundTime(o.getRefundTime());
+            r.setChangeTime(o.getChangeTime());
+            if (f != null) {
+                r.setOrigin(f.getDeparturePlace());
+                r.setDestination(f.getDestination());
+                r.setDepartureTime(f.getDepartureTime());
+                r.setArrivalTime(f.getArrivalTime());
+            }
+            resp.add(r);
+        }
+        return Result.ok(resp);
+    }
 }

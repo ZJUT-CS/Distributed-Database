@@ -40,6 +40,11 @@ public class OrderController {
         return orderService.search(userId, orderNo, orderStatus, createTimeStart, createTimeEnd, flightNo, cabinType);
     }
 
+    @GetMapping("/my")
+    public Result<List<OrderSearchResponse>> listMy(@RequestParam Long userId) {
+        return orderService.listMyOrders(userId);
+    }
+
     @PostMapping("")
     public Result<OrderSearchResponse> create(HttpServletRequest request, @Valid @RequestBody CreateOrderRequest req) {
         Result<?> guard = ensureNonAdmin(request);
