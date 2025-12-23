@@ -67,19 +67,21 @@ public class OrderTimeoutTask {
 
                     for (Orders sib : siblings) {
                         releaseSeatsForOrder(sib);
-                        // 物理删除：从数据库移除
-                        orderMapper.deleteById(sib.getOrderId());
+                        // 逻辑删除：状态置为6
+                        sib.setOrderStatus(6);
+                        orderMapper.updateById(sib);
                     }
-                    log.info("Deleted timeout parent order: {}", order.getParentOrderId());
+                    log.info("Cancelled timeout parent order: {}", order.getParentOrderId());
                     continue;
                 }
 
                 releaseSeatsForOrder(order);
-                // 物理删除：从数据库移除
-                orderMapper.deleteById(order.getOrderId());
-                log.info("Deleted order: {}", order.getOrderId());
+                // 逻辑删除：状态置为6
+                order.setOrderStatus(6);
+                orderMapper.updateById(order);
+                log.info("Cancelled order: {}", order.getOrderId());
             } catch (Exception e) {
-                log.error("Failed to delete order: " + order.getOrderId(), e);
+                log.error("Failed to cancel order: " + order.getOrderId(), e);
             }
         }
     }

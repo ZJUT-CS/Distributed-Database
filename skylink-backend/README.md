@@ -3,7 +3,7 @@
 ## 📝 更新日志 (Changelog)
 - 2025-12-23
   - 订单状态机重构：移除“创建审核”环节，下单即“待支付(1)”。
-  - 支付策略调整：支付窗口缩短为 **2分钟**，超时自动从数据库删除订单并释放座位。
+  - 支付策略调整：支付窗口缩短为 **2分钟**，超时自动取消(6)并释放座位。
   - 接口治理：合并审核接口，仅保留管理端 `/api/v1/admins/orders/{orderId}/audits` 用于退改签审核。
   - 异常提示优化：全面替换技术性报错为用户友好的中文提示。
   - 订单创建：切换至 Mode B“下单即隐式锁座，支付后可选座”
@@ -104,7 +104,7 @@ stateDiagram-v2
     
     state "联程订单状态联动" as Link {
         PendingPayment --> Paid: 支付成功 (ParentID关联所有子单)
-        PendingPayment --> [*]: 超时未支付(2min)/用户取消 (物理删除)
+        PendingPayment --> Cancelled: 超时未支付(2min)/用户取消 (Status=6)
         Paid --> Refunded: 全额退款 (触发级联退票)
     }
     
@@ -114,6 +114,7 @@ stateDiagram-v2
         RefundRequest --> Paid: 审核拒绝 (Status=2)
     }
 
+    Cancelled --> [*]
     Paid --> [*]
     Refunded --> [*]
 ```
@@ -309,8 +310,8 @@ skylink-backend/
 
 ## 🧹 订单状态自动治理
 ### 超时未支付自动取消
-- 策略：当订单状态为 `1`（待支付）且 `orderTime` 超过 **2 分钟**，系统自动 **物理删除** 订单并释放座位
-- 触发：定时任务每分钟扫描并执行
+- 策略：当订单状态为 `1`（待支付）且 `orderTime` 超过 **2 分钟**，系统自动取消并释放座位
+- 触发：定时任务每分钟扫描并取消
 - 位置：`module/order/task/OrderTimeoutTask`
 - 释放策略：优先按 `seat_id` 释放；兼容旧逻辑按 `order_id` 释放
 
