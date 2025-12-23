@@ -4,6 +4,7 @@ import com.team.skylink.common.Result;
 import com.team.skylink.module.order.dto.OrderSearchResponse;
 import com.team.skylink.module.order.dto.CreateOrderRequest;
 import com.team.skylink.module.order.service.OrderService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,7 +41,9 @@ public class OrderController {
     }
 
     @PostMapping("")
-    public Result<OrderSearchResponse> create(@Valid @RequestBody CreateOrderRequest req) {
+    public Result<OrderSearchResponse> create(HttpServletRequest request, @Valid @RequestBody CreateOrderRequest req) {
+        Result<?> guard = ensureNonAdmin(request);
+        if (guard != null) return (Result<OrderSearchResponse>) guard;
         return orderService.create(req);
     }
 
@@ -50,7 +53,25 @@ public class OrderController {
     }
 
     @PostMapping("/{orderId}/audit")
-    public Result<Boolean> audit(@PathVariable("orderId") Long orderId, @RequestParam boolean approved) {
+    public Result<Boolean> audit(HttpServletRequest request, @PathVariable("orderId") Long orderId, @RequestParam boolean approved) {
+        Result<?> guard = ensureAdmin(request);
+        if (guard != null) return (Result<Boolean>) guard;
         return orderService.audit(orderId, approved);
+    }
+
+    private static Result<?> ensureAdmin(HttpServletRequest request) {
+        String t = request.getHeader("X-User-Type");
+        if (t == null || (!"2".equals(t.trim()))) {
+            return Result.fail(403, "admin required");
+        }
+        return null;
+    }
+
+    private static Result<?> ensureNonAdmin(HttpServletRequest request) {
+        String t = request.getHeader("X-User-Type");
+        if (t != null && "2".equals(t.trim())) {
+            return Result.fail(403, "user required");
+        }
+        return null;
     }
 }
