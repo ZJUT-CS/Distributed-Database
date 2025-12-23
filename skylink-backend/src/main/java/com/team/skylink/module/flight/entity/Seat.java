@@ -1,10 +1,14 @@
 package com.team.skylink.module.flight.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.Version;
 import lombok.Data;
+import net.sf.jsqlparser.expression.operators.relational.Plus;
+
 import java.time.LocalDateTime;
 
 /**
@@ -22,6 +26,11 @@ public class Seat {
     /**
      * 所属航班ID（关联航班表flight的主键）
      */
+    /**
+     * 分片键，禁止更新！
+     * 加上这个注解后，MyBatis-Plus 生成 Update SQL 时会自动忽略这个字段
+     */
+    @TableField(updateStrategy = FieldStrategy.NEVER)
     private Long flightId;
 
     /**
@@ -49,10 +58,6 @@ public class Seat {
      */
     private Long orderId;
 
-    /**
-     * 占用该座位的用户ID (可选)
-     */
-    private Long userId;
 
     /**
      * 对应订单乘客列表下标 (可选，用于区分同一订单下不同乘客)

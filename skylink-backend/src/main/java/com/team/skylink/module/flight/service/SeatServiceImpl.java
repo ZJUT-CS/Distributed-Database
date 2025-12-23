@@ -113,7 +113,6 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
                 .eq(Seat::getSeatId, seatId)
                 .set(Seat::getStatus, 1)
                 .set(Seat::getOrderId, null)
-                .set(Seat::getUserId, null)
                 .set(Seat::getPassengerIndex, null));
     }
 
@@ -183,7 +182,6 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
                 .eq(Seat::getOrderId, orderId)
                 .set(Seat::getStatus, 1)
                 .set(Seat::getOrderId, null)
-                .set(Seat::getUserId, null)
                 .set(Seat::getPassengerIndex, null));
     }
 
