@@ -2,9 +2,11 @@
 
 ## 📝 更新日志 (Changelog)
 - 2025-12-23
-  - 新增：订单状态为 0 超时自动清理机制（30 分钟后物理删除，含日志记录）
-  - 新增：用户“我的订单”查询接口 `GET /api/v1/orders/my`（按创建时间降序，仅返回有效订单）
-  - 文档：补充自动清理策略与查询接口说明；数据库结构无变更
+  - 接口治理：合并审核接口，仅保留管理端 `/api/v1/admins/orders/{orderId}/audits`
+  - 订单创建：切换至 Mode B“下单即隐式锁座，支付后可选座”
+  - 座位服务：新增单座操作接口（锁、释、确、换）
+  - 定时任务：仅保留“待支付(1)超时取消并释放座位”；停用“待审核(0)超时清理”
+  - 数据库：为 `orders` 表新增 `seat_id` 字段
 
 SkyLink 是一个基于 **Spring Boot 4** 和 **MyBatis-Plus** 构建的高性能分布式航空订票系统后端。支持航班搜索、智能联程拼接、分布式事务订单处理、支付对接以及完整的后台管理功能。
 
@@ -181,8 +183,10 @@ stateDiagram-v2
   - 修改机型会触发座位重置。
 
 #### ✅ 订单审核
-- **审核通过/拒绝**: `POST /api/v1/orders/{orderId}/audit` (示例路径，具体见代码)
-  - 联程订单审核其中一段，系统会自动级联更新关联航段状态。
+- **管理员审核通过/拒绝**: `POST /api/v1/admins/orders/{orderId}/audits`
+  - Body: `{ "pass": true | false }`
+  - 逻辑：核心状态机封装于 `OrderService.audit(orderId, pass)`，`AdminOrderService` 负责权限与透传
+  - 联程订单：审核任一段将级联更新同一 `parentOrderId` 下的所有子单
 
 ---
 
@@ -253,18 +257,31 @@ skylink-backend/
 
 ---
 
-## 🧹 订单状态自动清理机制
-- 目标：避免长时间未审核的脏数据占用库资源
-- 策略：当订单状态为 `0`（待审核）且 `orderTime` 超过 **2 分钟**，系统自动执行物理删除
-- 触发：定时任务每分钟扫描并清理，记录日志（时间与订单ID）
-- 位置：`module/order/task/OrderTimeoutTask`
-- 日志：成功与失败均会记录到日志系统，便于审计与排查
-- 影响：被清理的订单不会出现在用户查询结果中
-
+## 🧹 订单状态自动治理
 ### 超时未支付自动取消
 - 策略：当订单状态为 `1`（待支付）且 `orderTime` 超过 **2 分钟**，系统自动取消并释放座位
 - 触发：定时任务每分钟扫描并取消
 - 位置：`module/order/task/OrderTimeoutTask`
+- 释放策略：优先按 `seat_id` 释放；兼容旧逻辑按 `order_id` 释放
+
+> 注：已停用“待审核(0)超时物理删除”任务
+
+## 💺 Mode B 选座机制
+- 下单阶段：系统随机锁定一个可用座位（`status=3`），写入订单 `seat_id`
+- 支付成功：将锁定座位确认为已售（`status=2`）
+- 支付后换座：提供接口将旧座位释放为可用（`status=1`），并将新座位原子更新为已售（若被抢占会失败）
+- 并发控制：使用数据库行级悲观锁（`FOR UPDATE`）和条件更新（`WHERE status=1`）保障一致性
+
+## 🧾 订单记录范式：一客一单
+- 规则：一次购买多张票将拆分为多条 `orders` 记录入库，每条 `ticket_num = 1`
+- 关联：使用同一 `parent_order_id` 进行打包关联（联程或多票）
+- 数据：`passengers_json` 仅包含对应这一张票的乘客信息
+- 影响：支付、改签、退票按单操作；聚合展示使用 `parent_order_id` 聚合
+
+## 🗄 SQL 变更
+```sql
+ALTER TABLE `orders` ADD COLUMN `seat_id` BIGINT NULL AFTER `passengers_json`;
+```
 
 ## 🔎 用户订单查询接口说明
 - 接口：`GET /api/v1/orders/my`

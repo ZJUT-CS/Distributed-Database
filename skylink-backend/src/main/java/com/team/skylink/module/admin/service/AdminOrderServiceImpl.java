@@ -13,6 +13,7 @@ import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.mapper.FlightMapper;
 import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
+import com.team.skylink.module.order.service.OrderService;
 import com.team.skylink.module.user.entity.User;
 import com.team.skylink.module.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
@@ -28,13 +29,16 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     private final FlightMapper flightMapper;
     private final UserMapper userMapper;
     private final AircraftCabinConfigMapper configMapper; // 替换
+    private final OrderService orderService;
 
     public AdminOrderServiceImpl(OrderMapper orderMapper, FlightMapper flightMapper, 
-                                 UserMapper userMapper, AircraftCabinConfigMapper configMapper) {
+                                 UserMapper userMapper, AircraftCabinConfigMapper configMapper,
+                                 OrderService orderService) {
         this.orderMapper = orderMapper;
         this.flightMapper = flightMapper;
         this.userMapper = userMapper;
         this.configMapper = configMapper;
+        this.orderService = orderService;
     }
 
     @Override
@@ -108,25 +112,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Boolean> auditOrder(Long orderId, Boolean pass) {
-        Orders currentOrder = orderMapper.selectById(orderId);
-        if (currentOrder == null) return Result.fail(404, "订单不存在");
-        
-        if (currentOrder.getOrderStatus() == null || currentOrder.getOrderStatus() != OrderStatusEnum.PENDING_AUDIT.getCode()) {
-            return Result.fail(400, "该订单状态无需审核");
-        }
-
-        int newStatus = Boolean.TRUE.equals(pass) ? OrderStatusEnum.PENDING_PAYMENT.getCode() : OrderStatusEnum.REJECTED.getCode();
-        
-        if (currentOrder.getParentOrderId() != null) {
-            orderMapper.update(null, Wrappers.<Orders>lambdaUpdate()
-                    .eq(Orders::getParentOrderId, currentOrder.getParentOrderId())
-                    .set(Orders::getOrderStatus, newStatus));
-        } else {
-            currentOrder.setOrderStatus(newStatus);
-            orderMapper.updateById(currentOrder);
-        }
-        
-        return Result.ok(true);
+        return orderService.audit(orderId, Boolean.TRUE.equals(pass));
     }
 
     @Override

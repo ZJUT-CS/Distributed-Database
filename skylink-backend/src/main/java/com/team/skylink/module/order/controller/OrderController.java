@@ -57,13 +57,6 @@ public class OrderController {
         return orderService.cancel(orderId);
     }
 
-    @PostMapping("/{orderId}/audit")
-    public Result<Boolean> audit(HttpServletRequest request, @PathVariable("orderId") Long orderId, @RequestParam boolean approved) {
-        Result<?> guard = ensureAdmin(request);
-        if (guard != null) return (Result<Boolean>) guard;
-        return orderService.audit(orderId, approved);
-    }
-
     private static Result<?> ensureAdmin(HttpServletRequest request) {
         String t = request.getHeader("X-User-Type");
         if (t == null || (!"2".equals(t.trim()))) {
