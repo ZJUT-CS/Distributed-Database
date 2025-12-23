@@ -13,6 +13,7 @@ const BookingsMgmt: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<AdminOrderItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
 
@@ -20,10 +21,12 @@ const BookingsMgmt: React.FC = () => {
 
   const load = async (nextPage: number) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const orderNo = normalizedSearch && /^\d+$/.test(normalizedSearch) ? normalizedSearch : undefined;
+      // 后端 OrderStatusEnum：0=待审核, 1=待支付, 2=已支付(已确认), 6=已取消
       const orderStatus =
-        statusFilter === 'paid' ? 1 : statusFilter === 'pending' ? 0 : statusFilter === 'cancelled' ? 2 : undefined;
+        statusFilter === 'paid' ? 2 : statusFilter === 'pending' ? 1 : statusFilter === 'cancelled' ? 6 : undefined;
 
       const res = await listAdminOrders({
         page: nextPage,
@@ -33,6 +36,15 @@ const BookingsMgmt: React.FC = () => {
       });
       setItems(res.data || []);
       setTotal(res.total || 0);
+    } catch (e: any) {
+      const msg = String(e?.message || e || '加载失败');
+      if (/admin required/i.test(msg) || /403/.test(msg)) {
+        setLoadError('加载失败：当前登录态不是管理员或缺少管理员请求头（X-User-Type: 2）。请使用管理员账号登录后台后重试。');
+      } else {
+        setLoadError(`加载失败：${msg}`);
+      }
+      setItems([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -43,9 +55,10 @@ const BookingsMgmt: React.FC = () => {
   }, [page, normalizedSearch, statusFilter]);
 
   const mapStatusLabel = (s?: number | null) => {
-    if (s === 1) return { id: 'paid', label: '已支付' };
-    if (s === 0) return { id: 'pending', label: '待支付' };
-    if (s === 2) return { id: 'cancelled', label: '已取消' };
+    if (s === 2) return { id: 'paid', label: '已支付' };
+    if (s === 1) return { id: 'pending', label: '待支付' };
+    if (s === 0) return { id: 'audit', label: '待审核' };
+    if (s === 6) return { id: 'cancelled', label: '已取消' };
     if (s === 3) return { id: 'refunded', label: '已退款' };
     return { id: 'other', label: '其他' };
   };
@@ -77,6 +90,12 @@ const BookingsMgmt: React.FC = () => {
           </button>
         }
       />
+
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+          {loadError}
+        </div>
+      )}
 
       {/* Search & Filter Bar */}
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -153,7 +172,7 @@ const BookingsMgmt: React.FC = () => {
                     <td className="px-6 py-4">
                       <AdminBadge
                         dot
-                        variant={st.id === 'paid' ? 'success' : st.id === 'pending' ? 'warning' : 'neutral'}
+                        variant={st.id === 'paid' ? 'success' : st.id === 'pending' ? 'warning' : st.id === 'audit' ? 'info' : 'neutral'}
                       >
                         {st.label}
                       </AdminBadge>
@@ -176,7 +195,7 @@ const BookingsMgmt: React.FC = () => {
                             <div className="h-px bg-gray-100 my-0"></div>
                             <button
                               onClick={() => handleCancel(b.orderNo)}
-                              disabled={b.orderStatus !== 0}
+                              disabled={b.orderStatus !== 0 && b.orderStatus !== 1}
                               className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-40"
                             >
                                 <XCircle className="w-3.5 h-3.5" /> 取消订单

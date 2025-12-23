@@ -3,6 +3,7 @@ package com.team.skylink.module.admin.controller;
 import com.team.skylink.common.PageResult;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.admin.dto.AdminUserCreateRequest;
+import com.team.skylink.module.admin.dto.AdminUserView;
 import com.team.skylink.module.admin.dto.AdminUserResetPasswordRequest;
 import com.team.skylink.module.admin.dto.AdminUserUpdateRequest;
 import com.team.skylink.module.admin.service.AdminUserService;
@@ -30,7 +31,7 @@ public class AdminUserController {
     }
 
     @GetMapping
-    public Result<PageResult<User>> list(
+    public Result<PageResult<AdminUserView>> list(
             HttpServletRequest request,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
@@ -38,15 +39,30 @@ public class AdminUserController {
             @RequestParam(required = false) Integer status
     ) {
         Result<?> adminGuard = ensureAdmin(request);
-        if (adminGuard != null) return (Result<PageResult<User>>) adminGuard;
-        return adminUserService.list(page, size, keyword, status);
+        if (adminGuard != null) return (Result<PageResult<AdminUserView>>) adminGuard;
+        Result<PageResult<User>> r = adminUserService.list(page, size, keyword, status);
+        if (r == null) return Result.fail(500, "internal error");
+        if (r.getCode() != 0) return Result.fail(r.getCode(), r.getMsg());
+        PageResult<User> pr = r.getData();
+        if (pr == null) return Result.ok(new PageResult<>(0, java.util.Collections.emptyList()));
+
+        java.util.List<AdminUserView> views = new java.util.ArrayList<>();
+        if (pr.getData() != null) {
+            for (User u : pr.getData()) {
+                views.add(toView(u));
+            }
+        }
+        return Result.ok(new PageResult<>(pr.getTotal(), views));
     }
 
     @PostMapping
-    public Result<User> create(HttpServletRequest request, @Valid @RequestBody AdminUserCreateRequest req) {
+    public Result<AdminUserView> create(HttpServletRequest request, @Valid @RequestBody AdminUserCreateRequest req) {
         Result<?> adminGuard = ensureAdmin(request);
-        if (adminGuard != null) return (Result<User>) adminGuard;
-        return adminUserService.create(req);
+        if (adminGuard != null) return (Result<AdminUserView>) adminGuard;
+        Result<User> r = adminUserService.create(req);
+        if (r == null) return Result.fail(500, "internal error");
+        if (r.getCode() != 0) return Result.fail(r.getCode(), r.getMsg());
+        return Result.ok(toView(r.getData()));
     }
 
     @PutMapping("/{userId}")
@@ -80,6 +96,33 @@ public class AdminUserController {
             return Result.fail(403, "admin required");
         }
         return null;
+    }
+
+    private static AdminUserView toView(User u) {
+        if (u == null) return null;
+        AdminUserView v = new AdminUserView();
+        v.setUserId(u.getUserId());
+        v.setPhoneNumber(u.getPhoneNumber());
+        v.setRealName(u.getRealName());
+        v.setEmail(u.getEmail());
+        v.setAvatarUrl(u.getAvatarUrl());
+        v.setGender(u.getGender());
+        v.setUserStatus(u.getUserStatus());
+        v.setCreateTime(u.getCreateTime());
+
+        String id = u.getIdCard();
+        boolean present = id != null && !id.isBlank();
+        v.setIdCardPresent(present);
+        v.setIdCardMasked(maskIdCard(id));
+        return v;
+    }
+
+    private static String maskIdCard(String idCard) {
+        if (idCard == null) return null;
+        String s = idCard.trim();
+        if (s.isEmpty()) return null;
+        if (s.length() <= 8) return s;
+        return s.substring(0, 6) + "********" + s.substring(s.length() - 2);
     }
 }
 

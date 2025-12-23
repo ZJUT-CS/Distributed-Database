@@ -91,6 +91,14 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
         if (req.getEmail() != null) u.setEmail(req.getEmail());
         if (req.getRealName() != null) u.setRealName(req.getRealName());
+        if (req.getAvatarUrl() != null) u.setAvatarUrl(req.getAvatarUrl());
+        if (req.getGender() != null) u.setGender(req.getGender());
+        if (req.getIdCard() != null && !req.getIdCard().isBlank()) {
+            if (u.getIdCard() != null && !u.getIdCard().isBlank()) {
+                return Result.fail(409, "already verified");
+            }
+            u.setIdCard(req.getIdCard().trim());
+        }
         if (req.getUserStatus() != null) u.setUserStatus(req.getUserStatus());
 
         int rows = userMapper.updateById(u);
