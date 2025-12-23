@@ -1,6 +1,7 @@
 package com.team.skylink.module.payment.service;
 
 import com.team.skylink.common.Result;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.module.payment.dto.ConfirmPaymentRequest;
 import com.team.skylink.module.payment.dto.CreatePaymentRequest;
 import com.team.skylink.module.payment.dto.CreatePaymentTokenRequest;
@@ -18,6 +19,17 @@ public interface PaymentService {
             String paymentMethod,
             LocalDateTime paymentTimeStart,
             LocalDateTime paymentTimeEnd
+    );
+
+    Result<PageResult<PaymentSearchResponse>> searchPage(
+        Long orderNo,
+        Long userId,
+        Integer paymentStatus,
+        String paymentMethod,
+        LocalDateTime paymentTimeStart,
+        LocalDateTime paymentTimeEnd,
+        Integer page,
+        Integer size
     );
 
     Result<CreatePaymentTokenResponse> createConfirmToken(CreatePaymentTokenRequest req);

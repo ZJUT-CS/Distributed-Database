@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search, FileText, Shield, User, Globe, AlertCircle, CheckCircle, ScrollText, Download, RefreshCw } from 'lucide-react';
-import { Pagination, AdminBadge, AdminPageHeader, FilterBar, AdminTableState } from '@/features/admin';
+import { Pagination, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, useAdminList } from '@/features/admin';
 import { listSystemLogs, type SystemLogItem } from '@/features/admin/api/admins';
 import EntityCell from '@/components/common/EntityCell';
-import { formatApiError } from '@/utils/apiError';
+import { formatDateTimeZhCN } from '@/utils/formatters';
 
 // 操作用户类型
 const OPER_USER_TYPE = {
@@ -18,55 +18,69 @@ const OPER_RESULT = {
 } as const;
 
 const SystemLogs: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [moduleFilter, setModuleFilter] = useState('');
-  const [resultFilter, setResultFilter] = useState<'all' | 'success' | 'fail'>('all');
-  const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  const [logs, setLogs] = useState<SystemLogItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [keywordInput, setKeywordInput] = useState('');
+  const [moduleInput, setModuleInput] = useState('');
+  const [resultFilter, setResultFilter] = useState<'all' | 'success' | 'fail'>('all');
 
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await listSystemLogs({
-        module: moduleFilter || undefined,
-        keyword: searchTerm || undefined,
+  const operResultParam = useMemo(() => {
+    if (resultFilter === 'success') return OPER_RESULT.SUCCESS;
+    if (resultFilter === 'fail') return OPER_RESULT.FAIL;
+    return undefined;
+  }, [resultFilter]);
+
+  const {
+    items,
+    total,
+    page,
+    totalPages,
+    loading,
+    error,
+    filters,
+    setPage,
+    setFilters,
+    refresh,
+    retry,
+  } = useAdminList<SystemLogItem, { keyword?: string; module?: string; operResult?: number | undefined }>({
+    pageSize: ITEMS_PER_PAGE,
+    initialFilters: {
+      keyword: undefined,
+      module: undefined,
+      operResult: undefined,
+    },
+    fetchFn: async ({ page: p, size, keyword, module, operResult }) => {
+      const res = await listSystemLogs({
+        page: p,
+        size,
+        keyword: keyword || undefined,
+        module: module || undefined,
+        operResult: operResult ?? undefined,
       });
-      // 前端过滤结果
-      const filteredData = resultFilter === 'all' ? data : data.filter((log) =>
-        resultFilter === 'success' ? log.operResult === OPER_RESULT.SUCCESS : log.operResult === OPER_RESULT.FAIL
-      );
-      setLogs(filteredData);
-    } catch (err) {
-      setError(formatApiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [moduleFilter, resultFilter, searchTerm]);
+      return { data: res.data ?? [], total: res.total ?? 0 };
+    },
+  });
 
+  // 防抖输入 -> filters
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    const t = setTimeout(() => {
+      const nextKeyword = keywordInput.trim() || undefined;
+      const nextModule = moduleInput.trim() || undefined;
+      if (filters.keyword === nextKeyword && filters.module === nextModule) return;
+      setFilters({ keyword: nextKeyword, module: nextModule });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [keywordInput, moduleInput, filters.keyword, filters.module, setFilters]);
 
-  // 前端分页
-  const totalPages = Math.ceil(logs.length / ITEMS_PER_PAGE) || 1;
-  const paginatedLogs = logs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  // 结果筛选 -> filters（立即生效）
+  useEffect(() => {
+    if (filters.operResult === operResultParam) return;
+    setFilters({ operResult: operResultParam });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operResultParam, filters.operResult]);
 
   const handleSearch = () => {
-    setPage(1);
-    fetchLogs();
-  };
-
-  const formatTime = (timestamp?: string | number) => {
-    if (!timestamp) return '-';
-    if (typeof timestamp === 'string') {
-      return new Date(timestamp).toLocaleString('zh-CN');
-    }
-    return new Date(timestamp).toLocaleString('zh-CN');
+    setFilters({ keyword: keywordInput.trim() || undefined, module: moduleInput.trim() || undefined, operResult: operResultParam });
   };
 
   const getUserTypeLabel = (type?: number) => {
@@ -98,8 +112,8 @@ const SystemLogs: React.FC = () => {
                 type="text"
                 placeholder="搜索 IP 或操作内容..."
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
@@ -107,8 +121,8 @@ const SystemLogs: React.FC = () => {
               type="text"
               placeholder="按模块筛选..."
               className="w-36 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
-              value={moduleFilter}
-              onChange={(e) => setModuleFilter(e.target.value)}
+              value={moduleInput}
+              onChange={(e) => setModuleInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
             <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -121,7 +135,6 @@ const SystemLogs: React.FC = () => {
                   key={opt.id}
                   onClick={() => {
                     setResultFilter(opt.id as 'all' | 'success' | 'fail');
-                    setPage(1);
                   }}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
                     resultFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
@@ -135,7 +148,7 @@ const SystemLogs: React.FC = () => {
         }
         right={
           <button
-            onClick={() => fetchLogs()}
+            onClick={() => refresh(true)}
             disabled={loading}
             className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
             title="刷新"
@@ -149,11 +162,11 @@ const SystemLogs: React.FC = () => {
         <AdminTableState
           loading={loading}
           error={error}
-          isEmpty={paginatedLogs.length === 0}
-          onRetry={fetchLogs}
+          isEmpty={items.length === 0}
+          onRetry={retry}
           emptyIcon={ScrollText}
-          emptyTitle={searchTerm || moduleFilter ? '未找到匹配日志' : '暂无操作日志'}
-          emptyDescription={searchTerm || moduleFilter ? '请尝试调整搜索条件' : '当前无操作日志记录'}
+          emptyTitle={filters.keyword || filters.module ? '未找到匹配日志' : '暂无操作日志'}
+          emptyDescription={filters.keyword || filters.module ? '请尝试调整搜索条件' : '当前无操作日志记录'}
           skeletonRows={5}
           skeletonColumns={6}
         >
@@ -169,9 +182,9 @@ const SystemLogs: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paginatedLogs.map((log) => (
+              {items.map((log) => (
                 <tr key={log.logId} className="hover:bg-indigo-50/30 transition-colors group">
-                  <td className="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">{formatTime(log.operTime)}</td>
+                  <td className="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">{formatDateTimeZhCN(log.operTime)}</td>
                   <td className="px-6 py-4">
                     <EntityCell
                       leading={
@@ -221,7 +234,7 @@ const SystemLogs: React.FC = () => {
             currentPage={page}
             totalPages={totalPages}
             setPage={setPage}
-            totalItems={logs.length}
+            totalItems={total}
             itemsPerPage={ITEMS_PER_PAGE}
           />
         </AdminTableState>

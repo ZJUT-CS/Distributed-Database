@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Shield, UserCog, Lock, Trash2, RefreshCw, Download, X } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, useConfirm, useToast } from '@/features/admin';
-import { listAdmins, createAdmin, deleteAdmin, resetAdminPassword, type AdminItem } from '@/features/admin/api/admins';
+import React, { useEffect, useState } from 'react';
+import { Search, Plus, Shield, UserCog, Lock, Trash2, RefreshCw, Download } from 'lucide-react';
+import { Pagination, TableActionMenu, AdminBadge, AdminButton, AdminModal, AdminPageHeader, FilterBar, AdminTableState, useAdminList, useConfirm, useToast } from '@/features/admin';
+import { createAdmin, deleteAdmin, resetAdminPassword, listAdminsPage, type AdminItem } from '@/features/admin/api/admins';
 import EntityCell from '@/components/common/EntityCell';
 import { formatApiError } from '@/utils/apiError';
+import { formatDateTimeZhCN } from '@/utils/formatters';
 
 // 角色常量
 const ADMIN_ROLE = {
@@ -19,43 +20,61 @@ const ADMIN_ROLE_MAP: Record<number, { label: string; variant: 'purple' | 'prima
 const AdminsMgmt: React.FC = () => {
   const { confirm } = useConfirm();
   const toast = useToast();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
+  const [keywordInput, setKeywordInput] = useState('');
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const ITEMS_PER_PAGE = 10;
 
-  const [admins, setAdmins] = useState<AdminItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    items: admins,
+    total,
+    page,
+    totalPages,
+    loading,
+    error,
+    filters,
+    setPage,
+    setFilters,
+    refresh,
+    retry,
+  } = useAdminList<AdminItem, { keyword?: string }>({
+    pageSize: ITEMS_PER_PAGE,
+    initialFilters: { keyword: '' },
+    fetchFn: async ({ page, size, keyword }) => {
+      const res = await listAdminsPage({ page, size, keyword: String(keyword ?? '').trim() || undefined });
+      return { data: res.data ?? [], total: res.total ?? 0 };
+    },
+  });
 
   // 新增弹窗
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ adminAccount: '', password: '', role: ADMIN_ROLE.NORMAL });
 
-  const fetchAdmins = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await listAdmins(searchTerm || undefined);
-      setAdmins(data);
-    } catch (err) {
-      setError(formatApiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [searchTerm]);
+  // 重置密码弹窗
+  const [resetPwdOpen, setResetPwdOpen] = useState(false);
+  const [resetPwdAdmin, setResetPwdAdmin] = useState<AdminItem | null>(null);
+  const [resetPwdValue, setResetPwdValue] = useState('');
 
+  // 关键词输入防抖，避免每次键入都请求
   useEffect(() => {
-    fetchAdmins();
-  }, [fetchAdmins]);
-
-  // 前端分页
-  const totalPages = Math.ceil(admins.length / ITEMS_PER_PAGE) || 1;
-  const paginatedAdmins = admins.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+    const t = setTimeout(() => {
+      const next = keywordInput.trim();
+      const current = String(filters.keyword ?? '');
+      if (next === current) return;
+      setFilters({ keyword: next });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [keywordInput, filters.keyword, setFilters]);
 
   const handleSearch = () => {
-    setPage(1);
-    fetchAdmins();
+    const next = keywordInput.trim();
+    const current = String(filters.keyword ?? '');
+    if (next === current) return;
+    setFilters({ keyword: next });
+  };
+
+  const closeCreateModal = () => {
+    setIsModalOpen(false);
+    setFormData({ adminAccount: '', password: '', role: ADMIN_ROLE.NORMAL });
   };
 
   const handleCreate = async () => {
@@ -66,9 +85,8 @@ const AdminsMgmt: React.FC = () => {
     try {
       await createAdmin(formData);
       toast.success('创建成功');
-      setIsModalOpen(false);
-      setFormData({ adminAccount: '', password: '', role: ADMIN_ROLE.NORMAL });
-      fetchAdmins();
+      closeCreateModal();
+      setPage(1);
     } catch (err) {
       toast.error(formatApiError(err));
     }
@@ -86,30 +104,41 @@ const AdminsMgmt: React.FC = () => {
     try {
       await deleteAdmin(adminId);
       toast.success('删除成功');
-      fetchAdmins();
+      refresh(false);
     } catch (err) {
       toast.error(formatApiError(err));
     }
   };
 
-  const handleResetPassword = async (adminId: string) => {
-    const newPassword = prompt('请输入新密码（至少6位）：');
+  const openResetPassword = (a: AdminItem) => {
+    setResetPwdAdmin(a);
+    setResetPwdValue('');
+    setResetPwdOpen(true);
+    setActiveActionId(null);
+  };
+
+  const closeResetPassword = () => {
+    setResetPwdOpen(false);
+    setResetPwdAdmin(null);
+    setResetPwdValue('');
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPwdAdmin?.adminId) return;
+    const newPassword = resetPwdValue.trim();
     if (!newPassword || newPassword.length < 6) {
       toast.error('密码不能为空且至少6位');
       return;
     }
     try {
-      await resetAdminPassword(adminId, newPassword);
+      await resetAdminPassword(resetPwdAdmin.adminId, newPassword);
       toast.success('密码重置成功');
+      closeResetPassword();
     } catch (err) {
       toast.error(formatApiError(err));
     }
   };
 
-  const formatTime = (timestamp?: number) => {
-    if (!timestamp) return '-';
-    return new Date(timestamp).toLocaleString('zh-CN');
-  };
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -141,21 +170,27 @@ const AdminsMgmt: React.FC = () => {
               type="text"
               placeholder="搜索管理员账号..."
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
           </div>
         }
         right={
-          <button
-            onClick={() => fetchAdmins()}
-            disabled={loading}
-            className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
-            title="刷新"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-2">
+            <AdminButton variant="outline" className="h-9 px-3" onClick={handleSearch} disabled={loading}>
+              搜索
+            </AdminButton>
+            <button
+              onClick={() => refresh(true)}
+              disabled={loading}
+              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+              title="刷新"
+              type="button"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         }
       />
 
@@ -163,11 +198,11 @@ const AdminsMgmt: React.FC = () => {
         <AdminTableState
           loading={loading}
           error={error}
-          isEmpty={paginatedAdmins.length === 0}
-          onRetry={fetchAdmins}
+          isEmpty={admins.length === 0}
+          onRetry={retry}
           emptyIcon={Shield}
-          emptyTitle={searchTerm ? '未找到匹配管理员' : '暂无管理员'}
-          emptyDescription={searchTerm ? '请尝试调整搜索条件' : '点击上方按钮添加管理员'}
+          emptyTitle={keywordInput.trim() ? '未找到匹配管理员' : '暂无管理员'}
+          emptyDescription={keywordInput.trim() ? '请尝试调整搜索条件' : '点击上方按钮添加管理员'}
           skeletonRows={5}
           skeletonColumns={5}
         >
@@ -182,7 +217,7 @@ const AdminsMgmt: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paginatedAdmins.map((a) => (
+              {admins.map((a) => (
                 <tr key={a.adminId} className="hover:bg-indigo-50/30 transition-colors group">
                   <td className="px-6 py-4">
                     <EntityCell
@@ -203,8 +238,8 @@ const AdminsMgmt: React.FC = () => {
                       {ADMIN_ROLE_MAP[a.role]?.label || `角色${a.role}`}
                     </AdminBadge>
                   </td>
-                  <td className="px-6 py-4 text-xs text-gray-500">{formatTime(a.createTime)}</td>
-                  <td className="px-6 py-4 text-xs text-gray-500">{formatTime(a.lastLoginTime)}</td>
+                  <td className="px-6 py-4 text-xs text-gray-500">{formatDateTimeZhCN(a.createTime)}</td>
+                  <td className="px-6 py-4 text-xs text-gray-500">{formatDateTimeZhCN(a.lastLoginTime)}</td>
                   <td className="px-6 py-4 text-right">
                     <TableActionMenu
                       isOpen={activeActionId === a.adminId}
@@ -215,7 +250,7 @@ const AdminsMgmt: React.FC = () => {
                       onClose={() => setActiveActionId(null)}
                     >
                       <button
-                        onClick={() => { handleResetPassword(a.adminId); setActiveActionId(null); }}
+                        onClick={() => openResetPassword(a)}
                         className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                       >
                         <Lock className="w-3.5 h-3.5 text-orange-500" /> 重置密码
@@ -239,72 +274,96 @@ const AdminsMgmt: React.FC = () => {
             currentPage={page}
             totalPages={totalPages}
             setPage={setPage}
-            totalItems={admins.length}
+            totalItems={total}
             itemsPerPage={ITEMS_PER_PAGE}
           />
         </AdminTableState>
       </div>
 
       {/* 新增管理员弹窗 */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">新增管理员</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-white/70 hover:text-white transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">账号</label>
-                <input
-                  type="text"
-                  value={formData.adminAccount}
-                  onChange={(e) => setFormData({ ...formData, adminAccount: e.target.value })}
-                  placeholder="请输入管理员账号"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">密码</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="请输入密码（至少6位）"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">角色</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: Number(e.target.value) as typeof ADMIN_ROLE.NORMAL })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value={ADMIN_ROLE.NORMAL}>普通管理员</option>
-                  <option value={ADMIN_ROLE.SUPER}>超级管理员</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleCreate}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                >
-                  创建
-                </button>
-              </div>
-            </div>
+      <AdminModal
+        isOpen={isModalOpen}
+        onClose={closeCreateModal}
+        title="新增管理员"
+        theme="indigo-purple"
+        maxWidth="md"
+      >
+        <div className="p-6 space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500">账号</label>
+            <input
+              type="text"
+              value={formData.adminAccount}
+              onChange={(e) => setFormData({ ...formData, adminAccount: e.target.value })}
+              placeholder="请输入管理员账号"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500">密码</label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              placeholder="请输入密码（至少6位）"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500">角色</label>
+            <select
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: Number(e.target.value) as typeof ADMIN_ROLE.NORMAL })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            >
+              <option value={ADMIN_ROLE.NORMAL}>普通管理员</option>
+              <option value={ADMIN_ROLE.SUPER}>超级管理员</option>
+            </select>
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <AdminButton variant="outline" onClick={closeCreateModal}>
+              取消
+            </AdminButton>
+            <AdminButton variant="primary" onClick={handleCreate}>
+              创建
+            </AdminButton>
           </div>
         </div>
-      )}
+      </AdminModal>
+
+      {/* 重置密码弹窗 */}
+      <AdminModal
+        isOpen={resetPwdOpen}
+        onClose={closeResetPassword}
+        title="重置管理员密码"
+        theme="indigo-purple"
+        maxWidth="md"
+      >
+        <div className="p-6 space-y-4">
+          <div className="text-sm text-gray-600">
+            账号：<span className="font-semibold text-gray-900">{resetPwdAdmin?.adminAccount ?? '-'}</span>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500">新密码</label>
+            <input
+              type="password"
+              value={resetPwdValue}
+              onChange={(e) => setResetPwdValue(e.target.value)}
+              placeholder="请输入新密码（至少6位）"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              autoFocus
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <AdminButton variant="outline" onClick={closeResetPassword}>
+              取消
+            </AdminButton>
+            <AdminButton variant="primary" onClick={handleResetPassword}>
+              确认重置
+            </AdminButton>
+          </div>
+        </div>
+      </AdminModal>
     </div>
   );
 };

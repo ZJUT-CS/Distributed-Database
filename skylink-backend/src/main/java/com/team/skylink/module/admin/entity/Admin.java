@@ -3,6 +3,7 @@ package com.team.skylink.module.admin.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 @Data
@@ -22,6 +23,7 @@ public class Admin {
     /**
      * 加密密码
      */
+    @JsonIgnore
     private String passwordHash;
 
     /**

@@ -1,6 +1,7 @@
 package com.team.skylink.module.admin.service;
 
 import com.team.skylink.common.Result;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.module.admin.entity.Admin;
 import com.team.skylink.module.system.entity.SystemLog;
 
@@ -25,6 +26,9 @@ public interface AdminManagementService {
     // 新增：管理员列表
     Result<List<Admin>> listAdmins(String keyword);
 
+    // 新增：管理员列表（分页）
+    Result<PageResult<Admin>> listAdminsPage(String keyword, Integer page, Integer size);
+
     // 新增：更新管理员状态
     Result<Void> updateAdminStatus(Long adminId, Integer status);
 
@@ -34,6 +38,6 @@ public interface AdminManagementService {
     // 新增：重置密码
     Result<Void> resetAdminPassword(Long adminId, String newPassword);
 
-    // 新增：系统日志列表
-    Result<List<SystemLog>> listSystemLogs(String keyword, String module, Integer page, Integer size);
+    // 系统日志列表（分页）
+    Result<PageResult<SystemLog>> listSystemLogs(String keyword, String module, Integer operResult, Integer page, Integer size);
 }

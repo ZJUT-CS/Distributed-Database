@@ -2,6 +2,7 @@ package com.team.skylink.module.payment.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.common.Result;
 import com.team.skylink.common.enums.OrderStatusEnum;
 import com.team.skylink.module.flight.service.SeatService;
@@ -21,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -106,6 +108,97 @@ public class PaymentServiceImpl implements PaymentService {
             resp.add(r);
         }
         return Result.ok(resp);
+    }
+
+    @Override
+    public Result<PageResult<PaymentSearchResponse>> searchPage(
+            Long orderNo,
+            Long userId,
+            Integer paymentStatus,
+            String paymentMethod,
+            LocalDateTime paymentTimeStart,
+            LocalDateTime paymentTimeEnd,
+            Integer page,
+            Integer size
+    ) {
+        int safePage = (page == null || page < 1) ? 1 : page;
+        int safeSize = (size == null || size < 1) ? 10 : Math.min(size, 100);
+
+        List<Long> orderIds = null;
+        if (userId != null) {
+            List<Orders> orders = orderMapper.selectList(new QueryWrapper<Orders>().eq("user_id", userId));
+            if (orders.isEmpty()) {
+                return Result.ok(new PageResult<>(0, Collections.emptyList()));
+            }
+            orderIds = orders.stream().map(Orders::getOrderId).toList();
+        }
+
+        QueryWrapper<Payment> countQw = new QueryWrapper<>();
+        if (orderNo != null) {
+            countQw.eq("order_id", orderNo);
+        }
+        if (paymentStatus != null) {
+            countQw.eq("payment_status", paymentStatus);
+        }
+        if (paymentMethod != null && !paymentMethod.isEmpty()) {
+            countQw.eq("payment_method", paymentMethod);
+        }
+        if (paymentTimeStart != null && paymentTimeEnd != null) {
+            countQw.between("payment_time", paymentTimeStart, paymentTimeEnd);
+        } else if (paymentTimeStart != null) {
+            countQw.ge("payment_time", paymentTimeStart);
+        } else if (paymentTimeEnd != null) {
+            countQw.le("payment_time", paymentTimeEnd);
+        }
+        if (orderIds != null) {
+            countQw.in("order_id", orderIds);
+        }
+
+        Long total = paymentMapper.selectCount(countQw);
+        long totalVal = total == null ? 0 : total;
+        if (totalVal == 0) {
+            return Result.ok(new PageResult<>(0, Collections.emptyList()));
+        }
+
+        int offset = (safePage - 1) * safeSize;
+        QueryWrapper<Payment> listQw = new QueryWrapper<>();
+        if (orderNo != null) {
+            listQw.eq("order_id", orderNo);
+        }
+        if (paymentStatus != null) {
+            listQw.eq("payment_status", paymentStatus);
+        }
+        if (paymentMethod != null && !paymentMethod.isEmpty()) {
+            listQw.eq("payment_method", paymentMethod);
+        }
+        if (paymentTimeStart != null && paymentTimeEnd != null) {
+            listQw.between("payment_time", paymentTimeStart, paymentTimeEnd);
+        } else if (paymentTimeStart != null) {
+            listQw.ge("payment_time", paymentTimeStart);
+        } else if (paymentTimeEnd != null) {
+            listQw.le("payment_time", paymentTimeEnd);
+        }
+        if (orderIds != null) {
+            listQw.in("order_id", orderIds);
+        }
+        listQw.orderByDesc("payment_time");
+        listQw.last("LIMIT " + offset + ", " + safeSize);
+
+        List<Payment> payments = paymentMapper.selectList(listQw);
+        List<PaymentSearchResponse> resp = new ArrayList<>();
+        for (Payment p : payments) {
+            PaymentSearchResponse r = new PaymentSearchResponse();
+            r.setPaymentId(String.valueOf(p.getPaymentId()));
+            r.setOrderNo(String.valueOf(p.getOrderId()));
+            r.setPaymentAmount(p.getPaymentAmount());
+            r.setPaymentMethod(p.getPaymentMethod());
+            r.setPaymentStatus(p.getPaymentStatus());
+            r.setTradeNo(p.getTradeNo());
+            r.setPaymentTime(p.getPaymentTime());
+            r.setRefundTime(p.getRefundTime());
+            resp.add(r);
+        }
+        return Result.ok(new PageResult<>(totalVal, resp));
     }
 
     @Override

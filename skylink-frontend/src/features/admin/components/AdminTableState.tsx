@@ -49,7 +49,8 @@ const AdminTableState: React.FC<AdminTableStateProps> = ({
   children,
 }) => {
   // 加载中
-  if (loading) {
+  // 说明：当已存在数据（isEmpty=false）时，保持渲染 children，避免分页/筛选触发短暂骨架屏导致“闪一下”。
+  if (loading && isEmpty) {
     return <TableSkeleton rows={skeletonRows} columns={skeletonColumns} />;
   }
 

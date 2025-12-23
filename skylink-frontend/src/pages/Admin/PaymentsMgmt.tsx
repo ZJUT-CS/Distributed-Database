@@ -1,58 +1,57 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Eye, FileText, CreditCard, Wallet, Search, RefreshCw } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, PAYMENT_STATUS_OPTIONS, PAYMENT_STATUS_MAP, PAYMENT_METHOD_MAP } from '@/features/admin';
-import { listPayments, type PaymentItem, type PaymentSearchParams } from '@/features/admin/api/payments';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, PAYMENT_STATUS_OPTIONS, PAYMENT_STATUS_MAP, PAYMENT_METHOD_MAP, useAdminList } from '@/features/admin';
+import { listPaymentsPage, type PaymentItem } from '@/features/admin/api/payments';
 import EntityCell from '@/components/common/EntityCell';
-import { formatApiError } from '@/utils/apiError';
+import { formatDateTimeZhCN } from '@/utils/formatters';
 
 const PaymentsMgmt: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [orderNoInput, setOrderNoInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<number | ''>('');
-  const [page, setPage] = useState(1);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const ITEMS_PER_PAGE = 10;
 
-  const [payments, setPayments] = useState<PaymentItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchPayments = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params: PaymentSearchParams = {};
-      if (searchTerm) {
-        // 尝试解析为订单号
-        const orderNo = parseInt(searchTerm, 10);
-        if (!isNaN(orderNo)) {
-          params.orderNo = orderNo;
-        }
-      }
-      if (statusFilter !== '') {
-        params.paymentStatus = statusFilter;
-      }
-      const data = await listPayments(params);
-      setPayments(data);
-    } catch (err) {
-      setError(formatApiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [searchTerm, statusFilter]);
-
-  useEffect(() => {
-    fetchPayments();
-  }, [fetchPayments]);
-
-  // 前端分页
-  const filteredPayments = payments;
-  const totalPages = Math.ceil(filteredPayments.length / ITEMS_PER_PAGE);
-  const paginatedPayments = filteredPayments.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
-
-  const handleSearch = () => {
-    setPage(1);
-    fetchPayments();
+  type PaymentFilters = {
+    orderNo?: number;
+    paymentStatus?: number;
   };
+
+  const {
+    items: payments,
+    total,
+    page,
+    totalPages,
+    loading,
+    error,
+    filters,
+    setPage,
+    setFilters,
+    refresh,
+    retry,
+  } = useAdminList<PaymentItem, PaymentFilters>({
+    pageSize: ITEMS_PER_PAGE,
+    initialFilters: {},
+    fetchFn: async ({ page, size, orderNo, paymentStatus }) => {
+      const res = await listPaymentsPage({ page, size, orderNo, paymentStatus });
+      return { data: res.data ?? [], total: res.total ?? 0 };
+    },
+  });
+
+  const parsedOrderNo = useMemo(() => {
+    const s = String(orderNoInput ?? '').trim();
+    if (!s) return undefined;
+    const v = parseInt(s, 10);
+    return Number.isFinite(v) ? v : undefined;
+  }, [orderNoInput]);
+
+  // 订单号输入：300ms debounce
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      if (filters.orderNo === parsedOrderNo) return;
+      setFilters({ orderNo: parsedOrderNo });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [parsedOrderNo, filters.orderNo, setFilters]);
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -78,16 +77,19 @@ const PaymentsMgmt: React.FC = () => {
               type="text"
               placeholder="搜索订单号..."
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              value={orderNoInput}
+              onChange={(e) => setOrderNoInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                setFilters({ orderNo: parsedOrderNo });
+              }}
             />
           </div>
         }
         right={
           <div className="flex items-center gap-3">
             <button
-              onClick={() => fetchPayments()}
+              onClick={() => refresh(true)}
               disabled={loading}
               className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
               title="刷新"
@@ -98,7 +100,11 @@ const PaymentsMgmt: React.FC = () => {
               {PAYMENT_STATUS_OPTIONS.map(opt => (
                 <button
                   key={String(opt.value)}
-                  onClick={() => { setStatusFilter(opt.value as number | ''); setPage(1); }}
+                  onClick={() => {
+                    const next = opt.value as number | '';
+                    setStatusFilter(next);
+                    setFilters({ paymentStatus: next === '' ? undefined : next });
+                  }}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap ${statusFilter === opt.value ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                   {opt.label}
@@ -114,11 +120,11 @@ const PaymentsMgmt: React.FC = () => {
         <AdminTableState
           loading={loading}
           error={error}
-          isEmpty={paginatedPayments.length === 0}
-          onRetry={fetchPayments}
+          isEmpty={payments.length === 0}
+          onRetry={retry}
           emptyIcon={Wallet}
-          emptyTitle={searchTerm || statusFilter !== '' ? '未找到匹配结果' : '暂无支付记录'}
-          emptyDescription={searchTerm || statusFilter !== '' ? '请尝试调整搜索条件' : '新的支付记录将显示在这里'}
+          emptyTitle={orderNoInput || statusFilter !== '' ? '未找到匹配结果' : '暂无支付记录'}
+          emptyDescription={orderNoInput || statusFilter !== '' ? '请尝试调整搜索条件' : '新的支付记录将显示在这里'}
           skeletonRows={5}
           skeletonColumns={6}
         >
@@ -134,7 +140,7 @@ const PaymentsMgmt: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paginatedPayments.map(p => (
+              {payments.map(p => (
                 <tr key={p.paymentId} className="hover:bg-indigo-50/30 transition-colors group">
                   <td className="px-6 py-4">
                     <EntityCell
@@ -167,7 +173,7 @@ const PaymentsMgmt: React.FC = () => {
                     </AdminBadge>
                   </td>
                   <td className="px-6 py-4 text-xs text-gray-500">
-                    {p.paymentTime ? new Date(p.paymentTime).toLocaleString('zh-CN') : '-'}
+                    {formatDateTimeZhCN(p.paymentTime)}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <TableActionMenu
@@ -191,7 +197,7 @@ const PaymentsMgmt: React.FC = () => {
             currentPage={page}
             totalPages={totalPages}
             setPage={setPage}
-            totalItems={filteredPayments.length}
+            totalItems={total}
             itemsPerPage={ITEMS_PER_PAGE}
           />
         </AdminTableState>

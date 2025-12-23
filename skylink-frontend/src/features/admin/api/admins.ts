@@ -1,4 +1,5 @@
 import axios from '@/lib/axios';
+import type { PageResult } from './types';
 
 /**
  * 管理员类型（与后端 Admin 实体对齐）
@@ -20,6 +21,22 @@ export async function listAdmins(keyword?: string): Promise<AdminItem[]> {
   });
   if (res.data.code !== 0) throw new Error(res.data.message || '查询失败');
   return res.data.data ?? [];
+}
+
+export async function listAdminsPage(params: {
+  keyword?: string;
+  page: number;
+  size: number;
+}): Promise<PageResult<AdminItem>> {
+  const res = await axios.get<{ code: number; data: PageResult<AdminItem>; message?: string }>('/api/v1/admins/page', {
+    params: {
+      keyword: params.keyword || undefined,
+      page: params.page ?? 1,
+      size: params.size ?? 10,
+    },
+  });
+  if (res.data.code !== 0) throw new Error(res.data.message || '查询失败');
+  return res.data.data ?? { total: 0, data: [] };
 }
 
 /**
@@ -72,23 +89,26 @@ export interface SystemLogItem {
   operTime: string;
 }
 
+
 /**
  * 获取系统日志列表
  */
 export async function listSystemLogs(params: {
   keyword?: string;
   module?: string;
+  operResult?: number;
   page?: number;
   size?: number;
-} = {}): Promise<SystemLogItem[]> {
-  const res = await axios.get<{ code: number; data: SystemLogItem[]; message?: string }>('/api/v1/admins/system-logs', {
+} = {}): Promise<PageResult<SystemLogItem>> {
+  const res = await axios.get<{ code: number; data: PageResult<SystemLogItem>; message?: string }>('/api/v1/admins/system-logs', {
     params: {
       keyword: params.keyword || undefined,
       module: params.module || undefined,
+      operResult: params.operResult ?? undefined,
       page: params.page ?? 1,
       size: params.size ?? 20,
     },
   });
   if (res.data.code !== 0) throw new Error(res.data.message || '查询失败');
-  return res.data.data ?? [];
+  return res.data.data ?? { total: 0, data: [] };
 }

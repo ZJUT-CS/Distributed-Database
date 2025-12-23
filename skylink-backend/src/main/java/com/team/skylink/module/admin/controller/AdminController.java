@@ -1,6 +1,7 @@
 package com.team.skylink.module.admin.controller;
 
 import com.team.skylink.common.Result;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.module.admin.entity.Admin;
 import com.team.skylink.module.admin.service.AdminManagementService;
 import com.team.skylink.module.system.entity.SystemLog;
@@ -32,6 +33,16 @@ public class AdminController {
     @Operation(summary = "获取管理员列表")
     public Result<List<Admin>> listAdmins(@RequestParam(required = false) String keyword) {
         return adminManagementService.listAdmins(keyword);
+    }
+
+    @GetMapping("/page")
+    @Operation(summary = "获取管理员列表（分页）")
+    public Result<PageResult<Admin>> listAdminsPage(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @RequestParam(required = false, defaultValue = "10") Integer size
+    ) {
+        return adminManagementService.listAdminsPage(keyword, page, size);
     }
 
     // ▼▼▼▼▼▼ 创建管理员 ▼▼▼▼▼▼
@@ -85,13 +96,14 @@ public class AdminController {
     // ▼▼▼▼▼▼ 系统日志列表 ▼▼▼▼▼▼
     @GetMapping("/system-logs")
     @Operation(summary = "获取系统操作日志列表")
-    public Result<List<SystemLog>> listSystemLogs(
+    public Result<PageResult<SystemLog>> listSystemLogs(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String module,
+            @RequestParam(required = false) Integer operResult,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size
     ) {
-        return adminManagementService.listSystemLogs(keyword, module, page, size);
+        return adminManagementService.listSystemLogs(keyword, module, operResult, page, size);
     }
 
     // DTO 定义

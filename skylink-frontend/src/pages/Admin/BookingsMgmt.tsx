@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Search, Eye, Download, XCircle, ShoppingCart } from 'lucide-react';
 import { cancelAdminOrder, listAdminOrders, type AdminOrderItem } from '../../features/admin/api/orders';
 import {
@@ -11,6 +11,7 @@ import {
   ErrorBanner,
   AdminDrawer,
   SensitiveField,
+  useAdminList,
   useConfirm,
   useToast,
   useSensitiveAudit,
@@ -26,63 +27,91 @@ const BookingsMgmt: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [page, setPage] = useState(1);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const ITEMS_PER_PAGE = 8;
-
-  const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState<AdminOrderItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Drawer 状态
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderItem | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
-
-  const normalizedSearch = useMemo(() => searchTerm.trim(), [searchTerm]);
-
-  const load = async (nextPage: number) => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const orderNo = normalizedSearch && /^\d+$/.test(normalizedSearch) ? normalizedSearch : undefined;
-      // 使用常量映射状态值
-      const statusMapping: Record<string, number | undefined> = {
-        all: undefined,
-        paid: ORDER_STATUS.CONFIRMED,
-        pending: ORDER_STATUS.PENDING_PAYMENT,
-        cancelled: ORDER_STATUS.CANCELLED,
-        audit: ORDER_STATUS.PENDING_AUDIT,
-      };
-      const orderStatus = statusMapping[statusFilter];
-
-      const res = await listAdminOrders({
-        page: nextPage,
-        size: ITEMS_PER_PAGE,
-        orderNo,
-        orderStatus,
-      });
-      setItems(res.data || []);
-      setTotal(res.total || 0);
-    } catch (e: any) {
-      const msg = String(e?.message || e || '加载失败');
-      if (/admin required/i.test(msg) || /403/.test(msg)) {
-        setLoadError('加载失败：当前登录态不是管理员或缺少管理员请求头（X-User-Type: 2）。请使用管理员账号登录后台后重试。');
-      } else {
-        setLoadError(`加载失败：${msg}`);
-      }
-      setItems([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
+  type BookingFilters = {
+    orderNo?: number;
+    orderStatus?: number;
   };
 
+  const fetchOrders = useCallback(
+    async (params: { page: number; size: number } & BookingFilters) => {
+      const res = await listAdminOrders({
+        page: params.page,
+        size: params.size,
+        orderNo: params.orderNo,
+        orderStatus: params.orderStatus,
+      });
+      return { data: res.data ?? [], total: res.total ?? 0 };
+    },
+    []
+  );
+
+  const {
+    items,
+    total,
+    page,
+    totalPages,
+    loading,
+    error,
+    filters,
+    setPage,
+    setFilters,
+    refresh,
+    retry,
+  } = useAdminList<AdminOrderItem, BookingFilters>({
+    pageSize: ITEMS_PER_PAGE,
+    initialFilters: {},
+    fetchFn: fetchOrders,
+  });
+
+  const parsedOrderNo = useMemo(() => {
+    const s = String(searchTerm ?? '').trim();
+    if (!s) return undefined;
+    if (!/^\d+$/.test(s)) return undefined;
+    const v = parseInt(s, 10);
+    return Number.isFinite(v) ? v : undefined;
+  }, [searchTerm]);
+
+  const mappedOrderStatus = useMemo(() => {
+    const statusMapping: Record<string, number | undefined> = {
+      all: undefined,
+      paid: ORDER_STATUS.CONFIRMED,
+      pending: ORDER_STATUS.PENDING_PAYMENT,
+      cancelled: ORDER_STATUS.CANCELLED,
+      audit: ORDER_STATUS.PENDING_AUDIT,
+    };
+    return statusMapping[statusFilter];
+  }, [statusFilter]);
+
+  // 搜索输入：300ms debounce
   useEffect(() => {
-    load(page);
-  }, [page, normalizedSearch, statusFilter]);
+    const t = window.setTimeout(() => {
+      if (filters.orderNo === parsedOrderNo) return;
+      setFilters({ orderNo: parsedOrderNo });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [filters.orderNo, parsedOrderNo, setFilters]);
+
+  // 状态筛选：点击即生效（去重，避免重复请求）
+  useEffect(() => {
+    if (filters.orderStatus === mappedOrderStatus) return;
+    setFilters({ orderStatus: mappedOrderStatus });
+  }, [filters.orderStatus, mappedOrderStatus, setFilters]);
+
+  const loadError = useMemo(() => {
+    const msg = String(error ?? '').trim();
+    if (!msg) return null;
+    if (/admin required/i.test(msg) || /403/.test(msg)) {
+      return '加载失败：当前登录态不是管理员或缺少管理员请求头（X-User-Type: 2）。请使用管理员账号登录后台后重试。';
+    }
+    return `加载失败：${msg}`;
+  }, [error]);
 
   const getStatusInfo = (s?: number | null) => {
     const status = s ?? -1;
@@ -100,15 +129,12 @@ const BookingsMgmt: React.FC = () => {
       confirmText: '确认取消',
     });
     if (!confirmed) return;
-    setLoading(true);
     try {
       await cancelAdminOrder(orderNo);
-      await load(page);
+      refresh(false);
       toast.success('订单已取消');
     } catch (e: any) {
       toast.error(e?.message || '取消失败');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -136,7 +162,7 @@ const BookingsMgmt: React.FC = () => {
         }
       />
 
-      {loadError && <ErrorBanner message={loadError} onRetry={() => load(page)} />}
+      {loadError && <ErrorBanner message={loadError} onRetry={retry} />}
 
       {/* Search & Filter Bar */}
       <FilterBar
@@ -150,9 +176,12 @@ const BookingsMgmt: React.FC = () => {
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setPage(1);
               }}
-              onKeyDown={(e) => e.key === 'Enter' && load(1)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                if (filters.orderNo === parsedOrderNo) return;
+                setFilters({ orderNo: parsedOrderNo });
+              }}
             />
           </div>
         }
@@ -169,7 +198,6 @@ const BookingsMgmt: React.FC = () => {
                   key={status.id}
                   onClick={() => {
                     setStatusFilter(status.id);
-                    setPage(1);
                   }}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${
                     statusFilter === status.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
@@ -189,7 +217,7 @@ const BookingsMgmt: React.FC = () => {
           loading={loading}
           error={loadError}
           isEmpty={items.length === 0}
-          onRetry={() => load(page)}
+          onRetry={retry}
           emptyTitle={searchTerm ? '未找到匹配订单' : '暂无订单数据'}
           emptyDescription={searchTerm ? '请尝试调整搜索条件' : '当前没有符合条件的订单记录'}
           skeletonRows={5}

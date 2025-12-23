@@ -2,6 +2,7 @@ package com.team.skylink.module.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.team.skylink.common.Result;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.module.admin.entity.Admin;
 import com.team.skylink.module.admin.mapper.AdminMapper;
 import com.team.skylink.module.refund.mapper.RefundChangeRecordMapper;
@@ -11,6 +12,8 @@ import com.team.skylink.module.system.mapper.UserBehaviorStatMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID; // 导入 UUID
 
 @Service
@@ -112,6 +115,34 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return Result.ok(adminMapper.selectList(qw));
     }
 
+        @Override
+        public Result<PageResult<Admin>> listAdminsPage(String keyword, Integer page, Integer size) {
+            int p = page != null && page > 0 ? page : 1;
+            int s = size != null && size > 0 ? Math.min(size, 100) : 10;
+            int offset = (p - 1) * s;
+
+            QueryWrapper<Admin> countQw = new QueryWrapper<>();
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                countQw.like("admin_account", keyword.trim());
+            }
+
+            Long total = adminMapper.selectCount(countQw);
+            long totalVal = total == null ? 0 : total;
+            if (totalVal == 0) {
+                return Result.ok(new PageResult<>(0, Collections.emptyList()));
+            }
+
+            QueryWrapper<Admin> listQw = new QueryWrapper<>();
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                listQw.like("admin_account", keyword.trim());
+            }
+            listQw.orderByDesc("create_time");
+            listQw.last("LIMIT " + offset + ", " + s);
+
+            List<Admin> rows = adminMapper.selectList(listQw);
+            return Result.ok(new PageResult<>(totalVal, rows));
+        }
+
     @Override
     public Result<Void> updateAdminStatus(Long adminId, Integer status) {
         Admin admin = adminMapper.selectById(adminId);
@@ -152,23 +183,47 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
     // ▼▼▼▼▼▼ 新增：系统日志列表 ▼▼▼▼▼▼
     @Override
-    public Result<java.util.List<com.team.skylink.module.system.entity.SystemLog>> listSystemLogs(String keyword, String module, Integer page, Integer size) {
-        QueryWrapper<com.team.skylink.module.system.entity.SystemLog> qw = new QueryWrapper<>();
+    public Result<PageResult<com.team.skylink.module.system.entity.SystemLog>> listSystemLogs(
+            String keyword,
+            String module,
+            Integer operResult,
+            Integer page,
+            Integer size
+    ) {
+        int p = page != null && page > 0 ? page : 1;
+        int s = size != null && size > 0 ? Math.min(size, 100) : 20;
+        int offset = (p - 1) * s;
+
+        QueryWrapper<com.team.skylink.module.system.entity.SystemLog> countQw = new QueryWrapper<>();
         if (keyword != null && !keyword.trim().isEmpty()) {
-            qw.and(w -> w.like("oper_content", keyword.trim())
-                    .or().like("oper_ip", keyword.trim()));
+            String kw = keyword.trim();
+            countQw.and(w -> w.like("oper_content", kw).or().like("oper_ip", kw));
         }
         if (module != null && !module.trim().isEmpty()) {
-            qw.eq("oper_module", module.trim());
+            countQw.eq("oper_module", module.trim());
         }
-        qw.orderByDesc("oper_time");
-        
-        // 简单分页
-        if (page != null && size != null && page > 0 && size > 0) {
-            qw.last("LIMIT " + ((page - 1) * size) + ", " + size);
+        if (operResult != null) {
+            countQw.eq("oper_result", operResult);
         }
-        
-        return Result.ok(operationLogMapper.selectList(qw));
+
+        Long total = operationLogMapper.selectCount(countQw);
+
+        QueryWrapper<com.team.skylink.module.system.entity.SystemLog> listQw = new QueryWrapper<>();
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            String kw = keyword.trim();
+            listQw.and(w -> w.like("oper_content", kw).or().like("oper_ip", kw));
+        }
+        if (module != null && !module.trim().isEmpty()) {
+            listQw.eq("oper_module", module.trim());
+        }
+        if (operResult != null) {
+            listQw.eq("oper_result", operResult);
+        }
+        listQw.orderByDesc("oper_time");
+        listQw.last("LIMIT " + offset + ", " + s);
+
+        java.util.List<com.team.skylink.module.system.entity.SystemLog> rows = operationLogMapper.selectList(listQw);
+        return Result.ok(new PageResult<>(total != null ? total : 0, rows));
     }
     // ▲▲▲▲▲▲ 新增结束 ▲▲▲▲▲▲
 }
