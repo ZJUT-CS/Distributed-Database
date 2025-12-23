@@ -265,11 +265,11 @@ public class OrderServiceImpl implements OrderService {
     public Result<Boolean> audit(Long orderId, boolean pass) {
         Orders order = orderMapper.selectById(orderId);
         if (order == null) {
-            throw new RuntimeException("订单不存在");
+            return Result.fail(404, "订单不存在");
         }
 
         if (order.getOrderStatus() != 0) { 
-            throw new RuntimeException("订单状态非待审核，操作失败");
+            return Result.fail(400, "订单状态非待审核，操作失败");
         }
 
         LocalDateTime now = LocalDateTime.now();

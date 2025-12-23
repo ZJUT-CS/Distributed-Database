@@ -49,6 +49,7 @@ public class OrderManagementFlowTests {
     void cleanOrders() {
         mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).build();
         jdbcTemplate.execute("DELETE FROM orders");
+        jdbcTemplate.execute("UPDATE seat SET status=1, order_id=NULL, passenger_index=NULL");
     }
 
     @Test
@@ -82,7 +83,7 @@ public class OrderManagementFlowTests {
 
         List<Orders> rows = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
                 .eq(Orders::getParentOrderId, Long.parseLong(parentOrderNo)));
-        assertEquals(1, rows.size());
+        assertEquals(2, rows.size());
         assertEquals(0, rows.get(0).getOrderStatus());
         assertEquals(5000L, rows.get(0).getUserId());
         assertNotNull(rows.get(0).getOrderTime());

@@ -91,20 +91,31 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
         }
         int retry = 0;
         while (retry < 10) {
-            Seat seat = baseMapper.selectOne(Wrappers.<Seat>lambdaQuery()
+            // 1. 查出所有可用座位ID
+            List<Seat> availableSeats = baseMapper.selectList(Wrappers.<Seat>lambdaQuery()
+                    .select(Seat::getSeatId)
                     .eq(Seat::getFlightId, flightId)
                     .eq(Seat::getCabinType, cfg.getCabinType())
-                    .eq(Seat::getStatus, 1)
-                    .last("ORDER BY RAND() LIMIT 1 FOR UPDATE"));
-            if (seat == null) {
+                    .eq(Seat::getStatus, 1));
+            
+            if (availableSeats.isEmpty()) {
                 throw new InventoryShortageException("no available seat");
             }
-            seat.setStatus(3);
-            seat.setOrderId(orderId);
-            seat.setPassengerIndex(0);
-            int rows = baseMapper.updateById(seat);
-            if (rows > 0) {
-                return seat.getSeatId();
+
+            // 2. 随机选一个
+            int idx = java.util.concurrent.ThreadLocalRandom.current().nextInt(availableSeats.size());
+            Long targetSeatId = availableSeats.get(idx).getSeatId();
+
+            // 3. 尝试锁定 (乐观锁)
+            Seat seat = baseMapper.selectById(targetSeatId);
+            if (seat != null && seat.getStatus() == 1) {
+                seat.setStatus(3);
+                seat.setOrderId(orderId);
+                seat.setPassengerIndex(0);
+                int rows = baseMapper.updateById(seat);
+                if (rows > 0) {
+                    return seat.getSeatId();
+                }
             }
             retry++;
         }

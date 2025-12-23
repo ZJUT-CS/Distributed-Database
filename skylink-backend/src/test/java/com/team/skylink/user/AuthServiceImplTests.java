@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -44,7 +45,7 @@ public class AuthServiceImplTests {
         u.setPhoneNumber("13800000000");
         u.setPasswordHash("hash");
         u.setUserStatus(1);
-        Mockito.when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(u);
+        Mockito.when(userMapper.selectList(any(QueryWrapper.class))).thenReturn(List.of(u));
         Mockito.when(passwordEncoder.matches(eq("pwd"), eq("hash"))).thenReturn(true);
         Mockito.when(sessionStore.createSession(eq(1L), eq(1))).thenReturn("token-1");
         Result<LoginResponse> r = service.login(req);
@@ -58,7 +59,7 @@ public class AuthServiceImplTests {
         LoginRequest req = new LoginRequest();
         req.setPhoneNumber("13900000000");
         req.setPassword("pwd");
-        Mockito.when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(null);
+        Mockito.when(userMapper.selectList(any(QueryWrapper.class))).thenReturn(List.of());
         Result<LoginResponse> r = service.login(req);
         assertEquals(401, r.getCode());
     }
@@ -73,7 +74,7 @@ public class AuthServiceImplTests {
         u.setPhoneNumber("13800000000");
         u.setPasswordHash("hash");
         u.setUserStatus(1);
-        Mockito.when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(u);
+        Mockito.when(userMapper.selectList(any(QueryWrapper.class))).thenReturn(List.of(u));
         Mockito.when(passwordEncoder.matches(eq("bad"), eq("hash"))).thenReturn(false);
         Result<LoginResponse> r = service.login(req);
         assertEquals(401, r.getCode());
@@ -89,7 +90,7 @@ public class AuthServiceImplTests {
         u.setPhoneNumber("13800000000");
         u.setPasswordHash("hash");
         u.setUserStatus(0);
-        Mockito.when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(u);
+        Mockito.when(userMapper.selectList(any(QueryWrapper.class))).thenReturn(List.of(u));
         Mockito.when(passwordEncoder.matches(eq("pwd"), eq("hash"))).thenReturn(true);
         Result<LoginResponse> r = service.login(req);
         assertEquals(423, r.getCode());
@@ -101,7 +102,7 @@ public class AuthServiceImplTests {
         body.put("phoneNumber","13800000001");
         body.put("password","pwd123");
         body.put("gender","1");
-        Mockito.when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(null);
+        Mockito.when(userMapper.selectCount(any(QueryWrapper.class))).thenReturn(0L);
         Mockito.when(userMapper.insert(any(User.class))).thenReturn(1);
         Mockito.when(passwordEncoder.encode(eq("pwd123"))).thenReturn("hash");
         Result<Boolean> r = service.phoneRegister(body);
@@ -114,9 +115,7 @@ public class AuthServiceImplTests {
         Map<String,String> body = new HashMap<>();
         body.put("phoneNumber","13800000001");
         body.put("password","pwd123");
-        User exists = new User();
-        exists.setUserId(2L);
-        Mockito.when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(exists);
+        Mockito.when(userMapper.selectCount(any(QueryWrapper.class))).thenReturn(1L);
         Result<Boolean> r = service.phoneRegister(body);
         assertEquals(409, r.getCode());
     }
@@ -127,7 +126,7 @@ public class AuthServiceImplTests {
         body.put("phoneNumber","13800000001");
         body.put("password","pwd123");
         body.put("gender","abc");
-        Mockito.when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(null);
+        Mockito.when(userMapper.selectCount(any(QueryWrapper.class))).thenReturn(0L);
         Result<Boolean> r = service.phoneRegister(body);
         assertEquals(400, r.getCode());
     }
@@ -190,7 +189,7 @@ public class AuthServiceImplTests {
 
     @Test
     void bindPhone_conflict() {
-        Mockito.when(userMapper.selectOne(any(QueryWrapper.class))).thenReturn(new User());
+        Mockito.when(userMapper.selectCount(any(QueryWrapper.class))).thenReturn(1L);
         Result<User> r = service.bindPhone(1L, "13800000000", "123456");
         assertEquals(409, r.getCode());
     }

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.common.Result;
+import com.team.skylink.common.exception.InventoryShortageException;
 import com.team.skylink.module.aircraft.entity.AircraftCabinConfig;
 import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper;
 import com.team.skylink.module.flight.entity.Flight;
@@ -241,7 +242,7 @@ class OrderServiceImplTest {
         req.setFlightNo("FL999");
         req.setTicketNum(1);
         req.setUserId(1L);
-        req.setCabinType("ECO");
+        req.setCabinType("ECONOMY");
         req.setPassengerName("P");
 
         Flight f = new Flight(); f.setFlightId(99L); f.setFlightNo("FL999"); f.setModelId(1L); f.setRouteId(1L);
@@ -255,13 +256,17 @@ class OrderServiceImplTest {
         lenient().when(flightMapper.selectOne(any())).thenReturn(f);
         lenient().when(configMapper.selectOne(any())).thenReturn(config);
         lenient().when(routeMapper.selectById(any())).thenReturn(r);
-        lenient().when(orderMapper.insert(any(Orders.class))).thenReturn(1);
 
-        // Mock selectCount to simulate concurrent reads
+        AtomicInteger lockCallCount = new AtomicInteger(0);
+        lenient().when(seatService.lockRandomSeat(anyLong(), anyLong(), anyLong())).thenAnswer(inv -> {
+            long n = lockCallCount.incrementAndGet();
+            return 10_000L + n;
+        });
+
         AtomicInteger callCount = new AtomicInteger(0);
-        when(orderMapper.selectCount(any())).thenAnswer(inv -> {
+        lenient().when(orderMapper.insert(any(Orders.class))).thenAnswer(inv -> {
             callCount.incrementAndGet();
-            return 0L; 
+            return 1;
         });
 
         for (int i = 0; i < threadCount; i++) {
@@ -279,8 +284,8 @@ class OrderServiceImplTest {
         latch.await();
         executor.shutdown();
 
-        // Verify that selectCount was called at least 10 times (once per thread)
-        verify(orderMapper, atLeast(10)).selectCount(any());
+        verify(seatService, atLeast(threadCount)).lockRandomSeat(anyLong(), anyLong(), anyLong());
+        verify(orderMapper, atLeast(threadCount)).insert(any(Orders.class));
     }
 
     @Test
@@ -391,8 +396,7 @@ class OrderServiceImplTest {
         config.setCapacity(100);
         config.setCabinCoefficient(BigDecimal.ONE);
         when(configMapper.selectOne(any())).thenReturn(config);
-        when(orderMapper.selectCount(any())).thenReturn(0L);
-
+        
         when(routeMapper.selectById(100L)).thenReturn(null);
 
         Result<OrderSearchResponse> result = orderService.create(req);
@@ -420,10 +424,15 @@ class OrderServiceImplTest {
         config.setCapacity(1);
         config.setCabinCoefficient(BigDecimal.ONE);
         when(configMapper.selectOne(any())).thenReturn(config);
-        when(orderMapper.selectCount(any())).thenReturn(0L);
+        
+        Route route = new Route();
+        route.setBasePrice(BigDecimal.TEN);
+        when(routeMapper.selectById(100L)).thenReturn(route);
 
-        Result<OrderSearchResponse> result = orderService.create(req);
-        assertEquals(409, result.getCode());
+        doThrow(new InventoryShortageException("shortage"))
+            .when(seatService).lockRandomSeat(anyLong(), anyLong(), anyLong());
+
+        assertThrows(InventoryShortageException.class, () -> orderService.create(req));
     }
 
     @Test
@@ -466,7 +475,8 @@ class OrderServiceImplTest {
     @Test
     void testAudit_orderNotFound_throws() {
         when(orderMapper.selectById(1L)).thenReturn(null);
-        assertThrows(RuntimeException.class, () -> orderService.audit(1L, true));
+        Result<Boolean> result = orderService.audit(1L, true);
+        assertEquals(404, result.getCode());
     }
 
     @Test
@@ -475,6 +485,7 @@ class OrderServiceImplTest {
         o.setOrderId(1L);
         o.setOrderStatus(1);
         when(orderMapper.selectById(1L)).thenReturn(o);
-        assertThrows(RuntimeException.class, () -> orderService.audit(1L, true));
+        Result<Boolean> result = orderService.audit(1L, true);
+        assertEquals(400, result.getCode());
     }
 }

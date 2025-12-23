@@ -1,5 +1,6 @@
 package com.team.skylink.common;
 
+import com.team.skylink.common.exception.InventoryShortageException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -38,6 +39,11 @@ public class GlobalExceptionHandler {
     public Result<Void> handleBadRequest(Exception ex) {
         log.error("Bad Request details: ", ex);
         return Result.fail(HttpStatus.BAD_REQUEST.value(), "invalid request: " + ex.getMessage());
+    }
+
+    @ExceptionHandler(InventoryShortageException.class)
+    public Result<Void> handleInventoryShortage(InventoryShortageException ex) {
+        return Result.fail(HttpStatus.CONFLICT.value(), ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
