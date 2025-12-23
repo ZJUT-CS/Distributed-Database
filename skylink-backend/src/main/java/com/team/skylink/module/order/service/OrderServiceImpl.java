@@ -145,7 +145,7 @@ public class OrderServiceImpl implements OrderService {
                     .orderByDesc("flight_id")
                     .last("LIMIT 1"));
             if (f == null) {
-                return Result.fail(404, "flight not found: " + fNo);
+                return Result.fail(404, "找不到航班: " + fNo);
             }
             if (i == 0) firstFlight = f;
 
@@ -157,14 +157,14 @@ public class OrderServiceImpl implements OrderService {
                     .last("LIMIT 1")); 
 
             if (config == null) {
-                return Result.fail(404, "cabin config not found for flight: " + fNo);
+                return Result.fail(404, "找不到舱位配置: " + fNo);
             }
 
             int ticketCount = req.getTicketNum() != null ? req.getTicketNum() : (passengers != null ? passengers.size() : 1);
 
             // 4. 计算总价
             Route route = routeMapper.selectById(f.getRouteId());
-            if (route == null) return Result.fail(404, "route not found for flight: " + fNo);
+            if (route == null) return Result.fail(404, "找不到航线信息: " + fNo);
             BigDecimal unitPrice = route.getBasePrice().multiply(config.getCabinCoefficient());
             
             for (int pIdx = 0; pIdx < ticketCount; pIdx++) {
