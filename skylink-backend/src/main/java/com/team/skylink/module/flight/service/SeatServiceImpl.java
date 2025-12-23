@@ -87,7 +87,7 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
     public Long lockRandomSeat(Long flightId, Long cabinId, Long orderId) {
         AircraftCabinConfig cfg = configMapper.selectById(cabinId);
         if (cfg == null) {
-            throw new IllegalArgumentException("invalid cabinId");
+            throw new IllegalArgumentException("无效的舱位ID");
         }
         int retry = 0;
         while (retry < 10) {
@@ -99,7 +99,7 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
                     .eq(Seat::getStatus, 1));
             
             if (availableSeats.isEmpty()) {
-                throw new InventoryShortageException("no available seat");
+                throw new InventoryShortageException("抱歉，该航班座位已售罄");
             }
 
             // 2. 随机选一个
@@ -160,7 +160,7 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
     public boolean changeSeat(Long orderId, Long newSeatId) {
         Orders order = orderMapper.selectById(orderId);
         if (order == null) {
-            throw new IllegalArgumentException("order not found");
+            throw new IllegalArgumentException("订单不存在");
         }
         Long oldSeatId = order.getSeatId();
         if (oldSeatId != null) {
@@ -172,7 +172,7 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
                 .set(Seat::getStatus, 2)
                 .set(Seat::getOrderId, orderId));
         if (!updated) {
-            throw new RuntimeException("seat occupied");
+            throw new RuntimeException("该座位已被占用，请选择其他座位");
         }
         order.setSeatId(newSeatId);
         orderMapper.updateById(order);

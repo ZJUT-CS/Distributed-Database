@@ -299,7 +299,8 @@ public class PaymentServiceImpl implements PaymentService {
                     .ne("order_id", o.getOrderId()));
             
             for (Orders sib : siblings) {
-                if (sib.getOrderStatus() != null && sib.getOrderStatus() != 1 && sib.getOrderStatus() != OrderStatusEnum.CONFIRMED.getCode()) {
+                // 仅处理待支付(1)的关联订单
+                if (sib.getOrderStatus() != null && sib.getOrderStatus() == 1) {
                     // 为关联订单创建支付记录 (使用相同的交易号)
                     Payment sibPayment = new Payment();
                     sibPayment.setOrderId(sib.getOrderId());
@@ -319,12 +320,12 @@ public class PaymentServiceImpl implements PaymentService {
                             .set(Orders::getPayTime, payTime);
                     orderMapper.update(null, sibUpdate);
 
-        // 确认座位
-        if (sib.getSeatId() != null) {
-            seatService.confirmSeat(sib.getSeatId());
-        } else {
-            seatService.confirmSeats(sib.getOrderId());
-        }
+                    // 确认座位
+                    if (sib.getSeatId() != null) {
+                        seatService.confirmSeat(sib.getSeatId());
+                    } else {
+                        seatService.confirmSeats(sib.getOrderId());
+                    }
                 }
             }
         }
