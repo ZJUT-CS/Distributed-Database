@@ -43,8 +43,13 @@ public class OrderTimeoutTask {
 
         for (Orders order : timeoutOrders) {
             try {
-                // 1. Release seats
-                seatService.releaseSeats(order.getOrderId());
+                // 1. Release seat by seatId (Mode B)
+                if (order.getSeatId() != null) {
+                    seatService.releaseSeat(order.getSeatId());
+                } else {
+                    // fallback: release by orderId if seatId is missing
+                    seatService.releaseSeats(order.getOrderId());
+                }
                 
                 // 2. Update order status
                 order.setOrderStatus(6); // 6=Cancelled
@@ -58,21 +63,4 @@ public class OrderTimeoutTask {
         }
     }
 
-    @Scheduled(cron = "0 0/1 * * * ?")
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteExpiredPendingAuditOrders() {
-        LocalDateTime timeoutThreshold = LocalDateTime.now().minusMinutes(2);
-        List<Orders> expired = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
-                .eq(Orders::getOrderStatus, 0)
-                .lt(Orders::getOrderTime, timeoutThreshold));
-        if (expired.isEmpty()) return;
-        for (Orders order : expired) {
-            try {
-                orderMapper.deleteById(order.getOrderId());
-                log.info("Auto-removed expired pending audit order at {}: {}", LocalDateTime.now(), order.getOrderId());
-            } catch (Exception e) {
-                log.error("Failed to remove expired pending audit order: " + order.getOrderId(), e);
-            }
-        }
-    }
 }

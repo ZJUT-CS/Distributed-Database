@@ -22,6 +22,7 @@ public class Orders {
     private String contactEmail;
     private String contactPhone;
     private String passengersJson;
+    private Long seatId;
     
     private LocalDateTime orderTime;
     private LocalDateTime payTime;
@@ -53,4 +54,7 @@ public class Orders {
     
     public Long getParentOrderId() { return parentOrderId; }
     public void setParentOrderId(Long parentOrderId) { this.parentOrderId = parentOrderId; }
+
+    public Long getSeatId() { return seatId; }
+    public void setSeatId(Long seatId) { this.seatId = seatId; }
 }

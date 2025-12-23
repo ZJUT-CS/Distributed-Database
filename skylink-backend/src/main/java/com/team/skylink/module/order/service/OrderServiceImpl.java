@@ -3,6 +3,9 @@ package com.team.skylink.module.order.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.fasterxml.jackson.core.JsonProcessingException; // 导入异常类
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.aircraft.entity.AircraftCabinConfig;
 import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper;
@@ -117,6 +120,15 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal totalAmountAll = BigDecimal.ZERO;
         List<Orders> ordersToInsert = new ArrayList<>();
         Flight firstFlight = null;
+        ObjectMapper objectMapper = new ObjectMapper();
+        java.util.List<java.util.Map<String, Object>> passengers = null;
+        try {
+            if (req.getPassengersJson() != null && !req.getPassengersJson().isBlank()) {
+                passengers = objectMapper.readValue(req.getPassengersJson(), new TypeReference<java.util.List<java.util.Map<String, Object>>>() {});
+            }
+        } catch (Exception e) {
+            passengers = null;
+        }
 
         for (int i = 0; i < flightNos.size(); i++) {
             String fNo = flightNos.get(i);
@@ -138,42 +150,57 @@ public class OrderServiceImpl implements OrderService {
                 return Result.fail(404, "cabin config not found for flight: " + fNo);
             }
 
-            // 3. 动态查库存 (Capacity - 已卖出)
-            Long soldCount = orderMapper.selectCount(Wrappers.<Orders>lambdaQuery()
-                    .eq(Orders::getFlightId, f.getFlightId())
-                    .eq(Orders::getCabinId, config.getConfigId())
-                    .in(Orders::getOrderStatus, 1, 2, 4)); 
-
-            long remaining = config.getCapacity() - soldCount;
-            if (remaining < req.getTicketNum()) {
-                return Result.fail(409, "insufficient seats for flight: " + fNo);
-            }
+            int ticketCount = req.getTicketNum() != null ? req.getTicketNum() : (passengers != null ? passengers.size() : 1);
 
             // 4. 计算总价
             Route route = routeMapper.selectById(f.getRouteId());
             if (route == null) return Result.fail(404, "route not found for flight: " + fNo);
             BigDecimal unitPrice = route.getBasePrice().multiply(config.getCabinCoefficient());
-            BigDecimal totalAmount = unitPrice.multiply(BigDecimal.valueOf(req.getTicketNum()));
-            totalAmountAll = totalAmountAll.add(totalAmount);
+            
+            for (int pIdx = 0; pIdx < ticketCount; pIdx++) {
+                Long seatId = seatService.lockRandomSeat(f.getFlightId(), config.getConfigId());
+                BigDecimal totalAmount = unitPrice.multiply(BigDecimal.ONE);
+                totalAmountAll = totalAmountAll.add(totalAmount);
 
-            // 5. 准备订单
-            Orders o = new Orders();
-            o.setUserId(req.getUserId());
-            o.setFlightId(f.getFlightId());
-            o.setCabinId(config.getConfigId());
-            o.setOrderStatus(0); // 初始状态：待审核
-            o.setTicketNum(req.getTicketNum());
-            o.setTotalAmount(totalAmount);
-            o.setPassengerName(req.getPassengerName());
-            o.setContactEmail(req.getContactEmail());
-            o.setContactPhone(req.getContactPhone());
-            o.setPassengersJson(req.getPassengersJson());
-            o.setOrderTime(LocalDateTime.now());
-            
-            o.setParentOrderId(parentOrderId);
-            o.setTripType(i + 1);
-            
-            ordersToInsert.add(o);
+                Orders o = new Orders();
+                Long oid = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
+                o.setOrderId(oid);
+                o.setUserId(req.getUserId());
+                o.setFlightId(f.getFlightId());
+                o.setCabinId(config.getConfigId());
+                o.setOrderStatus(0);
+                o.setTicketNum(1);
+                o.setTotalAmount(totalAmount);
+                
+                String singleName = req.getPassengerName();
+                String singlePhone = req.getContactPhone();
+                String singleEmail = req.getContactEmail();
+                String singlePassengerJson = req.getPassengersJson();
+                
+                if (passengers != null && pIdx < passengers.size()) {
+                    java.util.Map<String, Object> pi = passengers.get(pIdx);
+                    // --- 【修复重点】增加 try-catch 处理 JsonProcessingException ---
+                    try {
+                        singlePassengerJson = objectMapper.writeValueAsString(java.util.Collections.singletonList(pi));
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException("Failed to serialize passenger info", e);
+                    }
+                    
+                    Object n = pi.get("name");
+                    Object ph = pi.get("phone");
+                    if (n != null) singleName = String.valueOf(n);
+                    if (ph != null) singlePhone = String.valueOf(ph);
+                }
+                o.setPassengerName(singleName);
+                o.setContactEmail(singleEmail);
+                o.setContactPhone(singlePhone);
+                o.setPassengersJson(singlePassengerJson);
+                o.setOrderTime(LocalDateTime.now());
+                o.setSeatId(seatId);
+                o.setParentOrderId(parentOrderId);
+                o.setTripType(i + 1);
+                ordersToInsert.add(o);
+            }
         }
         
         for (Orders o : ordersToInsert) {
@@ -192,7 +219,6 @@ public class OrderServiceImpl implements OrderService {
         return Result.ok(r);
     }
 
-    // --- 【修复1】Cancel 方法：补全逻辑并修复语法错误 ---
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Boolean> cancel(Long orderId) {
@@ -201,19 +227,24 @@ public class OrderServiceImpl implements OrderService {
         Orders o = orderMapper.selectById(orderId);
         if (o == null) return Result.fail(404, "order not found");
         
-        // 允许取消的状态：0待审核, 1待支付
         if (o.getOrderStatus() != 0 && o.getOrderStatus() != 1) {
             return Result.fail(409, "order cannot be cancelled in current status");
         }
 
-        // 级联取消逻辑：如果是联程票，需要把同一 parentOrderId 下的所有票都取消
+        // 释放座位 (Mode B)
+        if (o.getSeatId() != null) {
+            seatService.releaseSeat(o.getSeatId());
+        } else {
+            seatService.releaseSeats(o.getOrderId());
+        }
+
+        // 级联取消逻辑
         if (o.getParentOrderId() != null) {
             LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(Orders::getParentOrderId, o.getParentOrderId())
                          .set(Orders::getOrderStatus, 6); // 6=已取消
             orderMapper.update(null, updateWrapper);
         } else {
-            // 普通独立票
             o.setOrderStatus(6); 
             orderMapper.updateById(o);
         }
@@ -221,7 +252,6 @@ public class OrderServiceImpl implements OrderService {
         return Result.ok(true);
     }
 
-    // --- 【修复2】Audit 方法：补全缺失的方法 ---
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Boolean> audit(Long orderId, boolean pass) {
@@ -230,14 +260,12 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("订单不存在");
         }
 
-        // 只有 0 (待审核) 状态可以审核
         if (order.getOrderStatus() != 0) { 
             throw new RuntimeException("订单状态非待审核，操作失败");
         }
 
         int newStatus = pass ? 1 : 3;
 
-        // 级联审核逻辑：如果是联程票，审核其中一段，另一段同步变更
         if (order.getParentOrderId() != null) {
             LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(Orders::getParentOrderId, order.getParentOrderId())

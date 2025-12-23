@@ -193,7 +193,11 @@ public class PaymentServiceImpl implements PaymentService {
         orderMapper.update(null, updateWrapper);
 
         // 确认座位 (锁定 -> 已售)
-        seatService.confirmSeats(o.getOrderId());
+        if (o.getSeatId() != null) {
+            seatService.confirmSeat(o.getSeatId());
+        } else {
+            seatService.confirmSeats(o.getOrderId());
+        }
 
         // 级联确认联程订单 (如果有)
         if (o.getParentOrderId() != null) {
@@ -222,8 +226,12 @@ public class PaymentServiceImpl implements PaymentService {
                             .set(Orders::getPayTime, payTime);
                     orderMapper.update(null, sibUpdate);
 
-                    // 确认座位
-                    seatService.confirmSeats(sib.getOrderId());
+        // 确认座位
+        if (sib.getSeatId() != null) {
+            seatService.confirmSeat(sib.getSeatId());
+        } else {
+            seatService.confirmSeats(sib.getOrderId());
+        }
                 }
             }
         }
@@ -267,7 +275,11 @@ public class PaymentServiceImpl implements PaymentService {
         orderMapper.updateById(o);
         
         // 确认座位 (锁定 -> 已售)
-        seatService.confirmSeats(o.getOrderId());
+        if (o.getSeatId() != null) {
+            seatService.confirmSeat(o.getSeatId());
+        } else {
+            seatService.confirmSeats(o.getOrderId());
+        }
         
         PaymentSearchResponse r = new PaymentSearchResponse();
         r.setPaymentId(String.valueOf(p.getPaymentId()));

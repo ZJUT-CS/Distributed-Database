@@ -55,6 +55,36 @@ public interface SeatService extends IService<Seat> {
      */
     void lockSeatsBatch(List<SeatLockRequest> requests);
 
+    /**
+     * Mode B：随机锁定一个座位（悲观锁）
+     * @param flightId 航班ID
+     * @param cabinId 舱位配置ID
+     * @return 锁定的座位ID
+     */
+    Long lockRandomSeat(Long flightId, Long cabinId);
+
+    /**
+     * Mode B：释放单个座位
+     * @param seatId 座位ID
+     * @return 是否成功
+     */
+    boolean releaseSeat(Long seatId);
+
+    /**
+     * Mode B：确认单个座位为已售
+     * @param seatId 座位ID
+     * @return 是否成功
+     */
+    boolean confirmSeat(Long seatId);
+
+    /**
+     * Mode B：支付后换座
+     * @param orderId 订单ID
+     * @param newSeatId 新座位ID
+     * @return 是否成功
+     */
+    boolean changeSeat(Long orderId, Long newSeatId);
+
     @lombok.Data
     class SeatLockRequest implements Comparable<SeatLockRequest> {
         private Long flightId;

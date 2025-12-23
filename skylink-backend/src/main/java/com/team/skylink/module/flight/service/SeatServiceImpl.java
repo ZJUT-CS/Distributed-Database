@@ -3,9 +3,13 @@ package com.team.skylink.module.flight.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.team.skylink.common.exception.InventoryShortageException;
+import com.team.skylink.module.aircraft.entity.AircraftCabinConfig;
+import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper;
 import com.team.skylink.module.flight.entity.Seat;
 import com.team.skylink.module.flight.mapper.SeatMapper;
 import com.team.skylink.module.flight.service.SeatService;
+import com.team.skylink.module.order.entity.Orders;
+import com.team.skylink.module.order.mapper.OrderMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +26,16 @@ import java.util.Map;
 
 @Service
 public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements SeatService {
+    private final AircraftCabinConfigMapper configMapper;
+    private final OrderMapper orderMapper;
+
+    public SeatServiceImpl(SeatMapper seatMapper,
+                           AircraftCabinConfigMapper configMapper,
+                           OrderMapper orderMapper) {
+        // ServiceImpl 已持有 baseMapper，无需显式保存 seatMapper
+        this.configMapper = configMapper;
+        this.orderMapper = orderMapper;
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -60,6 +74,90 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
             }
         }
         return lockedSeats;
+    }
+
+    /**
+     * Mode B：随机锁定一个座位
+     * 并发控制说明：
+     * - 使用数据库行级排他锁：ORDER BY RAND() LIMIT 1 FOR UPDATE 选取可用座位
+     * - 方法开启事务，避免锁释放前被其他事务抢占
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long lockRandomSeat(Long flightId, Long cabinId) {
+        AircraftCabinConfig cfg = configMapper.selectById(cabinId);
+        if (cfg == null) {
+            throw new IllegalArgumentException("invalid cabinId");
+        }
+        Seat seat = baseMapper.selectOne(Wrappers.<Seat>lambdaQuery()
+                .eq(Seat::getFlightId, flightId)
+                .eq(Seat::getCabinType, cfg.getCabinType())
+                .eq(Seat::getStatus, 1)
+                .last("ORDER BY RAND() LIMIT 1 FOR UPDATE"));
+        if (seat == null) {
+            throw new InventoryShortageException("no available seat");
+        }
+        seat.setStatus(3);
+        baseMapper.updateById(seat);
+        return seat.getSeatId();
+    }
+
+    /**
+     * Mode B：释放单个座位
+     * - 无需关联订单ID，直接按 seatId 将状态置回可用
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean releaseSeat(Long seatId) {
+        return update(null, Wrappers.<Seat>lambdaUpdate()
+                .eq(Seat::getSeatId, seatId)
+                .set(Seat::getStatus, 1)
+                .set(Seat::getOrderId, null)
+                .set(Seat::getUserId, null)
+                .set(Seat::getPassengerIndex, null));
+    }
+
+    /**
+     * Mode B：确认单个座位
+     * - 将锁定(3)座位置为已售(2)
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean confirmSeat(Long seatId) {
+        return update(null, Wrappers.<Seat>lambdaUpdate()
+                .eq(Seat::getSeatId, seatId)
+                .eq(Seat::getStatus, 3)
+                .set(Seat::getStatus, 2));
+    }
+
+    /**
+     * Mode B：支付后换座（事务）
+     * 并发控制说明：
+     * - 先释放旧座位，再尝试将新座位从可用(1)原子更新为已售(2)
+     * - WHERE 条件包含 status=1，若被他人占用将更新失败并抛出异常
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean changeSeat(Long orderId, Long newSeatId) {
+        Orders order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new IllegalArgumentException("order not found");
+        }
+        Long oldSeatId = order.getSeatId();
+        if (oldSeatId != null) {
+            releaseSeat(oldSeatId);
+        }
+        boolean updated = update(null, Wrappers.<Seat>lambdaUpdate()
+                .eq(Seat::getSeatId, newSeatId)
+                .eq(Seat::getStatus, 1)
+                .set(Seat::getStatus, 2)
+                .set(Seat::getOrderId, orderId));
+        if (!updated) {
+            throw new RuntimeException("seat occupied");
+        }
+        order.setSeatId(newSeatId);
+        orderMapper.updateById(order);
+        return true;
     }
 
     @Override
