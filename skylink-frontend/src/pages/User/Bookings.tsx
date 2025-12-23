@@ -75,7 +75,19 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
       baggageWeight: 23,
       amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
     }],
-    status: o.orderStatus === 0 ? 'pending_payment' : o.orderStatus === 1 ? 'confirmed' : o.orderStatus === 2 ? 'cancelled' : 'cancelled',
+    status:
+      // 后端 OrderStatusEnum：1=待支付，2=已支付，4=改签处理中，5=已退票，6=已取消
+      o.orderStatus === 1
+        ? 'pending_payment'
+        : o.orderStatus === 2
+          ? 'confirmed'
+          : o.orderStatus === 4
+            ? 'refunding'
+            : o.orderStatus === 5
+              ? 'refunded'
+              : o.orderStatus === 6
+                ? 'cancelled'
+                : 'pending_payment',
     bookingDate: o.orderTime || new Date().toISOString(),
     totalPrice: Number(o.totalAmount || 0),
     passengerName: o.passengerName || passengers[0]?.name || '',

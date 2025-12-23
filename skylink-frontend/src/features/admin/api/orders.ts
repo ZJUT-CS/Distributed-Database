@@ -78,3 +78,14 @@ export async function deleteAdminOrder(orderId: string | number): Promise<boolea
   });
 }
 
+export async function auditAdminOrder(orderId: string | number, pass: boolean): Promise<boolean> {
+  const id = String(orderId ?? '').trim();
+  if (!id) throw new Error('缺少 orderId');
+
+  return request<boolean>({
+    method: 'POST',
+    url: `/api/v1/admins/orders/${encodeURIComponent(id)}/audits`,
+    data: { pass: Boolean(pass) },
+  });
+}
+

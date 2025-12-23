@@ -6,7 +6,8 @@ import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes'
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
 
 type UiFlight = {
-  id: string; // 展示用（航班号）
+  rowId: string; // 唯一标识（用于 key / 选中态 / 菜单展开态）
+  displayId: string; // 展示用（通常为航班号 flightNo）
   flightId: string;
   flightNo: string;
   airline: string;
@@ -77,10 +78,12 @@ const mapAdminFlight = (f: AdminFlightItem): UiFlight => {
   const arrivalCity = String(f.arrivalCity ?? '').trim();
   const airlineCompany = String(f.airlineCompany ?? '').trim();
   const totalSeats = f.totalSeats != null ? Number(f.totalSeats) : 0;
+  const flightId = String(f.flightId);
 
   return {
-    id: flightNo || String(f.flightId),
-    flightId: String(f.flightId),
+    rowId: flightId,
+    displayId: flightNo || flightId,
+    flightId,
     flightNo,
     airline: airlineCompany,
     route: `${departureCity || '-'} → ${arrivalCity || '-'}`,
@@ -360,14 +363,14 @@ const FlightMgmt: React.FC = () => {
               else if (loadFactor > 70) barColor = 'bg-green-500';
 
               return (
-                <tr key={flight.id} className="hover:bg-indigo-50/30 transition-colors group relative">
+                <tr key={flight.rowId} className="hover:bg-indigo-50/30 transition-colors group relative">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs">
-                        {flight.id.substring(0, 2)}
+                        {(flight.flightNo || flight.flightId).substring(0, 2)}
                       </div>
                       <div>
-                        <div className="font-bold text-gray-800">{flight.id}</div>
+                        <div className="font-bold text-gray-800">{flight.displayId}</div>
                         <div className="text-xs text-gray-500">{flight.airline}</div>
                       </div>
                     </div>
@@ -420,8 +423,8 @@ const FlightMgmt: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <TableActionMenu
-                      isOpen={activeActionId === flight.id}
-                      onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === flight.id ? null : flight.id); }}
+                      isOpen={activeActionId === flight.rowId}
+                      onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === flight.rowId ? null : flight.rowId); }}
                       onClose={() => setActiveActionId(null)}
                     >
                       <button
@@ -472,7 +475,7 @@ const FlightMgmt: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-500">航班号</label>
-              <input name="flightNo" defaultValue={editingFlight?.flightNo ?? editingFlight?.id} required placeholder="例如: CA1234" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              <input name="flightNo" defaultValue={editingFlight?.flightNo ?? editingFlight?.displayId} required placeholder="例如: CA1234" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-500">航空公司</label>

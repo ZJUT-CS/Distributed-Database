@@ -162,7 +162,7 @@ public class PaymentServiceImpl implements PaymentService {
         if (o == null) {
             return Result.fail(404, "order not found");
         }
-        if (o.getOrderStatus() != null && o.getOrderStatus() == 1) {
+        if (o.getOrderStatus() != null && o.getOrderStatus() == OrderStatusEnum.CONFIRMED.getCode()) {
             return Result.fail(409, "order already paid");
         }
         if (o.getTotalAmount() != null && req.getAmount() != null && o.getTotalAmount().compareTo(req.getAmount()) != 0) {
@@ -188,7 +188,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Orders::getOrderId, o.getOrderId())
-                .set(Orders::getOrderStatus, 1)
+            .set(Orders::getOrderStatus, OrderStatusEnum.CONFIRMED.getCode())
                 .set(Orders::getPayTime, payTime);
         orderMapper.update(null, updateWrapper);
 
