@@ -20,8 +20,9 @@ spring:
     caffeine:
       spec: maximumSize=5000,expireAfterWrite=30s
   datasource:
-    url: jdbc:mysql://26.122.246.196:3307/sharding_db?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://26.122.246.196:3307/sharding_db?serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
+    
     password: shardingsphere
     driver-class-name: com.mysql.cj.jdbc.Driver
 mybatis-plus:

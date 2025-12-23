@@ -125,7 +125,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     public Result<Boolean> updateStatus(Long orderId, Integer orderStatus) {
         if (orderId == null) return Result.fail(400, "orderId is required");
         Orders o = orderMapper.selectById(orderId);
-        if (o == null) return Result.fail(404, "order not found");
+        if (o == null) return Result.fail(404, "订单不存在");
         
         Integer target = orderStatus;
 
@@ -165,7 +165,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     @Transactional(rollbackFor = Exception.class)
     public Result<Boolean> cancel(Long orderId) {
         Orders o = orderMapper.selectById(orderId);
-        if (o == null) return Result.fail(404, "order not found");
+        if (o == null) return Result.fail(404, "订单不存在");
         
         // 只有待审核(0)或待支付(1)可以取消
         if (o.getOrderStatus() != 0 && o.getOrderStatus() != 1) {
@@ -191,7 +191,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     @Override
     public Result<Boolean> delete(Long orderId) {
         Orders o = orderMapper.selectById(orderId);
-        if (o == null) return Result.fail(404, "order not found");
+        if (o == null) return Result.fail(404, "订单不存在");
         Integer s = o.getOrderStatus();
         if (s == 0 || s == 1 || s == 2) return Result.fail(409, "活跃订单不可删除");
         
