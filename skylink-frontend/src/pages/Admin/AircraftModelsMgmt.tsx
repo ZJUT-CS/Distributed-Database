@@ -1,43 +1,121 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, Search, Edit2, Trash2, X, Save, Plane as PlaneIcon } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge } from '@/features/admin';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Save, Plane as PlaneIcon, Search, RefreshCw, Factory, Users, Layers } from 'lucide-react';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, useAdminList, AdminTableState, useConfirm, useToast } from '@/features/admin';
+import { formatApiError } from '@/utils/apiError';
 import { listAircraftModels, createAircraftModel, updateAircraftModel, deleteAircraftModel, type AircraftModelItem } from '@/features/admin/api/aircraftModels';
+import { listCabinConfigs } from '@/features/admin/api/cabinConfigs';
+import EntityCell from '@/components/common/EntityCell';
+
+interface ModelFilters {
+  keyword: string;
+  [key: string]: unknown;
+}
 
 const AircraftModelsMgmt: React.FC = () => {
-  const [models, setModels] = useState<AircraftModelItem[]>([]);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [keyword, setKeyword] = useState('');
-
   const PAGE_SIZE = 10;
+  const { confirm } = useConfirm();
+  const toast = useToast();
+
+  // 统计每个机型关联的舱位配置数
+  const [cabinCounts, setCabinCounts] = useState<Record<number, number>>({});
+  const [cabinCountsLoading, setCabinCountsLoading] = useState(false);
+  const [cabinCountsLoaded, setCabinCountsLoaded] = useState(false);
+
+  const fetchModels = useCallback(
+    async (params: { page: number; size: number } & ModelFilters) => {
+      const res = await listAircraftModels({
+        page: params.page,
+        size: params.size,
+        keyword: params.keyword || undefined,
+      });
+      return { data: res.data ?? [], total: res.total ?? 0 };
+    },
+    []
+  );
+
+  const {
+    items: models,
+    total,
+    page,
+    totalPages,
+    loading,
+    error,
+    filters,
+    setPage,
+    setFilters,
+    refresh,
+    retry,
+  } = useAdminList<AircraftModelItem, ModelFilters>({
+    fetchFn: fetchModels,
+    pageSize: PAGE_SIZE,
+    initialFilters: { keyword: '' },
+  });
+
+  const [keywordInput, setKeywordInput] = useState('');
+
+  useEffect(() => {
+    setKeywordInput(filters.keyword);
+  }, [filters.keyword]);
+
+  useEffect(() => {
+    if (keywordInput === filters.keyword) return;
+    const t = window.setTimeout(() => {
+      setFilters({ keyword: keywordInput });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [keywordInput, filters.keyword, setFilters]);
+
+  const loadCabinCounts = useCallback(async () => {
+    const COUNT_PAGE_SIZE = 200;
+    const MAX_PAGES = 200;
+
+    setCabinCountsLoading(true);
+    try {
+      const counts: Record<number, number> = {};
+
+      let currentPage = 1;
+      let total = 0;
+      let fetched = 0;
+
+      while (currentPage <= MAX_PAGES) {
+        const res = await listCabinConfigs({ page: currentPage, size: COUNT_PAGE_SIZE });
+        const rows = res.data ?? [];
+
+        if (currentPage === 1) {
+          total = res.total ?? rows.length;
+        }
+
+        for (const c of rows) {
+          counts[c.modelId] = (counts[c.modelId] || 0) + 1;
+        }
+
+        fetched += rows.length;
+
+        if (rows.length === 0) break;
+        if (total > 0 && fetched >= total) break;
+
+        currentPage += 1;
+      }
+
+      setCabinCounts(counts);
+      setCabinCountsLoaded(true);
+    } catch (err) {
+      console.error(err);
+      setCabinCountsLoaded(false);
+    } finally {
+      setCabinCountsLoading(false);
+    }
+  }, []);
+
+  // 加载舱位配置统计
+  useEffect(() => {
+    loadCabinCounts();
+  }, [loadCabinCounts]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<AircraftModelItem | null>(null);
   const [activeActionId, setActiveActionId] = useState<number | null>(null);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await listAircraftModels({ page, size: PAGE_SIZE, keyword: keyword || undefined });
-      setModels(res.data ?? []);
-      setTotal(res.total ?? 0);
-    } catch (err: any) {
-      console.error('加载机型失败', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
-
-  const handleSearch = () => {
-    setPage(1);
-    loadData();
-  };
+  const [saving, setSaving] = useState(false);
 
   const handleOpenCreate = () => {
     setEditingItem(null);
@@ -52,170 +130,260 @@ const AircraftModelsMgmt: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     const fd = new FormData(e.target as HTMLFormElement);
 
-    const modelName = String(fd.get('modelName') ?? '').trim();
-    const manufacturer = String(fd.get('manufacturer') ?? '').trim() || undefined;
     const totalPhysicalSeats = Number(fd.get('totalPhysicalSeats'));
+    if (!Number.isFinite(totalPhysicalSeats) || totalPhysicalSeats < 1) {
+      toast.error('座位容量必须是大于 0 的数字');
+      setSaving(false);
+      return;
+    }
+
+    const payload = {
+      modelName: String(fd.get('modelName') ?? '').trim(),
+      manufacturer: String(fd.get('manufacturer') ?? '').trim() || undefined,
+      totalPhysicalSeats,
+    };
 
     try {
       if (editingItem?.modelId) {
-        const ok = await updateAircraftModel(editingItem.modelId, { modelName, manufacturer, totalPhysicalSeats });
-        if (!ok) throw new Error('保存失败');
+        await updateAircraftModel(editingItem.modelId, payload);
+        toast.success('机型更新成功');
       } else {
-        await createAircraftModel({ modelName, manufacturer, totalPhysicalSeats });
+        await createAircraftModel(payload);
+        toast.success('机型创建成功');
       }
       setIsModalOpen(false);
-      loadData();
-    } catch (err: any) {
-      alert(err?.message || '操作失败');
+      setEditingItem(null);
+      refresh();
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (modelId: number) => {
-    if (!confirm('确定删除该机型吗？')) return;
+  const handleDelete = async (item: AircraftModelItem) => {
+    const cabinCount = cabinCounts[item.modelId] || 0;
+    const ok = await confirm({
+      title: '删除机型',
+      message: cabinCount > 0 
+        ? `该机型关联了 ${cabinCount} 个舱位配置，删除后相关配置也将失效。确定删除「${item.modelName}」吗？`
+        : `确定删除机型「${item.modelName}」吗？此操作不可恢复。`,
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'danger',
+    });
+    if (!ok) return;
+
     try {
-      await deleteAircraftModel(modelId);
-      loadData();
-    } catch (err: any) {
-      alert(err?.message || '删除失败');
+      await deleteAircraftModel(item.modelId);
+      toast.success('机型已删除');
+      refresh();
+    } catch (err) {
+      toast.error(formatApiError(err));
     }
   };
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <PlaneIcon className="w-6 h-6 text-indigo-500" />
-            机型管理
-          </h2>
-          <p className="text-gray-500 mt-1 text-sm">管理飞机机型基础数据（机型名称、制造商、物理座位上限）</p>
-        </div>
-        <button
-          onClick={handleOpenCreate}
-          className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 flex items-center gap-2"
+      <AdminPageHeader
+        icon={PlaneIcon}
+        iconClassName="text-sky-500"
+        title="机型管理"
+        description="管理飞机机型数据，包括机型名称、制造商、座位容量等信息"
+        actions={
+          <button
+            onClick={handleOpenCreate}
+            className="px-4 py-2.5 bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-xl font-semibold shadow-lg shadow-sky-500/25 hover:shadow-xl hover:shadow-sky-500/30 transition-all duration-300 flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> 新增机型
+          </button>
+        }
+      />
+
+      <FilterBar
+        left={
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="搜索机型名称或制造商..."
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 focus:bg-white transition-all outline-none text-sm"
+            />
+          </div>
+        }
+        right={
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">共 {total} 种机型</span>
+            <button
+              onClick={() => {
+                refresh();
+                loadCabinCounts();
+              }}
+              disabled={loading}
+              className="p-2.5 text-gray-500 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-colors disabled:opacity-50"
+              title="刷新数据"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        }
+      />
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible">
+        <AdminTableState
+          loading={loading}
+          error={error}
+          isEmpty={models.length === 0}
+          onRetry={retry}
+          emptyIcon={PlaneIcon}
+          emptyTitle={filters.keyword ? '未找到匹配机型' : '暂无机型数据'}
+          emptyDescription={filters.keyword ? '尝试调整搜索关键词' : '点击「新增机型」添加第一个机型'}
+          emptyActionText={!filters.keyword ? '新增机型' : undefined}
+          onEmptyAction={!filters.keyword ? handleOpenCreate : undefined}
+          skeletonRows={5}
+          skeletonColumns={5}
         >
-          <Plus className="w-4 h-4" />
-          新增机型
-        </button>
-      </div>
-
-      {/* Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative flex-1 md:max-w-md w-full">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="搜索机型名称或制造商..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
-          />
-        </div>
-        <button onClick={handleSearch} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors">
-          搜索
-        </button>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50/80">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">机型ID</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">机型名称</th>
+            <thead>
+              <tr className="bg-gray-50/80 border-b border-gray-100">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">机型信息</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">制造商</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">物理座位上限</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">座位容量</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">舱位配置</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider w-20">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-12 text-gray-400">加载中...</td>
+            <tbody className="divide-y divide-gray-50">
+              {models.map((m) => (
+                <tr key={m.modelId} className="hover:bg-sky-50/30 transition-colors group">
+                  <td className="px-6 py-4">
+                    <EntityCell
+                      leading={
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-50 to-blue-50 flex items-center justify-center text-sky-600 shadow-sm">
+                          <PlaneIcon className="w-5 h-5" />
+                        </div>
+                      }
+                      title={m.modelName}
+                      subtitle={`ID: ${m.modelId}`}
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Factory className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium">{m.manufacturer || '-'}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-sky-500" />
+                      <span className="text-lg font-bold text-gray-900">{m.totalPhysicalSeats}</span>
+                      <span className="text-sm text-gray-500">座</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {!cabinCountsLoaded && cabinCountsLoading ? (
+                      <span className="text-sm text-gray-400">统计中...</span>
+                    ) : cabinCounts[m.modelId] ? (
+                      <AdminBadge variant="info" size="sm" className="flex items-center gap-1">
+                        <Layers className="w-3 h-3" />
+                        {cabinCounts[m.modelId]} 个配置
+                      </AdminBadge>
+                    ) : (
+                      <span className="text-sm text-gray-400">未配置</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <TableActionMenu
+                      isOpen={activeActionId === m.modelId}
+                      onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === m.modelId ? null : m.modelId); }}
+                      onClose={() => setActiveActionId(null)}
+                    >
+                      <button onClick={() => handleOpenEdit(m)} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors">
+                        <Edit2 className="w-4 h-4 text-sky-500" /> 编辑机型
+                      </button>
+                      <button onClick={() => handleDelete(m)} className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors">
+                        <Trash2 className="w-4 h-4" /> 删除机型
+                      </button>
+                    </TableActionMenu>
+                  </td>
                 </tr>
-              ) : models.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-12 text-gray-400">暂无机型数据</td>
-                </tr>
-              ) : (
-                models.map((m) => (
-                  <tr key={m.modelId} className="hover:bg-indigo-50/30 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-700">{m.modelId}</td>
-                    <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="primary">{m.modelName}</AdminBadge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="info">{m.manufacturer || '-'}</AdminBadge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="success">{m.totalPhysicalSeats} 座</AdminBadge>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <TableActionMenu
-                        isOpen={activeActionId === m.modelId}
-                        onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === m.modelId ? null : m.modelId); }}
-                        onClose={() => setActiveActionId(null)}
-                      >
-                        <button onClick={() => handleOpenEdit(m)} className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                          <Edit2 className="w-3.5 h-3.5 text-indigo-500" /> 编辑
-                        </button>
-                        <button onClick={() => handleDelete(m.modelId)} className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2">
-                          <Trash2 className="w-3.5 h-3.5" /> 删除
-                        </button>
-                      </TableActionMenu>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
-        </div>
-
-        {/* Pagination */}
-        <Pagination currentPage={page} totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))} setPage={setPage} totalItems={total} itemsPerPage={PAGE_SIZE} />
+          <div className="border-t border-gray-100">
+            <Pagination currentPage={page} totalPages={totalPages} setPage={setPage} totalItems={total} itemsPerPage={PAGE_SIZE} />
+          </div>
+        </AdminTableState>
       </div>
 
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">{editingItem ? '编辑机型' : '新增机型'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-white/70 hover:text-white transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSave} className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">机型名称</label>
-                <input name="modelName" defaultValue={editingItem?.modelName} required placeholder="如: Boeing 737-800" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">制造商 (可选)</label>
-                <input name="manufacturer" defaultValue={editingItem?.manufacturer ?? ''} placeholder="如: Boeing / Airbus" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">物理座位上限</label>
-                <input type="number" name="totalPhysicalSeats" defaultValue={editingItem?.totalPhysicalSeats ?? ''} required min={1} placeholder="如: 189" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors">取消</button>
-                <button type="submit" className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-500/30 transition-colors flex items-center justify-center gap-2">
-                  <Save className="w-4 h-4" /> 保存
-                </button>
-              </div>
-            </form>
+      <AdminModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingItem(null);
+        }}
+        title={editingItem ? '编辑机型' : '新增机型'}
+        theme="sky-blue"
+        maxWidth="md"
+      >
+        <form onSubmit={handleSave} className="p-6 space-y-5">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">机型名称 *</label>
+            <input 
+              name="modelName" 
+              defaultValue={editingItem?.modelName} 
+              required 
+              placeholder="如: Boeing 737-800" 
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+            />
           </div>
-        </div>
-      )}
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">制造商</label>
+            <input 
+              name="manufacturer" 
+              defaultValue={editingItem?.manufacturer ?? ''} 
+              placeholder="如: Boeing / Airbus" 
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">座位容量 *</label>
+            <input 
+              type="number" 
+              name="totalPhysicalSeats" 
+              defaultValue={editingItem?.totalPhysicalSeats ?? ''} 
+              required 
+              min={1} 
+              placeholder="如: 189" 
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+            />
+            <p className="text-xs text-gray-500">该机型的物理座位总数上限</p>
+          </div>
+
+          <div className="pt-4 flex gap-3 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingItem(null);
+              }}
+              className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              取消
+            </button>
+            <button type="submit" disabled={saving} className="flex-1 py-2.5 bg-gradient-to-r from-sky-500 to-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-sky-500/25 hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+              <Save className="w-4 h-4" /> {saving ? '保存中...' : '保存'}
+            </button>
+          </div>
+        </form>
+      </AdminModal>
     </div>
   );
 };
