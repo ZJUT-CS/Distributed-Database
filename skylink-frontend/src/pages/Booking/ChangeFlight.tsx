@@ -7,6 +7,7 @@ import { request } from '@/lib/axios';
 import { applyRefundChange } from '@/features/user/api/refund';
 import { useAuth } from '@/features/auth';
 import { searchOrders, type OrderSearchResult } from '@/features/booking/api/order';
+import { ORDER_STATUS } from '@/features/admin/constants';
 
 type Step = 1 | 2 | 3;
 type CabinType = 'economy' | 'business' | 'first';
@@ -68,16 +69,16 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => ({
     },
   ],
   status:
-    // 后端 OrderStatusEnum：1=待支付，2=已支付，4=改签处理中，5=已退票，6=已取消
-    o.orderStatus === 1
+    // 后端 OrderStatusEnum - 使用统一常量
+    o.orderStatus === ORDER_STATUS.PENDING_PAYMENT
       ? 'pending_payment'
-      : o.orderStatus === 2
+      : o.orderStatus === ORDER_STATUS.CONFIRMED
         ? 'confirmed'
-        : o.orderStatus === 6
+        : o.orderStatus === ORDER_STATUS.CANCELLED
           ? 'cancelled'
-          : o.orderStatus === 5
+          : o.orderStatus === ORDER_STATUS.REFUNDED
             ? 'refunded'
-            : o.orderStatus === 4
+            : o.orderStatus === ORDER_STATUS.PROCESSING
               ? 'refunding'
               : 'confirmed',
   bookingDate: o.orderTime || new Date().toISOString(),

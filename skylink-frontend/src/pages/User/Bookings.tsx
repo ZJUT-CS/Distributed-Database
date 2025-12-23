@@ -7,6 +7,7 @@ import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, Refres
 import { searchOrders, type OrderSearchResult, cancelOrder } from '@/features/booking/api/order';
 import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '@/features/booking/api/payment';
 import { loadOrderPassengers } from '@/utils/storage';
+import { ORDER_STATUS } from '@/features/admin/constants';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -76,16 +77,16 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
       amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
     }],
     status:
-      // 后端 OrderStatusEnum：1=待支付，2=已支付，4=改签处理中，5=已退票，6=已取消
-      o.orderStatus === 1
+      // 后端 OrderStatusEnum - 使用统一常量
+      o.orderStatus === ORDER_STATUS.PENDING_PAYMENT
         ? 'pending_payment'
-        : o.orderStatus === 2
+        : o.orderStatus === ORDER_STATUS.CONFIRMED
           ? 'confirmed'
-          : o.orderStatus === 4
+          : o.orderStatus === ORDER_STATUS.PROCESSING
             ? 'refunding'
-            : o.orderStatus === 5
+            : o.orderStatus === ORDER_STATUS.REFUNDED
               ? 'refunded'
-              : o.orderStatus === 6
+              : o.orderStatus === ORDER_STATUS.CANCELLED
                 ? 'cancelled'
                 : 'pending_payment',
     bookingDate: o.orderTime || new Date().toISOString(),

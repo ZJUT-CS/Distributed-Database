@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Plus, Search, CheckCircle2, Clock, AlertCircle, Users, Edit2, Ban, Trash2, X, Save, Plane as PlaneIcon } from 'lucide-react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { Download, Plus, Search, Users, Edit2, Ban, Trash2, Save, Plane as PlaneIcon, RefreshCw } from 'lucide-react';
 import { type FlightStatus } from '@/features/flight';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem, FLIGHT_STATUS_STR_META, useAdminList, AdminTableState } from '@/features/admin';
+import EntityCell from '@/components/common/EntityCell';
 import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
 
@@ -105,16 +106,51 @@ const mapAdminFlight = (f: AdminFlightItem): UiFlight => {
 };
 
 const FlightMgmt: React.FC = () => {
-  const [flights, setFlights] = useState<UiFlight[]>([]);
-  const [flightStatusFilter, setFlightStatusFilter] = useState('all');
-  const [flightPage, setFlightPage] = useState(1);
+  const { confirm } = useConfirm();
+  const toast = useToast();
+
   const FLIGHTS_PER_PAGE = 8;
 
-  const [totalFlights, setTotalFlights] = useState(0);
-  const [loadingFlights, setLoadingFlights] = useState(false);
+  // 使用 useAdminList 统一管理列表状态
+  const fetchFlights = useCallback(
+    async (params: { page: number; size: number; keyword: string; [key: string]: unknown }) => {
+      const res = await listAdminFlights({
+        page: params.page,
+        size: params.size,
+        keyword: params.keyword || undefined,
+      });
+      return {
+        data: (res.data ?? []).map(mapAdminFlight),
+        total: res.total ?? 0,
+      };
+    },
+    []
+  );
+
+  const {
+    items: flights,
+    total: totalFlights,
+    page: flightPage,
+    totalPages: totalFlightPages,
+    loading: loadingFlights,
+    error: flightsError,
+    filters,
+    setPage: setFlightPage,
+    setFilters,
+    refresh: refreshFlights,
+    retry,
+  } = useAdminList<UiFlight, { keyword: string; status: string; [key: string]: unknown }>({
+    fetchFn: fetchFlights,
+    pageSize: FLIGHTS_PER_PAGE,
+    initialFilters: { keyword: '', status: 'all' },
+  });
+
+  // 筛选状态统一从 filters 读取
+  const searchKeyword = filters.keyword;
+  const flightStatusFilter = filters.status;
 
   const [isFlightModalOpen, setIsFlightModalOpen] = useState(false);
-  const [editingFlight, setEditingFlight] = useState<any | null>(null);
+  const [editingFlight, setEditingFlight] = useState<UiFlight | null>(null);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
 
   // 下拉选项数据
@@ -207,26 +243,40 @@ const FlightMgmt: React.FC = () => {
 
       await refreshFlights();
       setIsFlightModalOpen(false);
+      toast.success(editingFlight ? '航班信息已更新' : '航班创建成功');
     } catch (err: any) {
-      alert(err?.message || '请求失败，请稍后再试');
+      toast.error(err?.message || '请求失败，请稍后再试');
     }
   };
 
   const handleDeleteFlight = async (flightId: string) => {
-    if (!confirm('确定要永久删除该航班记录吗？')) return;
+    const confirmed = await confirm({
+      title: '删除航班记录',
+      message: '确定要永久删除该航班记录吗？此操作不可撤销。',
+      variant: 'danger',
+      confirmText: '确认删除',
+    });
+    if (!confirmed) return;
     try {
       const ok = await deleteAdminFlight(flightId);
       if (!ok) throw new Error('删除失败');
       await refreshFlights();
+      toast.success('航班已删除');
     } catch (err: any) {
-      alert(err?.message || '请求失败，请稍后再试');
+      toast.error(err?.message || '请求失败，请稍后再试');
     } finally {
       setActiveActionId(null);
     }
   };
 
   const handleCancelFlight = async (flight: UiFlight) => {
-    if (!confirm('确定要取消该航班吗？这将通知所有已预订乘客。')) return;
+    const confirmed = await confirm({
+      title: '取消航班',
+      message: `确定要取消航班 ${flight.flightNo} 吗？这将通知所有已预订乘客。`,
+      variant: 'warning',
+      confirmText: '确认取消',
+    });
+    if (!confirmed) return;
     try {
       const ok = await updateAdminFlight(flight.flightId, {
         flightNo: flight.flightNo,
@@ -240,66 +290,31 @@ const FlightMgmt: React.FC = () => {
       });
       if (!ok) throw new Error('取消失败');
       await refreshFlights();
+      toast.success('航班已取消');
     } catch (err: any) {
-      alert(err?.message || '请求失败，请稍后再试');
+      toast.error(err?.message || '请求失败，请稍后再试');
     } finally {
       setActiveActionId(null);
     }
   };
 
-  const refreshFlights = async () => {
-    setLoadingFlights(true);
-    try {
-      const res = await listAdminFlights({ page: flightPage, size: FLIGHTS_PER_PAGE });
-      setTotalFlights(Number(res.total ?? 0));
-      setFlights((res.data ?? []).map(mapAdminFlight));
-    } catch (err: any) {
-      alert(err?.message || '航班列表加载失败');
-    } finally {
-      setLoadingFlights(false);
-    }
-  };
+  // 前端过滤（后端 API 不支持 status 筛选时用）
+  const filteredFlights = useMemo(() => {
+    if (flightStatusFilter === 'all') return flights;
+    return flights.filter((f) => f.status === flightStatusFilter);
+  }, [flights, flightStatusFilter]);
 
-  useEffect(() => {
-    refreshFlights();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flightPage]);
-
-  const filteredFlights = useMemo(
-    () => flights.filter((f) => flightStatusFilter === 'all' || f.status === flightStatusFilter),
-    [flights, flightStatusFilter],
-  );
-  const totalFlightPages = Math.max(1, Math.ceil(totalFlights / FLIGHTS_PER_PAGE));
   const paginatedFlights = filteredFlights;
 
+  // 使用 FLIGHT_STATUS_STR_META 统一生成状态徽章
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return (
-          <AdminBadge size="sm" icon={CheckCircle2} variant="success">
-            计划中
-          </AdminBadge>
-        );
-      case 'delayed':
-        return (
-          <AdminBadge size="sm" icon={Clock} variant="warning">
-            延误
-          </AdminBadge>
-        );
-      case 'cancelled':
-        return (
-          <AdminBadge size="sm" icon={AlertCircle} variant="danger">
-            已取消
-          </AdminBadge>
-        );
-      case 'full':
-        return (
-          <AdminBadge size="sm" icon={Users} variant="primary">
-            满员
-          </AdminBadge>
-        );
-      default: return null;
-    }
+    const meta = FLIGHT_STATUS_STR_META[status];
+    if (!meta) return null;
+    return (
+      <AdminBadge size="sm" icon={meta.icon} variant={meta.variant}>
+        {meta.label}
+      </AdminBadge>
+    );
   };
 
   return (
@@ -311,7 +326,7 @@ const FlightMgmt: React.FC = () => {
         description="管理全平台航班排期、座位及状态监控"
         actions={
           <div className="flex gap-3">
-            <button onClick={() => alert('数据已导出至 CSV')} className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+            <button onClick={() => toast.info('数据导出功能开发中...')} className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
               <Download className="w-4 h-4" /> 导出数据
             </button>
             <button onClick={handleOpenCreateFlight} className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 flex items-center gap-2">
@@ -324,15 +339,29 @@ const FlightMgmt: React.FC = () => {
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative flex-1 md:max-w-md w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input type="text" placeholder="搜索航班号、航线..." className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm" />
+          <input
+            type="text"
+            placeholder="搜索航班号、航线、航空公司..."
+            value={searchKeyword}
+            onChange={(e) => setFilters({ keyword: e.target.value })}
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
+          />
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+          <button
+            onClick={() => refreshFlights()}
+            disabled={loadingFlights}
+            className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+            title="刷新"
+          >
+            <RefreshCw className={`w-4 h-4 ${loadingFlights ? 'animate-spin' : ''}`} />
+          </button>
           <div className="flex bg-gray-100 p-1 rounded-lg">
             {['all', 'active', 'delayed', 'cancelled'].map(status => (
               <button
                 key={status}
-                onClick={() => { setFlightStatusFilter(status); setFlightPage(1); }}
+                onClick={() => setFilters({ status })}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${flightStatusFilter === status ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 {status === 'all' ? '全部状态' : status === 'active' ? '计划中' : status === 'delayed' ? '延误' : '已取消'}
@@ -343,125 +372,133 @@ const FlightMgmt: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50/80">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班信息</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航线 & 时间</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">执飞机型</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">基础票价</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-48">客座率</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">当前状态</th>
-              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 relative">
-            {paginatedFlights.map((flight) => {
-              const loadFactor = flight.seats > 0 ? Math.round((flight.sold / flight.seats) * 100) : 0;
-              let barColor = 'bg-indigo-500';
-              if (loadFactor > 90) barColor = 'bg-red-500';
-              else if (loadFactor > 70) barColor = 'bg-green-500';
-
-              return (
-                <tr key={flight.rowId} className="hover:bg-indigo-50/30 transition-colors group relative">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs">
-                        {(flight.flightNo || flight.flightId).substring(0, 2)}
-                      </div>
-                      <div>
-                        <div className="font-bold text-gray-800">{flight.displayId}</div>
-                        <div className="text-xs text-gray-500">{flight.airline}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {(() => {
-                      const ro = routeMap.get(flight.routeId);
-                      const from = ro ? formatCityAirport(ro.departureCity, ro.departureAirport) : String(flight.route ?? '-');
-                      const to = ro ? formatCityAirport(ro.arrivalCity, ro.arrivalAirport) : '';
-
-                      return (
-                        <>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <AdminBadge size="sm" variant="info">
-                              {from}
-                            </AdminBadge>
-                            <span className="text-xs text-gray-400">→</span>
-                            <AdminBadge size="sm" variant="primary">
-                              {to || '-'}
-                            </AdminBadge>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-0.5 font-mono">{flight.dep} - {flight.arr}</div>
-                        </>
-                      );
-                    })()}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">
-                    {(() => {
-                      const mo = modelMap.get(flight.modelId);
-                      const label = mo?.modelName || (flight.modelId ? `#${flight.modelId}` : String(flight.aircraft || '-'));
-                      return (
-                        <AdminBadge size="sm" variant="primary" className="font-mono">
-                          {label}
-                        </AdminBadge>
-                      );
-                    })()}
-                  </td>
-                  <td className="px-6 py-4 font-medium text-gray-800">¥{flight.price}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="text-gray-600">{flight.sold}/{flight.seats}</span>
-                      <span className="font-bold text-gray-800">{loadFactor}%</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                      <div className={`h-full rounded-full ${barColor}`} style={{ width: `${loadFactor}%` }}></div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {getStatusBadge(flight.status)}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <TableActionMenu
-                      isOpen={activeActionId === flight.rowId}
-                      onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === flight.rowId ? null : flight.rowId); }}
-                      onClose={() => setActiveActionId(null)}
-                    >
-                      <button
-                        onClick={() => handleOpenEditFlight(flight)}
-                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                      >
-                        <Edit2 className="w-3.5 h-3.5 text-indigo-500" /> 编辑信息
-                      </button>
-                      <button
-                        onClick={() => handleCancelFlight(flight)}
-                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                      >
-                        <Ban className="w-3.5 h-3.5 text-yellow-500" /> 取消航班
-                      </button>
-                      <div className="h-px bg-gray-100 my-0"></div>
-                      <button
-                        onClick={() => handleDeleteFlight(flight.flightId)}
-                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> 删除记录
-                      </button>
-                    </TableActionMenu>
-                  </td>
+        <AdminTableState
+          loading={loadingFlights}
+          error={flightsError}
+          isEmpty={paginatedFlights.length === 0}
+          onRetry={retry}
+          skeletonRows={5}
+          skeletonColumns={6}
+          emptyIcon={PlaneIcon}
+          emptyTitle={searchKeyword ? '未找到匹配结果' : '暂无航班数据'}
+          emptyDescription={searchKeyword ? '请尝试调整搜索关键词或筛选条件' : '点击上方按钮创建第一个航班计划'}
+          emptyActionText={searchKeyword ? undefined : '新建航班'}
+          onEmptyAction={searchKeyword ? undefined : handleOpenCreateFlight}
+        >
+          <>
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50/80">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班信息</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航线 & 时间</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">执飞机型</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">基础票价</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-48">客座率</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">当前状态</th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
                 </tr>
-              );
-            })}
-            {paginatedFlights.length === 0 && (
-              <tr>
-                <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={7}>
-                  暂无航班数据
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100 relative">
+                {paginatedFlights.map((flight) => {
+                  const loadFactor = flight.seats > 0 ? Math.round((flight.sold / flight.seats) * 100) : 0;
+                  let barColor = 'bg-indigo-500';
+                  if (loadFactor > 90) barColor = 'bg-red-500';
+                  else if (loadFactor > 70) barColor = 'bg-green-500';
 
-        <Pagination currentPage={flightPage} totalPages={totalFlightPages} setPage={setFlightPage} totalItems={totalFlights} itemsPerPage={FLIGHTS_PER_PAGE} />
+                  return (
+                    <tr key={flight.rowId} className="hover:bg-indigo-50/30 transition-colors group relative">
+                      <td className="px-6 py-4">
+                        <EntityCell
+                          leading={
+                            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                              {(flight.flightNo || flight.flightId).substring(0, 2)}
+                            </div>
+                          }
+                          title={flight.displayId}
+                          meta={[{ text: flight.airline }]}
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        {(() => {
+                          const ro = routeMap.get(flight.routeId);
+                          const from = ro ? formatCityAirport(ro.departureCity, ro.departureAirport) : String(flight.route ?? '-');
+                          const to = ro ? formatCityAirport(ro.arrivalCity, ro.arrivalAirport) : '';
+
+                          return (
+                            <>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <AdminBadge size="sm" variant="info">
+                                  {from}
+                                </AdminBadge>
+                                <span className="text-xs text-gray-400">→</span>
+                                <AdminBadge size="sm" variant="primary">
+                                  {to || '-'}
+                                </AdminBadge>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-0.5 font-mono">{flight.dep} - {flight.arr}</div>
+                            </>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {(() => {
+                          const mo = modelMap.get(flight.modelId);
+                          const label = mo?.modelName || (flight.modelId ? `#${flight.modelId}` : String(flight.aircraft || '-'));
+                          return (
+                            <AdminBadge size="sm" variant="primary" className="font-mono">
+                              {label}
+                            </AdminBadge>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-gray-800">¥{flight.price}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-between text-xs mb-1.5">
+                          <span className="text-gray-600">{flight.sold}/{flight.seats}</span>
+                          <span className="font-bold text-gray-800">{loadFactor}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${loadFactor}%` }}></div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {getStatusBadge(flight.status)}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <TableActionMenu
+                          isOpen={activeActionId === flight.rowId}
+                          onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === flight.rowId ? null : flight.rowId); }}
+                          onClose={() => setActiveActionId(null)}
+                        >
+                          <button
+                            onClick={() => handleOpenEditFlight(flight)}
+                            className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 text-indigo-500" /> 编辑信息
+                          </button>
+                          <button
+                            onClick={() => handleCancelFlight(flight)}
+                            className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <Ban className="w-3.5 h-3.5 text-yellow-500" /> 取消航班
+                          </button>
+                          <div className="h-px bg-gray-100 my-0"></div>
+                          <button
+                            onClick={() => handleDeleteFlight(flight.flightId)}
+                            className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> 删除记录
+                          </button>
+                        </TableActionMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <Pagination currentPage={flightPage} totalPages={totalFlightPages} setPage={setFlightPage} totalItems={totalFlights} itemsPerPage={FLIGHTS_PER_PAGE} />
+          </>
+        </AdminTableState>
       </div>
 
       <AdminModal

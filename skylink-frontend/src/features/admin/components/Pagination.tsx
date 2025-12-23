@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
-  setPage: React.Dispatch<React.SetStateAction<number>>;
+  setPage: (page: number) => void;
   totalItems: number;
   itemsPerPage: number;
 }
@@ -40,7 +40,7 @@ const Pagination: React.FC<PaginationProps> = ({
         <div className="flex gap-1 mr-2">
           <button
             disabled={currentPage === 1}
-            onClick={() => setPage((p: number) => Math.max(1, p - 1))}
+            onClick={() => setPage(Math.max(1, currentPage - 1))}
             className="p-1.5 rounded hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:border-transparent transition-all"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -74,7 +74,7 @@ const Pagination: React.FC<PaginationProps> = ({
 
           <button
             disabled={currentPage === totalPages || totalPages === 0}
-            onClick={() => setPage((p: number) => Math.min(totalPages, p + 1))}
+            onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
             className="p-1.5 rounded hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:border-transparent transition-all"
           >
             <ChevronRight className="w-4 h-4" />
