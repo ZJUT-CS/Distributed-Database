@@ -23,5 +23,7 @@ public interface OrderService {
     Result<Boolean> cancel(Long orderId);
 
     Result<Boolean> audit(Long orderId, boolean approved);
+
+    Result<List<OrderSearchResponse>> listMyOrders(Long userId);
 }
 

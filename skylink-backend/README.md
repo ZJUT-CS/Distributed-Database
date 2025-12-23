@@ -1,5 +1,11 @@
 # ✈️ SkyLink Backend - 分布式航空订票系统
 
+## 📝 更新日志 (Changelog)
+- 2025-12-23
+  - 新增：订单状态为 0 超时自动清理机制（30 分钟后物理删除，含日志记录）
+  - 新增：用户“我的订单”查询接口 `GET /api/v1/orders/my`（按创建时间降序，仅返回有效订单）
+  - 文档：补充自动清理策略与查询接口说明；数据库结构无变更
+
 SkyLink 是一个基于 **Spring Boot 4** 和 **MyBatis-Plus** 构建的高性能分布式航空订票系统后端。支持航班搜索、智能联程拼接、分布式事务订单处理、支付对接以及完整的后台管理功能。
 
 本项目集成了 **ShardingSphere** 进行分库分表，并采用 **RESTful** 风格设计 API，旨在提供稳定、高效的航空业务支撑。
@@ -154,8 +160,10 @@ stateDiagram-v2
       "contactPhone": "13800138000"
     }
     ```
-- **我的订单**: `GET /api/v1/orders`
-  - Header: `Authorization: Bearer ...`
+- **我的订单**: `GET /api/v1/orders/my`
+  - Params: `userId` (固定用户ID，例如 `${user_id}`)
+  - 规则：仅返回有效订单（状态不为 0，且未被自动清理），按 `orderTime` 降序
+  - 返回字段：与 `OrderSearchResponse` 一致，包含 `orderNo`、`flightNo`、`passengerName`、`contactEmail`、`contactPhone`、`passengersJson`、`orderStatus`、`totalAmount`、`orderTime`、`payTime`、`refundTime`、`changeTime`、`origin`、`destination`、`departureTime`、`arrivalTime`
 
 ### 2. 管理后台接口 (Admin APIs)
 > **Base Path**: `/api/v1/admins`
@@ -242,3 +250,29 @@ skylink-backend/
 ```
 
 > **前端开发注意**: 请重点关注 `module/*/controller` 下的接口定义以及 `module/*/dto` 下的数据传输对象结构。
+
+---
+
+## 🧹 订单状态自动清理机制
+- 目标：避免长时间未审核的脏数据占用库资源
+- 策略：当订单状态为 `0`（待审核）且 `orderTime` 超过 **2 分钟**，系统自动执行物理删除
+- 触发：定时任务每分钟扫描并清理，记录日志（时间与订单ID）
+- 位置：`module/order/task/OrderTimeoutTask`
+- 日志：成功与失败均会记录到日志系统，便于审计与排查
+- 影响：被清理的订单不会出现在用户查询结果中
+
+### 超时未支付自动取消
+- 策略：当订单状态为 `1`（待支付）且 `orderTime` 超过 **2 分钟**，系统自动取消并释放座位
+- 触发：定时任务每分钟扫描并取消
+- 位置：`module/order/task/OrderTimeoutTask`
+
+## 🔎 用户订单查询接口说明
+- 接口：`GET /api/v1/orders/my`
+- 参数：`userId`（固定用户ID）
+- 过滤：仅返回状态不为 `0` 的有效订单，且未被清理
+- 排序：按 `orderTime` 降序
+- 返回：完整订单详情（同 `OrderSearchResponse`）
+
+## 🗄 数据库表结构更新记录
+- 本次修改 **未涉及表结构变更**
+- 说明：功能通过应用层定时任务与查询过滤实现，无需迁移

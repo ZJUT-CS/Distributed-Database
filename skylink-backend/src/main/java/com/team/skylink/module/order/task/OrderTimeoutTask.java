@@ -31,11 +31,11 @@ public class OrderTimeoutTask {
     @Scheduled(cron = "0 0/1 * * * ?")
     @Transactional(rollbackFor = Exception.class)
     public void cancelTimeoutOrders() {
-        LocalDateTime timeoutThreshold = LocalDateTime.now().minusMinutes(30);
+        LocalDateTime timeoutThreshold = LocalDateTime.now().minusMinutes(2);
 
         List<Orders> timeoutOrders = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
                 .eq(Orders::getOrderStatus, 1) // 1=Pending Payment
-                .lt(Orders::getCreateTime, timeoutThreshold));
+                .lt(Orders::getOrderTime, timeoutThreshold));
 
         if (timeoutOrders.isEmpty()) return;
 
@@ -54,6 +54,24 @@ public class OrderTimeoutTask {
                 log.info("Cancelled order: {}", order.getOrderId());
             } catch (Exception e) {
                 log.error("Failed to cancel order: " + order.getOrderId(), e);
+            }
+        }
+    }
+
+    @Scheduled(cron = "0 0/1 * * * ?")
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteExpiredPendingAuditOrders() {
+        LocalDateTime timeoutThreshold = LocalDateTime.now().minusMinutes(2);
+        List<Orders> expired = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
+                .eq(Orders::getOrderStatus, 0)
+                .lt(Orders::getOrderTime, timeoutThreshold));
+        if (expired.isEmpty()) return;
+        for (Orders order : expired) {
+            try {
+                orderMapper.deleteById(order.getOrderId());
+                log.info("Auto-removed expired pending audit order at {}: {}", LocalDateTime.now(), order.getOrderId());
+            } catch (Exception e) {
+                log.error("Failed to remove expired pending audit order: " + order.getOrderId(), e);
             }
         }
     }
