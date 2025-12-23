@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, CheckCircle2, XCircle, RefreshCw, User, Plane, ClipboardCheck, Download } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, RefreshCw, User, Plane, ClipboardCheck, Download, CheckSquare, Square, X } from 'lucide-react';
 import {
   AdminBadge,
   AdminPageHeader,
@@ -13,6 +13,7 @@ import {
   CHANGE_REQUEST_STATUS_MAP,
   ORDER_STATUS,
   useToast,
+  useConfirm,
 } from '@/features/admin';
 import type { RefundChangeRecord } from '@/features/user';
 import EntityCell from '@/components/common/EntityCell';
@@ -32,6 +33,7 @@ const formatDateTime = (v?: string | null) => {
 
 const OrderAudit: React.FC = () => {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [tab, setTab] = useState<AuditTab>('orders');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AuditStatus>('pending');
@@ -45,11 +47,13 @@ const OrderAudit: React.FC = () => {
   const [orderItems, setOrderItems] = useState<AdminOrderItem[]>([]);
   const [orderTotal, setOrderTotal] = useState(0);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
 
   const [audits, setAudits] = useState<RefundChangeRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedAuditIds, setSelectedAuditIds] = useState<Set<string>>(new Set());
 
   const orderTotalPages = Math.max(1, Math.ceil(orderTotal / ITEMS_PER_PAGE));
 
@@ -169,6 +173,139 @@ const OrderAudit: React.FC = () => {
       setOrderSubmittingId(null);
     }
   };
+
+  const handleBatchOrderApprove = async () => {
+    const ids = Array.from(selectedOrderIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要通过的订单');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量通过订单',
+      message: `确定要通过选中的 ${ids.length} 个订单吗？`,
+      variant: 'warning',
+      confirmText: '确认通过',
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all(ids.map(id => auditAdminOrder(id, true)));
+      toast.success('订单已通过');
+      setSelectedOrderIds(new Set());
+      await refreshOrders(orderPage);
+    } catch (e: any) {
+      setOrderError(e?.message || '操作失败');
+    }
+  };
+
+  const handleBatchOrderReject = async () => {
+    const ids = Array.from(selectedOrderIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要拒绝的订单');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量拒绝订单',
+      message: `确定要拒绝选中的 ${ids.length} 个订单吗？`,
+      variant: 'danger',
+      confirmText: '确认拒绝',
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all(ids.map(id => auditAdminOrder(id, false)));
+      toast.success('订单已拒绝');
+      setSelectedOrderIds(new Set());
+      await refreshOrders(orderPage);
+    } catch (e: any) {
+      setOrderError(e?.message || '操作失败');
+    }
+  };
+
+  const handleBatchAuditApprove = async () => {
+    const ids = Array.from(selectedAuditIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要通过的申请');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量通过申请',
+      message: `确定要通过选中的 ${ids.length} 个申请吗？`,
+      variant: 'warning',
+      confirmText: '确认通过',
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all(ids.map(id => approveRefundChangeRequest(id)));
+      toast.success('申请已通过');
+      setSelectedAuditIds(new Set());
+      await refresh();
+    } catch (e: any) {
+      setError(e?.message || '操作失败');
+    }
+  };
+
+  const handleBatchAuditReject = async () => {
+    const ids = Array.from(selectedAuditIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要拒绝的申请');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量拒绝申请',
+      message: `确定要拒绝选中的 ${ids.length} 个申请吗？`,
+      variant: 'danger',
+      confirmText: '确认拒绝',
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all(ids.map(id => rejectRefundChangeRequest(id)));
+      toast.success('申请已拒绝');
+      setSelectedAuditIds(new Set());
+      await refresh();
+    } catch (e: any) {
+      setError(e?.message || '操作失败');
+    }
+  };
+
+  const handleSelectAllOrders = () => {
+    if (selectedOrderIds.size === orderItems.length) {
+      setSelectedOrderIds(new Set());
+    } else {
+      setSelectedOrderIds(new Set(orderItems.map(o => String(o.orderNo))));
+    }
+  };
+
+  const handleSelectOneOrder = (id: string) => {
+    const newSet = new Set(selectedOrderIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedOrderIds(newSet);
+  };
+
+  const handleSelectAllAudits = () => {
+    if (selectedAuditIds.size === filteredAudits.length) {
+      setSelectedAuditIds(new Set());
+    } else {
+      setSelectedAuditIds(new Set(filteredAudits.map(a => a.id)));
+    }
+  };
+
+  const handleSelectOneAudit = (id: string) => {
+    const newSet = new Set(selectedAuditIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedAuditIds(newSet);
+  };
+
+  const allOrdersSelected = orderItems.length > 0 && selectedOrderIds.size === orderItems.length;
+  const someOrdersSelected = selectedOrderIds.size > 0;
+  const allAuditsSelected = filteredAudits.length > 0 && selectedAuditIds.size === filteredAudits.length;
+  const someAuditsSelected = selectedAuditIds.size > 0;
 
   const renderStatusBadge = (status: AuditStatus) => {
     if (status === 'pending') {
@@ -310,6 +447,31 @@ const OrderAudit: React.FC = () => {
 
       {tab === 'orders' ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+          {someOrdersSelected && (
+            <div className="px-6 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+              <span className="text-sm font-medium text-indigo-700">已选择 {selectedOrderIds.size} 项</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleBatchOrderApprove}
+                  className="px-3 py-1.5 text-xs font-medium text-green-600 bg-white border border-green-200 rounded-lg hover:bg-green-50 transition-colors flex items-center gap-1"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" /> 批量通过
+                </button>
+                <button
+                  onClick={handleBatchOrderReject}
+                  className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
+                >
+                  <XCircle className="w-3.5 h-3.5" /> 批量拒绝
+                </button>
+                <button
+                  onClick={() => setSelectedOrderIds(new Set())}
+                  className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
           <AdminTableState
             loading={orderLoading}
             error={orderError}
@@ -324,6 +486,14 @@ const OrderAudit: React.FC = () => {
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-50/80">
                 <tr>
+                  <th className="px-6 py-4 w-10">
+                    <button
+                      onClick={handleSelectAllOrders}
+                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                    >
+                      {allOrdersSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                    </button>
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">订单号</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">乘客</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班</th>
@@ -341,6 +511,14 @@ const OrderAudit: React.FC = () => {
 
                   return (
                     <tr key={String(orderId)} className="hover:bg-indigo-50/30 transition-colors group">
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleSelectOneOrder(String(orderId))}
+                          className="text-gray-400 hover:text-indigo-600 transition-colors"
+                        >
+                          {selectedOrderIds.has(String(orderId)) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                        </button>
+                      </td>
                       <td className="px-6 py-4">
                         <EntityCell
                           leading={
@@ -408,6 +586,31 @@ const OrderAudit: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+          {someAuditsSelected && (
+            <div className="px-6 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+              <span className="text-sm font-medium text-indigo-700">已选择 {selectedAuditIds.size} 项</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleBatchAuditApprove}
+                  className="px-3 py-1.5 text-xs font-medium text-green-600 bg-white border border-green-200 rounded-lg hover:bg-green-50 transition-colors flex items-center gap-1"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" /> 批量通过
+                </button>
+                <button
+                  onClick={handleBatchAuditReject}
+                  className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
+                >
+                  <XCircle className="w-3.5 h-3.5" /> 批量拒绝
+                </button>
+                <button
+                  onClick={() => setSelectedAuditIds(new Set())}
+                  className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
           <AdminTableState
             loading={loading}
             error={error}
@@ -422,6 +625,14 @@ const OrderAudit: React.FC = () => {
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-50/80">
                 <tr>
+                  <th className="px-6 py-4 w-10">
+                    <button
+                      onClick={handleSelectAllAudits}
+                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                    >
+                      {allAuditsSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                    </button>
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">申请单号</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">订单号</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">乘客</th>
@@ -435,6 +646,14 @@ const OrderAudit: React.FC = () => {
               <tbody className="divide-y divide-gray-100">
                 {filteredAudits.map((a) => (
                   <tr key={a.id} className="hover:bg-indigo-50/30 transition-colors group">
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleSelectOneAudit(a.id)}
+                        className="text-gray-400 hover:text-indigo-600 transition-colors"
+                      >
+                        {selectedAuditIds.has(a.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                      </button>
+                    </td>
                     <td className="px-6 py-4 font-mono text-gray-700">{a.id}</td>
                     <td className="px-6 py-4 font-mono text-gray-600">{a.orderId}</td>
                     <td className="px-6 py-4">

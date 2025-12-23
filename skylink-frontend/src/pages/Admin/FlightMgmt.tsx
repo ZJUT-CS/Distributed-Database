@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { Download, Plus, Search, Users, Edit2, Ban, Trash2, Save, Plane as PlaneIcon, RefreshCw } from 'lucide-react';
+import { Download, Plus, Search, Users, Edit2, Ban, Trash2, Save, Plane as PlaneIcon, RefreshCw, CheckSquare, Square, X } from 'lucide-react';
 import { type FlightStatus } from '@/features/flight';
 import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem, FLIGHT_STATUS_STR_META, useAdminList, AdminTableState, useAdminOptions } from '@/features/admin';
 import { formatApiError } from '@/utils/apiError';
@@ -154,6 +154,7 @@ const FlightMgmt: React.FC = () => {
   const [isFlightModalOpen, setIsFlightModalOpen] = useState(false);
   const [editingFlight, setEditingFlight] = useState<UiFlight | null>(null);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // 下拉选项数据（使用 useAdminOptions 缓存）
   const { options: routeOptionsRaw } = useAdminOptions<RouteOption, number>('routes', {
@@ -310,6 +311,83 @@ const FlightMgmt: React.FC = () => {
     }
   };
 
+  const handleBatchCancel = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要取消的航班');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量取消航班',
+      message: `确定要取消选中的 ${ids.length} 个航班吗？这将通知所有已预订乘客。`,
+      variant: 'warning',
+      confirmText: '确认取消',
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all(ids.map(id => {
+        const flight = flights.find(f => f.flightId === id);
+        if (!flight) return Promise.resolve();
+        return updateAdminFlight(id, {
+          flightNo: flight.flightNo,
+          modelId: flight.modelId,
+          routeId: flight.routeId,
+          departureTime: flight.departureTime,
+          arrivalTime: flight.arrivalTime,
+          airlineCompany: flight.airlineCompany,
+          totalSeats: flight.totalSeats,
+          status: 2,
+        });
+      }));
+      toast.success('航班已取消');
+      setSelectedIds(new Set());
+      await refreshFlights();
+    } catch (err: any) {
+      toast.error(formatApiError(err));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要删除的航班');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量删除航班',
+      message: `确定要删除选中的 ${ids.length} 个航班吗？此操作不可恢复。`,
+      variant: 'danger',
+      confirmText: '确认删除',
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all(ids.map(id => deleteAdminFlight(id)));
+      toast.success('航班已删除');
+      setSelectedIds(new Set());
+      await refreshFlights();
+    } catch (err: any) {
+      toast.error(formatApiError(err));
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === paginatedFlights.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedFlights.map(f => f.flightId)));
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
   // 前端过滤（后端 API 不支持 status 筛选时用）
   const filteredFlights = useMemo(() => {
     if (flightStatusFilter === 'all') return flights;
@@ -317,6 +395,9 @@ const FlightMgmt: React.FC = () => {
   }, [flights, flightStatusFilter]);
 
   const paginatedFlights = filteredFlights;
+
+  const allSelected = paginatedFlights.length > 0 && selectedIds.size === paginatedFlights.length;
+  const someSelected = selectedIds.size > 0;
 
   // 使用 FLIGHT_STATUS_STR_META 统一生成状态徽章
   const getStatusBadge = (status: string) => {
@@ -410,6 +491,31 @@ const FlightMgmt: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+        {someSelected && (
+          <div className="px-6 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+            <span className="text-sm font-medium text-indigo-700">已选择 {selectedIds.size} 项</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBatchCancel}
+                className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-white border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors flex items-center gap-1"
+              >
+                <Ban className="w-3.5 h-3.5" /> 批量取消
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> 批量删除
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
         <AdminTableState
           loading={loadingFlights}
           error={flightsError}
@@ -427,6 +533,14 @@ const FlightMgmt: React.FC = () => {
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-50/80">
                 <tr>
+                  <th className="px-6 py-4 w-10">
+                    <button
+                      onClick={handleSelectAll}
+                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                    >
+                      {allSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                    </button>
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班信息</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航线 & 时间</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">执飞机型</th>
@@ -445,6 +559,14 @@ const FlightMgmt: React.FC = () => {
 
                   return (
                     <tr key={flight.rowId} className="hover:bg-indigo-50/30 transition-colors group relative">
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleSelectOne(flight.flightId)}
+                          className="text-gray-400 hover:text-indigo-600 transition-colors"
+                        >
+                          {selectedIds.has(flight.flightId) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                        </button>
+                      </td>
                       <td className="px-6 py-4">
                         <EntityCell
                           leading={

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download, Phone, CreditCard, Eye } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download, Phone, CreditCard, Eye, CheckSquare, Square, X } from 'lucide-react';
 import { createAdminUser, deleteAdminUser, listAdminUsers, resetAdminUserPassword, updateAdminUser, type AdminUserItem } from '../../features/admin/api/users';
 import {
   Pagination,
@@ -36,6 +36,7 @@ const UsersMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const ITEMS_PER_PAGE = 8;
 
   // 重置密码弹窗状态
@@ -235,6 +236,99 @@ const UsersMgmt: React.FC = () => {
     }
   };
 
+  const handleBatchDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要删除的用户');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量删除用户',
+      message: `确定要删除选中的 ${ids.length} 个用户吗？此操作不可恢复。`,
+      variant: 'danger',
+      confirmText: '确认删除',
+    });
+    if (!confirmed) return;
+    setLoading(true);
+    try {
+      await Promise.all(ids.map(id => deleteAdminUser(id)));
+      toast.success('删除成功');
+      setSelectedIds(new Set());
+      await reload(1);
+      setPage(1);
+    } catch (e: any) {
+      toast.error(e?.message || '操作失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBatchDisable = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要禁用的用户');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量禁用账号',
+      message: `确定要禁用选中的 ${ids.length} 个用户账号吗？`,
+      variant: 'warning',
+      confirmText: '确认禁用',
+    });
+    if (!confirmed) return;
+    setLoading(true);
+    try {
+      await Promise.all(ids.map(id => updateAdminUser(id, { userStatus: 2 })));
+      toast.success('账号已禁用');
+      setSelectedIds(new Set());
+      await reload(page);
+    } catch (e: any) {
+      toast.error(e?.message || '操作失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBatchEnable = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要启用的用户');
+      return;
+    }
+    setLoading(true);
+    try {
+      await Promise.all(ids.map(id => updateAdminUser(id, { userStatus: 1 })));
+      toast.success('账号已启用');
+      setSelectedIds(new Set());
+      await reload(page);
+    } catch (e: any) {
+      toast.error(e?.message || '操作失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map(u => String(u.userId))));
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const allSelected = items.length > 0 && selectedIds.size === items.length;
+  const someSelected = selectedIds.size > 0;
+
   // 导出数据
   const handleExport = async () => {
     try {
@@ -320,6 +414,37 @@ const UsersMgmt: React.FC = () => {
       {loadError ? <ErrorBanner message={loadError} onRetry={() => reload(page)} /> : null}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+        {someSelected && (
+          <div className="px-6 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+            <span className="text-sm font-medium text-indigo-700">已选择 {selectedIds.size} 项</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBatchEnable}
+                className="px-3 py-1.5 text-xs font-medium text-emerald-600 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors flex items-center gap-1"
+              >
+                <Shield className="w-3.5 h-3.5" /> 批量启用
+              </button>
+              <button
+                onClick={handleBatchDisable}
+                className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-white border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors flex items-center gap-1"
+              >
+                <Ban className="w-3.5 h-3.5" /> 批量禁用
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> 批量删除
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
         <AdminTableState
           loading={loading}
           error={loadError}
@@ -333,6 +458,14 @@ const UsersMgmt: React.FC = () => {
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50/80">
               <tr>
+                <th className="px-6 py-4 w-10">
+                  <button
+                    onClick={handleSelectAll}
+                    className="text-gray-400 hover:text-indigo-600 transition-colors"
+                  >
+                    {allSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                  </button>
+                </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">用户</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">角色</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
@@ -343,6 +476,14 @@ const UsersMgmt: React.FC = () => {
             <tbody className="divide-y divide-gray-100">
               {items.map((u) => (
                 <tr key={String(u.userId)} className="hover:bg-indigo-50/30 transition-colors group">
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => handleSelectOne(String(u.userId))}
+                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                    >
+                      {selectedIds.has(String(u.userId)) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                    </button>
+                  </td>
                   <td className="px-6 py-4">
                     <EntityCell
                       leading={
