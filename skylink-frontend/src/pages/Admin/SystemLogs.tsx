@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, FileText, Shield, User, Globe, AlertCircle, ScrollText, Download } from 'lucide-react';
 import { Pagination, AdminBadge, AdminPageHeader } from '@/features/admin';
+import EntityCell from '@/components/common/EntityCell';
 
 type LogLevel = 'info' | 'warning' | 'error';
 
@@ -18,7 +19,7 @@ interface SystemLogItem {
 const MOCK_LOGS: SystemLogItem[] = [
   {
     id: 'LOG-20251216001',
-    time: '2025-12-16 09:15:21',
+    time: '2025-12-16 09:10:18',
     module: '航班管理',
     operator: 'sys_admin',
     operatorRole: '超级管理员',
@@ -213,23 +214,24 @@ const SystemLogs: React.FC = () => {
               <tr key={log.id} className="hover:bg-indigo-50/30 transition-colors group">
                 <td className="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">{log.time}</td>
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-slate-900 text-slate-100 flex items-center justify-center">
-                      <Shield className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <EntityCell
+                    leading={
+                      <div className="w-8 h-8 rounded-full bg-slate-900 text-slate-100 flex items-center justify-center">
+                        <Shield className="w-4 h-4" />
+                      </div>
+                    }
+                    title={
+                      <>
                         {log.operator}
                         <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
                           {log.operatorRole}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-1 text-[11px] text-gray-400">
-                        <User className="w-3 h-3" />
-                        {log.id}
-                      </div>
-                    </div>
-                  </div>
+                      </>
+                    }
+                    titleClassName="text-sm font-semibold text-gray-900 flex items-center gap-2 min-w-0"
+                    meta={[{ icon: User, text: log.id }]}
+                    metaClassName="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5"
+                  />
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">{log.module}</td>
                 <td className="px-6 py-4 text-sm text-gray-700">

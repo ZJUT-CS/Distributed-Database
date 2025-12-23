@@ -141,7 +141,10 @@ public class RefundChangeServiceImpl implements RefundChangeService {
 
         if (operType == 2) {
             // 改签逻辑
-            Flight newFlight = flightMapper.selectOne(new QueryWrapper<Flight>().eq("flight_no", req.getNewFlightNo()));
+            Flight newFlight = flightMapper.selectOne(new QueryWrapper<Flight>()
+                    .eq("flight_no", req.getNewFlightNo())
+                    .orderByDesc("flight_id")
+                    .last("LIMIT 1"));
             if (newFlight == null) return Result.fail(404, "new flight not found");
             
             // 查新配置

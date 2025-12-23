@@ -169,8 +169,8 @@ public class PaymentServiceImpl implements PaymentService {
             return Result.fail(400, "amount mismatch");
         }
 
-        Payment exists = paymentMapper.selectOne(new QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
-        if (exists != null) {
+        Long exists = paymentMapper.selectCount(new QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
+        if (exists != null && exists > 0) {
             return Result.fail(409, "payment already exists");
         }
 
@@ -247,8 +247,8 @@ public class PaymentServiceImpl implements PaymentService {
         if (o == null) {
             return Result.fail(404, "order not found");
         }
-        Payment exists = paymentMapper.selectOne(new QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
-        if (exists != null) {
+        Long exists = paymentMapper.selectCount(new QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
+        if (exists != null && exists > 0) {
             return Result.fail(409, "payment already exists");
         }
         LocalDateTime now = LocalDateTime.now();

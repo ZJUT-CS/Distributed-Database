@@ -44,21 +44,33 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         int s = size != null && size > 0 ? Math.min(size, 100) : 10;
         int offset = (p - 1) * s;
 
-        QueryWrapper<Orders> qw = new QueryWrapper<>();
-        if (orderNo != null) qw.eq("order_id", orderNo);
-        if (userId != null) qw.eq("user_id", userId);
-        if (orderStatus != null) qw.eq("order_status", orderStatus);
-        
+        QueryWrapper<Orders> countQw = new QueryWrapper<>();
+        if (orderNo != null) countQw.eq("order_id", orderNo);
+        if (userId != null) countQw.eq("user_id", userId);
+        if (orderStatus != null) countQw.eq("order_status", orderStatus);
+
+        Long flightId = null;
         if (flightNo != null && !flightNo.isBlank()) {
-            Flight f = flightMapper.selectOne(new QueryWrapper<Flight>().eq("flight_no", flightNo.trim()));
+            Flight f = flightMapper.selectOne(new QueryWrapper<Flight>()
+                    .eq("flight_no", flightNo.trim())
+                    .orderByDesc("flight_id")
+                    .last("LIMIT 1"));
             if (f == null) return Result.ok(new PageResult<>(0, new ArrayList<>()));
-            qw.eq("flight_id", f.getFlightId());
+            flightId = f.getFlightId();
+            countQw.eq("flight_id", flightId);
         }
-        
-        qw.orderByDesc("order_time");
-        Long total = orderMapper.selectCount(qw);
-        qw.last("limit " + offset + "," + s);
-        List<Orders> orders = orderMapper.selectList(qw);
+
+        Long total = orderMapper.selectCount(countQw);
+
+        QueryWrapper<Orders> listQw = new QueryWrapper<>();
+        if (orderNo != null) listQw.eq("order_id", orderNo);
+        if (userId != null) listQw.eq("user_id", userId);
+        if (orderStatus != null) listQw.eq("order_status", orderStatus);
+        if (flightId != null) listQw.eq("flight_id", flightId);
+
+        listQw.orderByDesc("order_time");
+        listQw.last("limit " + offset + "," + s);
+        List<Orders> orders = orderMapper.selectList(listQw);
 
         List<AdminOrderController.AdminOrderItem> items = new ArrayList<>();
         for (Orders o : orders) {

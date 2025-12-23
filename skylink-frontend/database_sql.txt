@@ -76,10 +76,16 @@ CREATE TABLE `orders` (
   `pay_time` DATETIME DEFAULT NULL COMMENT '支付完成时间',
   `refund_time` DATETIME DEFAULT NULL COMMENT '退票完成时间',
   `change_time` DATETIME DEFAULT NULL COMMENT '改签完成时间',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `parent_order_id` BIGINT DEFAULT NULL COMMENT '父订单ID(联程票关联键)',
+  `trip_type` TINYINT DEFAULT 0 COMMENT '类型:0-独立,1-联程首段,2-联程后段',
+  `flight_snapshot` TEXT DEFAULT NULL COMMENT '航班快照JSON(下单时记录)',
   PRIMARY KEY (`order_id`),
   KEY `idx_user_order` (`user_id`,`order_time`) COMMENT '用户订单查询索引',
   KEY `idx_flight_order` (`flight_id`,`order_status`) COMMENT '航班订单统计索引',
-  KEY `idx_order_status` (`order_status`) COMMENT '订单状态筛选索引'
+  KEY `idx_order_status` (`order_status`) COMMENT '订单状态筛选索引',
+  KEY `idx_parent_order` (`parent_order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='机票订单核心表';
 
 -- 6. 支付订单表（订单支付/管理员支付管理/对账）

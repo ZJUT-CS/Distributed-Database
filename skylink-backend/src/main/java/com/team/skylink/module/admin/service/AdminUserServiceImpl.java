@@ -31,27 +31,38 @@ public class AdminUserServiceImpl implements AdminUserService {
         int s = size != null && size > 0 ? Math.min(size, 100) : 10;
         int offset = (p - 1) * s;
 
-        QueryWrapper<User> qw = new QueryWrapper<>();
+        // 注意：在 MySQL 开启 ONLY_FULL_GROUP_BY + 分库分表/代理环境下，COUNT(*) 查询被重写时
+        // 可能会把 ORDER BY 列带入聚合查询的 SELECT 列表，从而触发 SQLSyntaxErrorException。
+        // 所以 count 与 list 必须使用不同的 wrapper：count 不带 ORDER BY/LIMIT。
+        QueryWrapper<User> countQw = new QueryWrapper<>();
         if (status != null) {
-            qw.eq("user_status", status);
+            countQw.eq("user_status", status);
         }
         if (keyword != null && !keyword.isBlank()) {
             String k = keyword.trim();
-            qw.and(w -> w.like("phone_number", k).or().like("real_name", k).or().like("email", k));
+            countQw.and(w -> w.like("phone_number", k).or().like("real_name", k).or().like("email", k));
         }
-        qw.orderByDesc("create_time");
+        Long total = userMapper.selectCount(countQw);
 
-        Long total = userMapper.selectCount(qw);
-        qw.last("limit " + offset + "," + s);
-        List<User> items = userMapper.selectList(qw);
+        QueryWrapper<User> listQw = new QueryWrapper<>();
+        if (status != null) {
+            listQw.eq("user_status", status);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            String k = keyword.trim();
+            listQw.and(w -> w.like("phone_number", k).or().like("real_name", k).or().like("email", k));
+        }
+        listQw.orderByDesc("create_time");
+        listQw.last("limit " + offset + "," + s);
+        List<User> items = userMapper.selectList(listQw);
         return Result.ok(new PageResult<>(total != null ? total : 0, items));
     }
 
     @Override
     public Result<User> create(AdminUserCreateRequest req) {
         String phone = req.getPhoneNumber().trim();
-        User existing = userMapper.selectOne(new QueryWrapper<User>().eq("phone_number", phone));
-        if (existing != null) {
+        Long existing = userMapper.selectCount(new QueryWrapper<User>().eq("phone_number", phone));
+        if (existing != null && existing > 0) {
             return Result.fail(409, "phone number already exists");
         }
 
@@ -74,8 +85,8 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         if (req.getPhoneNumber() != null && !req.getPhoneNumber().isBlank()) {
             String phone = req.getPhoneNumber().trim();
-            User exists = userMapper.selectOne(new QueryWrapper<User>().eq("phone_number", phone).ne("user_id", userId));
-            if (exists != null) return Result.fail(409, "phone number already exists");
+            Long exists = userMapper.selectCount(new QueryWrapper<User>().eq("phone_number", phone).ne("user_id", userId));
+            if (exists != null && exists > 0) return Result.fail(409, "phone number already exists");
             u.setPhoneNumber(phone);
         }
         if (req.getEmail() != null) u.setEmail(req.getEmail());

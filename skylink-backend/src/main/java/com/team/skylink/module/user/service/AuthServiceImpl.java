@@ -9,6 +9,7 @@ import com.team.skylink.module.user.entity.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -27,10 +28,17 @@ public class AuthServiceImpl implements AuthService {
     public Result<LoginResponse> login(LoginRequest request) {
         String phoneNumber = request.getPhoneNumber();
         String password = request.getPassword();
-        User user = userMapper.selectOne(new QueryWrapper<User>().eq("phone_number", phoneNumber));
-        if (user == null) {
+        List<User> users = userMapper.selectList(new QueryWrapper<User>()
+                .eq("phone_number", phoneNumber)
+                .last("LIMIT 2"));
+        if (users.isEmpty()) {
             return Result.fail(401, "invalid phoneNumber");
         }
+        if (users.size() > 1) {
+            // 数据已出现重复手机号，selectOne 会抛 TooManyResultsException；这里给出可操作的错误
+            return Result.fail(409, "duplicate phoneNumber, please contact admin");
+        }
+        User user = users.get(0);
         if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
             return Result.fail(401, "invalid password");
         }
@@ -58,8 +66,8 @@ public class AuthServiceImpl implements AuthService {
         if (phoneNumber == null || password == null) {
             return Result.fail(400, "missing phoneNumber or password");
         }
-        User existing = userMapper.selectOne(new QueryWrapper<User>().eq("phone_number", phoneNumber));
-        if (existing != null) {
+        Long exists = userMapper.selectCount(new QueryWrapper<User>().eq("phone_number", phoneNumber));
+        if (exists != null && exists > 0) {
             return Result.fail(409, "phone number already registered");
         }
         User user = new User();
@@ -144,8 +152,8 @@ public class AuthServiceImpl implements AuthService {
         String phone = value == null ? "" : value.trim();
         if (!phone.matches("^1[3-9]\\d{9}$")) return Result.fail(400, "invalid phone");
         if (code == null || !"123456".equals(code.trim())) return Result.fail(400, "invalid verify code");
-        User exists = userMapper.selectOne(new QueryWrapper<User>().eq("phone_number", phone).ne("user_id", userId));
-        if (exists != null) return Result.fail(409, "phone number already exists");
+        Long exists = userMapper.selectCount(new QueryWrapper<User>().eq("phone_number", phone).ne("user_id", userId));
+        if (exists != null && exists > 0) return Result.fail(409, "phone number already exists");
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
         u.setPhoneNumber(phone);

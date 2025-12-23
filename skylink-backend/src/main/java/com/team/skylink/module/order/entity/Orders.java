@@ -29,10 +29,13 @@ public class Orders {
     private LocalDateTime changeTime;
 
     // --- 系统审计字段 ---
-    @TableField(fill = FieldFill.INSERT)
+    // 注意：当前 orders 表结构不包含 create_time / update_time。
+    // 若字段存在于实体但表中不存在，MyBatis-Plus 默认 SELECT 会把它们拼进字段列表，从而报
+    // "Unknown column 'create_time'"。这里显式标记为不存在字段。
+    @TableField(exist = false)
     private LocalDateTime createTime;
 
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+    @TableField(exist = false)
     private LocalDateTime updateTime;
 
     // --- 联程新增字段 ---

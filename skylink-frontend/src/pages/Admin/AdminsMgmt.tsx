@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Plus, Shield, UserCog, Mail, Phone, Lock, Trash2, RefreshCw, Download } from 'lucide-react';
 import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader } from '@/features/admin';
+import EntityCell from '@/components/common/EntityCell';
 
 type AdminRole = 'super_admin' | 'ops' | 'auditor';
 type AdminStatus = 'active' | 'disabled';
@@ -182,27 +183,19 @@ const AdminsMgmt: React.FC = () => {
             {paginatedAdmins.map((a) => (
               <tr key={a.id} className="hover:bg-indigo-50/30 transition-colors group">
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-indigo-600/10 text-indigo-600 flex items-center justify-center border border-indigo-100">
-                      <Shield className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-gray-900 flex items-center gap-2">
-                        {a.realName}
-                        <span className="text-xs text-gray-400 font-mono">{a.username}</span>
+                  <EntityCell
+                    leading={
+                      <div className="w-10 h-10 rounded-full bg-indigo-600/10 text-indigo-600 flex items-center justify-center border border-indigo-100">
+                        <Shield className="w-5 h-5" />
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-0.5">
-                        <span className="flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {a.email}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          {a.phone}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                    }
+                    title={a.realName}
+                    subtitle={a.username}
+                    meta={[
+                      { icon: Mail, text: a.email },
+                      { icon: Phone, text: a.phone },
+                    ]}
+                  />
                 </td>
                 <td className="px-6 py-4">
                   <AdminBadge

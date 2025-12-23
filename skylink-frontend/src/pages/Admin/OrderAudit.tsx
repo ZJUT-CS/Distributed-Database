@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Search, CheckCircle2, XCircle, RefreshCw, User, Plane, ClipboardCheck, Download } from 'lucide-react';
 import { AdminBadge, AdminPageHeader, approveRefundChangeRequest, listRefundChangeRequests, rejectRefundChangeRequest } from '@/features/admin';
 import type { RefundChangeRecord } from '@/features/user';
+import EntityCell from '@/components/common/EntityCell';
 
 type AuditStatus = 'all' | 'pending' | 'approved' | 'rejected';
 
@@ -177,12 +178,15 @@ const OrderAudit: React.FC = () => {
                 <td className="px-6 py-4 font-mono text-gray-700">{a.id}</td>
                 <td className="px-6 py-4 font-mono text-gray-600">{a.orderId}</td>
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <span className="font-medium text-gray-900">{a.passenger}</span>
-                  </div>
+                  <EntityCell
+                    leading={
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <User className="w-4 h-4" />
+                      </div>
+                    }
+                    title={a.passenger}
+                    titleClassName="text-sm font-medium text-gray-900 flex items-center gap-2 min-w-0"
+                  />
                 </td>
                 <td className="px-6 py-4">
                   <AdminBadge icon={Plane} variant={a.type === '退票' ? 'danger' : 'info'}>

@@ -25,16 +25,21 @@ public class AdminConfigServiceImpl implements AdminConfigService {
         int s = size != null && size > 0 ? Math.min(size, 100) : 10;
         int offset = (p - 1) * s;
 
-        QueryWrapper<SystemConfig> qw = new QueryWrapper<>();
+        QueryWrapper<SystemConfig> countQw = new QueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             String k = keyword.trim();
-            qw.and(w -> w.like("config_name", k).or().like("config_desc", k));
+            countQw.and(w -> w.like("config_name", k).or().like("config_desc", k));
         }
-        qw.orderByDesc("update_time").orderByDesc("config_id");
+        Long total = configMapper.selectCount(countQw);
 
-        Long total = configMapper.selectCount(qw);
-        qw.last("limit " + offset + "," + s);
-        List<SystemConfig> items = configMapper.selectList(qw);
+        QueryWrapper<SystemConfig> listQw = new QueryWrapper<>();
+        if (keyword != null && !keyword.isBlank()) {
+            String k = keyword.trim();
+            listQw.and(w -> w.like("config_name", k).or().like("config_desc", k));
+        }
+        listQw.orderByDesc("update_time").orderByDesc("config_id");
+        listQw.last("limit " + offset + "," + s);
+        List<SystemConfig> items = configMapper.selectList(listQw);
         return Result.ok(new PageResult<>(total != null ? total : 0, items));
     }
 

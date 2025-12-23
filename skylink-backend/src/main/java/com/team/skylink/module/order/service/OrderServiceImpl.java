@@ -60,7 +60,11 @@ public class OrderServiceImpl implements OrderService {
         }
         
         if (flightNo != null && !flightNo.isEmpty()) {
-            Flight f = flightMapper.selectOne(new QueryWrapper<Flight>().eq("flight_no", flightNo));
+            // flight_no 可能在脏数据/测试数据下出现重复，selectOne 会抛 TooManyResultsException
+            Flight f = flightMapper.selectOne(new QueryWrapper<Flight>()
+                    .eq("flight_no", flightNo)
+                    .orderByDesc("flight_id")
+                    .last("LIMIT 1"));
             if (f != null) {
                 qw.eq("flight_id", f.getFlightId());
             } else {
@@ -121,7 +125,11 @@ public class OrderServiceImpl implements OrderService {
         for (int i = 0; i < flightNos.size(); i++) {
             String fNo = flightNos.get(i);
             // 1. 查航班
-            Flight f = flightMapper.selectOne(new QueryWrapper<Flight>().eq("flight_no", fNo));
+            // flight_no 可能重复；用 LIMIT 1 避免 TooManyResultsException
+            Flight f = flightMapper.selectOne(new QueryWrapper<Flight>()
+                    .eq("flight_no", fNo)
+                    .orderByDesc("flight_id")
+                    .last("LIMIT 1"));
             if (f == null) {
                 return Result.fail(404, "flight not found: " + fNo);
             }

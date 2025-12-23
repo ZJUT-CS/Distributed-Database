@@ -303,10 +303,10 @@ public class FlightServiceImpl implements FlightService {
     @Transactional(rollbackFor = Exception.class)
     public Result<Boolean> createFlight(FlightCreateRequest req) {
         // 1. 基础校验
-        Flight exists = flightMapper.selectOne(Wrappers.<Flight>lambdaQuery()
-                .eq(Flight::getFlightNo, req.getFlightNo())
-                .eq(Flight::getDepartureTime, req.getDepartureTime()));
-        if (exists != null) {
+        Long exists = flightMapper.selectCount(Wrappers.<Flight>lambdaQuery()
+            .eq(Flight::getFlightNo, req.getFlightNo())
+            .eq(Flight::getDepartureTime, req.getDepartureTime()));
+        if (exists != null && exists > 0) {
             return Result.fail(409, "flight already exists");
         }
 

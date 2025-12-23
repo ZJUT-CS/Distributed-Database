@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download } from 'lucide-react';
 import { createAdminUser, deleteAdminUser, listAdminUsers, resetAdminUserPassword, updateAdminUser, type AdminUserItem } from '../../features/admin/api/users';
 import { Pagination, TableActionMenu, AdminPageHeader, AdminModal, AdminBadge } from '@/features/admin';
+import EntityCell from '@/components/common/EntityCell';
 
 const UsersMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -10,6 +11,7 @@ const UsersMgmt: React.FC = () => {
   const ITEMS_PER_PAGE = 8;
 
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [items, setItems] = useState<AdminUserItem[]>([]);
   const [total, setTotal] = useState(0);
 
@@ -26,6 +28,7 @@ const UsersMgmt: React.FC = () => {
 
   const reload = async (nextPage: number) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await listAdminUsers({
         page: nextPage,
@@ -34,6 +37,18 @@ const UsersMgmt: React.FC = () => {
       });
       setItems(res.data || []);
       setTotal(res.total || 0);
+    } catch (e: any) {
+      const msg = String(e?.message || '加载失败');
+      // 给出可操作的提示：该接口需要管理员请求头（X-User-Type: 2）
+      if (/admin required/i.test(msg) || /403/.test(msg)) {
+        setLoadError('加载失败：当前登录态不是管理员或缺少管理员请求头（X-User-Type: 2）。请使用管理员账号登录后台后重试。');
+      } else if (/401/.test(msg) || /unauthorized/i.test(msg)) {
+        setLoadError('加载失败：登录已过期或未登录（401）。请重新登录后重试。');
+      } else {
+        setLoadError(`加载失败：${msg}`);
+      }
+      setItems([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -54,9 +69,9 @@ const UsersMgmt: React.FC = () => {
 
   const openEdit = (u: AdminUserItem) => {
     setEditing(u);
-    setFormPhone(u.phoneNumber ?? '');
-    setFormRealName(u.realName ?? '');
-    setFormEmail(u.email ?? '');
+    setFormPhone(u.phoneNumber ? String(u.phoneNumber) : '');
+    setFormRealName(u.realName ? String(u.realName) : '');
+    setFormEmail(u.email ? String(u.email) : '');
     setFormPassword('');
     setModalOpen(true);
   };
@@ -198,6 +213,11 @@ const UsersMgmt: React.FC = () => {
       </div>
 
       {/* Users Table */}
+      {loadError && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadError}
+        </div>
+      )}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm text-left">
            <thead className="bg-gray-50/80">
@@ -213,17 +233,15 @@ const UsersMgmt: React.FC = () => {
             {items.map((u) => (
               <tr key={String(u.userId)} className="hover:bg-indigo-50/30 transition-colors group">
                 <td className="px-6 py-4">
-                   <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-600/10 text-indigo-700 flex items-center justify-center border-2 border-white shadow-sm font-bold">
-                          {(u.realName || u.phoneNumber || 'U').slice(0, 1).toUpperCase()}
-                        </div>
-                        <div>
-                            <div className="font-bold text-gray-900">{u.realName || u.phoneNumber || '-'}</div>
-                            <div className="text-xs text-gray-400 flex items-center gap-1">
-                                <Mail className="w-3 h-3" /> {u.email || '-'}
-                            </div>
-                        </div>
-                    </div>
+                  <EntityCell
+                    leading={
+                      <div className="w-10 h-10 rounded-full bg-indigo-600/10 text-indigo-700 flex items-center justify-center border-2 border-white shadow-sm font-bold">
+                        {(u.realName || u.phoneNumber || 'U').slice(0, 1).toUpperCase()}
+                      </div>
+                    }
+                    title={u.realName || u.phoneNumber || '-'}
+                    meta={[{ icon: Mail, text: u.email || '-' }]}
+                  />
                  </td>
                  <td className="px-6 py-4">
                     <AdminBadge icon={Shield} variant="info">
@@ -280,7 +298,7 @@ const UsersMgmt: React.FC = () => {
                  </td>
                </tr>
              ))}
-            {!loading && items.length === 0 && (
+            {!loading && !loadError && items.length === 0 && (
               <tr>
                 <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={5}>
                   暂无用户数据
