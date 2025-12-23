@@ -4,6 +4,7 @@ import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, F
 import { formatApiError } from '@/utils/apiError';
 import { listRoutes, createRoute, updateRoute, deleteRoute, type RouteItem } from '@/features/admin/api/routes';
 import EntityCell from '@/components/common/EntityCell';
+import { exportToCSV } from '@/utils/export';
 
 interface RouteFilters {
   keyword: string;
@@ -117,7 +118,7 @@ const RoutesMgmt: React.FC = () => {
       variant: 'danger',
     });
     if (!ok) return;
-    
+
     try {
       await deleteRoute(item.routeId);
       toast.success('航线已删除');
@@ -134,6 +135,29 @@ const RoutesMgmt: React.FC = () => {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      const res = await listRoutes({ page: 1, size: 1000, keyword: filters.keyword || undefined });
+      const data = res.data ?? [];
+      if (!data.length) { toast.warning('暂无数据可导出'); return; }
+      exportToCSV(data, '航线列表', [
+        { key: 'routeId', label: '航线ID' },
+        { key: 'departureCity', label: '出发城市' },
+        { key: 'departureAirport', label: '出发机场' },
+        { key: 'arrivalCity', label: '到达城市' },
+        { key: 'arrivalAirport', label: '到达机场' },
+        { key: 'basePrice', label: '基准票价' },
+        { key: 'estimatedDuration', label: '飞行时长(分钟)' },
+        { key: 'distanceKm', label: '距离(km)' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <AdminPageHeader
@@ -143,8 +167,8 @@ const RoutesMgmt: React.FC = () => {
         description="管理航线基础数据，包括出发/到达城市、机场代码、基准票价等信息"
         actions={
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm">
-              <Download className="w-4 h-4" /> 导出
+            <button onClick={handleExport} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm">
+              <Download className="w-4 h-4" /> 导出数据
             </button>
             <button
               onClick={handleOpenCreate}

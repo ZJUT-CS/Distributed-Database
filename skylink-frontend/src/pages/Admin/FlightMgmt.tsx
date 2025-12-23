@@ -6,6 +6,7 @@ import { formatApiError } from '@/utils/apiError';
 import EntityCell from '@/components/common/EntityCell';
 import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
+import { exportToCSV } from '@/utils/export';
 
 type UiFlight = {
   rowId: string; // 唯一标识（用于 key / 选中态 / 菜单展开态）
@@ -114,7 +115,7 @@ const FlightMgmt: React.FC = () => {
 
   // 使用 useAdminList 统一管理列表状态
   const fetchFlights = useCallback(
-    async (params: { page: number; size: number; keyword: string; [key: string]: unknown }) => {
+    async (params: { page: number; size: number; keyword: string;[key: string]: unknown }) => {
       const res = await listAdminFlights({
         page: params.page,
         size: params.size,
@@ -140,7 +141,7 @@ const FlightMgmt: React.FC = () => {
     setFilters,
     refresh: refreshFlights,
     retry,
-  } = useAdminList<UiFlight, { keyword: string; status: string; [key: string]: unknown }>({
+  } = useAdminList<UiFlight, { keyword: string; status: string;[key: string]: unknown }>({
     fetchFn: fetchFlights,
     pageSize: FLIGHTS_PER_PAGE,
     initialFilters: { keyword: '', status: 'all' },
@@ -328,6 +329,32 @@ const FlightMgmt: React.FC = () => {
     );
   };
 
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      const res = await listAdminFlights({ page: 1, size: 1000, keyword: searchKeyword || undefined });
+      const data = (res.data ?? []).map(mapAdminFlight);
+      if (!data.length) {
+        toast.warning('暂无数据可导出');
+        return;
+      }
+      exportToCSV(data, '航班列表', [
+        { key: 'flightNo', label: '航班号' },
+        { key: 'airline', label: '航空公司' },
+        { key: 'route', label: '航线' },
+        { key: 'dep', label: '起飞时间' },
+        { key: 'arr', label: '到达时间' },
+        { key: 'price', label: '基础票价' },
+        { key: 'seats', label: '座位数' },
+        { key: 'status', label: '状态', formatter: (item) => FLIGHT_STATUS_STR_META[item.status]?.label || item.status },
+      ]);
+      toast.success('导出成功');
+    } catch (err: any) {
+      toast.error(formatApiError(err));
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <AdminPageHeader
@@ -337,7 +364,7 @@ const FlightMgmt: React.FC = () => {
         description="管理全平台航班排期、座位及状态监控"
         actions={
           <div className="flex gap-3">
-            <button onClick={() => toast.info('数据导出功能开发中...')} className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+            <button onClick={handleExport} className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
               <Download className="w-4 h-4" /> 导出数据
             </button>
             <button onClick={handleOpenCreateFlight} className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 flex items-center gap-2">

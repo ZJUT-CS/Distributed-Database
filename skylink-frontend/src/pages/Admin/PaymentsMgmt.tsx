@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Eye, FileText, CreditCard, Wallet, Search, RefreshCw } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, PAYMENT_STATUS_OPTIONS, PAYMENT_STATUS_MAP, PAYMENT_METHOD_MAP, useAdminList } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, PAYMENT_STATUS_OPTIONS, PAYMENT_STATUS_MAP, PAYMENT_METHOD_MAP, useAdminList, useToast } from '@/features/admin';
 import { listPaymentsPage, type PaymentItem } from '@/features/admin/api/payments';
 import EntityCell from '@/components/common/EntityCell';
 import { formatDateTimeZhCN } from '@/utils/formatters';
+import { exportToCSV } from '@/utils/export';
 
 const PaymentsMgmt: React.FC = () => {
+  const toast = useToast();
   const [orderNoInput, setOrderNoInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<number | ''>('');
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
@@ -53,6 +55,31 @@ const PaymentsMgmt: React.FC = () => {
     return () => window.clearTimeout(t);
   }, [parsedOrderNo, filters.orderNo, setFilters]);
 
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      const res = await listPaymentsPage({ page: 1, size: 1000, orderNo: filters.orderNo, paymentStatus: filters.paymentStatus });
+      const data = res.data ?? [];
+      if (!data.length) {
+        toast.warning('暂无数据可导出');
+        return;
+      }
+      exportToCSV(data, '支付记录', [
+        { key: 'paymentId', label: '支付ID' },
+        { key: 'orderNo', label: '订单号' },
+        { key: 'tradeNo', label: '流水号', formatter: (item) => item.tradeNo || '' },
+        { key: 'paymentMethod', label: '支付方式', formatter: (item) => PAYMENT_METHOD_MAP[item.paymentMethod]?.label || String(item.paymentMethod) },
+        { key: 'paymentAmount', label: '金额' },
+        { key: 'paymentStatus', label: '状态', formatter: (item) => PAYMENT_STATUS_MAP[item.paymentStatus]?.label || '' },
+        { key: 'paymentTime', label: '支付时间', formatter: (item) => formatDateTimeZhCN(item.paymentTime) || '' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
@@ -62,7 +89,7 @@ const PaymentsMgmt: React.FC = () => {
         title="支付管理"
         description="查看支付/退款流水与对账状态"
         actions={
-          <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+          <button onClick={handleExport} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
             <Download className="w-4 h-4" /> 导出数据
           </button>
         }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Save, Sliders, Plane as PlaneIcon, Grid3X3, Briefcase, Search, RefreshCw, DollarSign } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, Sliders, Plane as PlaneIcon, Grid3X3, Briefcase, Search, RefreshCw, DollarSign, Download } from 'lucide-react';
 import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, AdminTableState, useAdminList, useConfirm, useToast } from '@/features/admin';
 import {
   listCabinConfigs,
@@ -13,6 +13,7 @@ import {
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
 import EntityCell from '@/components/common/EntityCell';
 import { formatApiError } from '@/utils/apiError';
+import { exportToCSV } from '@/utils/export';
 
 interface ConfigFilters {
   modelId: number | '';
@@ -146,6 +147,32 @@ const CabinConfigsMgmt: React.FC = () => {
     return 'primary';
   };
 
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      const res = await listCabinConfigs({ page: 1, size: 1000, modelId: filters.modelId !== '' ? filters.modelId : undefined, cabinType: filters.cabinType || undefined });
+      const data = res.data ?? [];
+      if (!data.length) { toast.warning('暂无数据可导出'); return; }
+      exportToCSV(data, '舱位配置', [
+        { key: 'configId', label: '配置ID' },
+        { key: 'modelId', label: '机型ID' },
+        { key: 'modelName', label: '机型名称', formatter: (i) => i.modelName || getModelName(i.modelId) },
+        { key: 'cabinType', label: '舱位类型', formatter: (i) => CABIN_TYPE_MAP[i.cabinType] || i.cabinType },
+        { key: 'cabinLayoutNo', label: '布局方案号' },
+        { key: 'startRowNum', label: '起始行号' },
+        { key: 'seatColLayout', label: '列布局' },
+        { key: 'capacity', label: '座位数' },
+        { key: 'cabinCoefficient', label: '价格系数' },
+        { key: 'defaultCarryOn', label: '手提行李', formatter: (i) => i.defaultCarryOn || '' },
+        { key: 'defaultChecked', label: '托运行李', formatter: (i) => i.defaultChecked || '' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <AdminPageHeader
@@ -154,12 +181,17 @@ const CabinConfigsMgmt: React.FC = () => {
         title="舱位配置管理"
         description="管理机型舱位配置，包括舱位类型、座位布局、行李规格和价格系数"
         actions={
-          <button
-            onClick={handleOpenCreate}
-            className="px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 transition-all duration-300 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" /> 新增配置
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={handleExport} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+              <Download className="w-4 h-4" /> 导出数据
+            </button>
+            <button
+              onClick={handleOpenCreate}
+              className="px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 transition-all duration-300 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> 新增配置
+            </button>
+          </div>
         }
       />
 

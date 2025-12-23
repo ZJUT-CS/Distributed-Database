@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, FileText, Shield, User, Globe, AlertCircle, CheckCircle, ScrollText, Download, RefreshCw } from 'lucide-react';
-import { Pagination, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, useAdminList } from '@/features/admin';
+import { Pagination, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, useAdminList, useToast } from '@/features/admin';
 import { listSystemLogs, type SystemLogItem } from '@/features/admin/api/admins';
 import EntityCell from '@/components/common/EntityCell';
 import { formatDateTimeZhCN } from '@/utils/formatters';
+import { exportToCSV } from '@/utils/export';
 
 // 操作用户类型
 const OPER_USER_TYPE = {
@@ -18,6 +19,7 @@ const OPER_RESULT = {
 } as const;
 
 const SystemLogs: React.FC = () => {
+  const toast = useToast();
   const ITEMS_PER_PAGE = 10;
 
   const [keywordInput, setKeywordInput] = useState('');
@@ -89,6 +91,30 @@ const SystemLogs: React.FC = () => {
     return '系统';
   };
 
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      const res = await listSystemLogs({ page: 1, size: 1000, keyword: filters.keyword, module: filters.module, operResult: filters.operResult });
+      const data = res.data ?? [];
+      if (!data.length) { toast.warning('暂无数据可导出'); return; }
+      exportToCSV(data, '操作日志', [
+        { key: 'logId', label: '日志ID' },
+        { key: 'operTime', label: '时间', formatter: (i) => formatDateTimeZhCN(i.operTime) || '' },
+        { key: 'operUserId', label: '操作人', formatter: (i) => String(i.operUserId ?? '系统') },
+        { key: 'operUserType', label: '用户类型', formatter: (i) => getUserTypeLabel(i.operUserType) },
+        { key: 'operModule', label: '模块', formatter: (i) => i.operModule || '' },
+        { key: 'operType', label: '操作类型', formatter: (i) => i.operType || '' },
+        { key: 'operContent', label: '操作内容', formatter: (i) => i.operContent || '' },
+        { key: 'operIp', label: 'IP', formatter: (i) => i.operIp || '' },
+        { key: 'operResult', label: '结果', formatter: (i) => i.operResult === 1 ? '成功' : '失败' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <AdminPageHeader
@@ -97,7 +123,7 @@ const SystemLogs: React.FC = () => {
         title="操作日志"
         description="审计管理员关键操作，保障系统安全可追踪"
         actions={
-          <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+          <button onClick={handleExport} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
             <Download className="w-4 h-4" /> 导出数据
           </button>
         }
@@ -136,9 +162,8 @@ const SystemLogs: React.FC = () => {
                   onClick={() => {
                     setResultFilter(opt.id as 'all' | 'success' | 'fail');
                   }}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                    resultFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${resultFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
                 >
                   {opt.label}
                 </button>

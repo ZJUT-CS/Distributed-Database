@@ -12,10 +12,12 @@ import {
   rejectRefundChangeRequest,
   CHANGE_REQUEST_STATUS_MAP,
   ORDER_STATUS,
+  useToast,
 } from '@/features/admin';
 import type { RefundChangeRecord } from '@/features/user';
 import EntityCell from '@/components/common/EntityCell';
 import { auditAdminOrder, listAdminOrders, type AdminOrderItem } from '@/features/admin/api/orders';
+import { exportToCSV } from '@/utils/export';
 
 type AuditStatus = 'all' | 'pending' | 'approved' | 'rejected';
 type AuditTab = 'orders' | 'refund-change';
@@ -29,6 +31,7 @@ const formatDateTime = (v?: string | null) => {
 };
 
 const OrderAudit: React.FC = () => {
+  const toast = useToast();
   const [tab, setTab] = useState<AuditTab>('orders');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AuditStatus>('pending');
@@ -192,6 +195,41 @@ const OrderAudit: React.FC = () => {
     return null;
   };
 
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      if (tab === 'orders') {
+        const res = await listAdminOrders({ page: 1, size: 1000, orderStatus: ORDER_STATUS.PENDING_AUDIT });
+        const data = res.data ?? [];
+        if (!data.length) { toast.warning('暂无数据可导出'); return; }
+        exportToCSV(data, '待审核订单', [
+          { key: 'orderNo', label: '订单号' },
+          { key: 'passengerName', label: '乘客', formatter: (i) => i.passengerName || '' },
+          { key: 'flightNo', label: '航班号', formatter: (i) => i.flightNo || '' },
+          { key: 'totalAmount', label: '金额' },
+          { key: 'orderTime', label: '下单时间', formatter: (i) => formatDateTime(i.orderTime) },
+        ]);
+      } else {
+        const data = filteredAudits;
+        if (!data.length) { toast.warning('暂无数据可导出'); return; }
+        exportToCSV(data, '退改签审核', [
+          { key: 'id', label: '申请单号' },
+          { key: 'orderId', label: '订单号' },
+          { key: 'passenger', label: '乘客' },
+          { key: 'type', label: '类型' },
+          { key: 'oldFlight', label: '原航班' },
+          { key: 'newFlight', label: '新航班' },
+          { key: 'applyTime', label: '申请时间' },
+          { key: 'status', label: '状态' },
+        ]);
+      }
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <AdminPageHeader
@@ -200,7 +238,7 @@ const OrderAudit: React.FC = () => {
         title="审核中心"
         description="集中处理：订单审核 / 退改签审核"
         actions={
-          <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+          <button onClick={handleExport} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
             <Download className="w-4 h-4" /> 导出数据
           </button>
         }
@@ -232,9 +270,8 @@ const OrderAudit: React.FC = () => {
                 <button
                   key={opt.id}
                   onClick={() => setTab(opt.id as AuditTab)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                    tab === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${tab === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
                 >
                   {opt.label}
                 </button>
@@ -252,9 +289,8 @@ const OrderAudit: React.FC = () => {
                   <button
                     key={opt.id}
                     onClick={() => setStatusFilter(opt.id as AuditStatus)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                      statusFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                    }`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${statusFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
                   >
                     {opt.label}
                   </button>
@@ -285,49 +321,49 @@ const OrderAudit: React.FC = () => {
             skeletonRows={5}
             skeletonColumns={6}
           >
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50/80">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">订单号</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">乘客</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">金额</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">下单时间</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {orderItems.map((o) => {
-                    const orderId = o.orderNo;
-                    const passengerName = o.passengerName || (o.userId != null ? `用户#${o.userId}` : '-');
-                    const route = o.origin && o.destination ? `${o.origin} → ${o.destination}` : '-';
-                    const amount = Number(o.totalAmount || 0);
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50/80">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">订单号</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">乘客</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">金额</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">下单时间</th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {orderItems.map((o) => {
+                  const orderId = o.orderNo;
+                  const passengerName = o.passengerName || (o.userId != null ? `用户#${o.userId}` : '-');
+                  const route = o.origin && o.destination ? `${o.origin} → ${o.destination}` : '-';
+                  const amount = Number(o.totalAmount || 0);
 
-                    return (
-                      <tr key={String(orderId)} className="hover:bg-indigo-50/30 transition-colors group">
-                        <td className="px-6 py-4">
-                          <EntityCell
-                            leading={
-                              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
-                                <ClipboardCheck className="w-5 h-5" />
-                              </div>
-                            }
-                            title={String(o.orderNo)}
-                            titleClassName="font-mono text-gray-800 flex items-center gap-2 min-w-0"
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <EntityCell
-                            leading={
-                              <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                                <User className="w-4 h-4" />
-                              </div>
-                            }
-                            title={passengerName}
-                            titleClassName="text-sm font-medium text-gray-900 flex items-center gap-2 min-w-0"
-                            meta={[{ text: o.email || o.phoneNumber || '-' }]}
-                          />
-                        </td>
+                  return (
+                    <tr key={String(orderId)} className="hover:bg-indigo-50/30 transition-colors group">
+                      <td className="px-6 py-4">
+                        <EntityCell
+                          leading={
+                            <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+                              <ClipboardCheck className="w-5 h-5" />
+                            </div>
+                          }
+                          title={String(o.orderNo)}
+                          titleClassName="font-mono text-gray-800 flex items-center gap-2 min-w-0"
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <EntityCell
+                          leading={
+                            <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                              <User className="w-4 h-4" />
+                            </div>
+                          }
+                          title={passengerName}
+                          titleClassName="text-sm font-medium text-gray-900 flex items-center gap-2 min-w-0"
+                          meta={[{ text: o.email || o.phoneNumber || '-' }]}
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <AdminBadge size="sm" variant="info">
@@ -359,15 +395,15 @@ const OrderAudit: React.FC = () => {
                     </tr>
                   );
                 })}
-                </tbody>
-              </table>
-              <Pagination
-                currentPage={orderPage}
-                totalPages={orderTotalPages}
-                setPage={setOrderPage}
-                totalItems={orderTotal}
-                itemsPerPage={ITEMS_PER_PAGE}
-              />
+              </tbody>
+            </table>
+            <Pagination
+              currentPage={orderPage}
+              totalPages={orderTotalPages}
+              setPage={setOrderPage}
+              totalItems={orderTotal}
+              itemsPerPage={ITEMS_PER_PAGE}
+            />
           </AdminTableState>
         </div>
       ) : (
@@ -383,33 +419,33 @@ const OrderAudit: React.FC = () => {
             skeletonRows={5}
             skeletonColumns={8}
           >
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50/80">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">申请单号</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">订单号</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">乘客</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">操作类型</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班信息</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">提交时间</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">审核状态</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredAudits.map((a) => (
-                    <tr key={a.id} className="hover:bg-indigo-50/30 transition-colors group">
-                      <td className="px-6 py-4 font-mono text-gray-700">{a.id}</td>
-                      <td className="px-6 py-4 font-mono text-gray-600">{a.orderId}</td>
-                      <td className="px-6 py-4">
-                        <EntityCell
-                          leading={
-                            <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                              <User className="w-4 h-4" />
-                            </div>
-                          }
-                          title={a.passenger}
-                          titleClassName="text-sm font-medium text-gray-900 flex items-center gap-2 min-w-0"
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50/80">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">申请单号</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">订单号</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">乘客</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">操作类型</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班信息</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">提交时间</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">审核状态</th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredAudits.map((a) => (
+                  <tr key={a.id} className="hover:bg-indigo-50/30 transition-colors group">
+                    <td className="px-6 py-4 font-mono text-gray-700">{a.id}</td>
+                    <td className="px-6 py-4 font-mono text-gray-600">{a.orderId}</td>
+                    <td className="px-6 py-4">
+                      <EntityCell
+                        leading={
+                          <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                            <User className="w-4 h-4" />
+                          </div>
+                        }
+                        title={a.passenger}
+                        titleClassName="text-sm font-medium text-gray-900 flex items-center gap-2 min-w-0"
                       />
                     </td>
                     <td className="px-6 py-4">

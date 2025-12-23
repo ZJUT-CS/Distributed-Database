@@ -19,6 +19,7 @@ import {
   ORDER_STATUS_MAP,
 } from '@/features/admin';
 import EntityCell from '@/components/common/EntityCell';
+import { exportToCSV } from '@/utils/export';
 
 const BookingsMgmt: React.FC = () => {
   const { confirm } = useConfirm();
@@ -144,6 +145,31 @@ const BookingsMgmt: React.FC = () => {
     setActiveActionId(null);
   };
 
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      const res = await listAdminOrders({ page: 1, size: 1000, orderNo: filters.orderNo, orderStatus: filters.orderStatus });
+      const data = res.data ?? [];
+      if (!data.length) {
+        toast.warning('暂无数据可导出');
+        return;
+      }
+      exportToCSV(data, '订单列表', [
+        { key: 'orderNo', label: '订单号' },
+        { key: 'userId', label: '用户ID' },
+        { key: 'passengerName', label: '乘客姓名', formatter: (item) => item.passengerName || '' },
+        { key: 'flightNo', label: '航班号', formatter: (item) => item.flightNo || '' },
+        { key: 'totalAmount', label: '订单金额', formatter: (item) => String(item.totalAmount || 0) },
+        { key: 'orderStatus', label: '状态', formatter: (item) => ORDER_STATUS_MAP[item.orderStatus ?? -1]?.label || '' },
+        { key: 'orderTime', label: '下单时间', formatter: (item) => item.orderTime?.replace('T', ' ').slice(0, 19) || '' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
@@ -154,7 +180,7 @@ const BookingsMgmt: React.FC = () => {
         description="查看与管理所有航班预订订单"
         actions={
           <button
-            onClick={() => toast.info('数据导出功能开发中...')}
+            onClick={handleExport}
             className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2"
           >
             <Download className="w-4 h-4" /> 导出数据
@@ -199,9 +225,8 @@ const BookingsMgmt: React.FC = () => {
                   onClick={() => {
                     setStatusFilter(status.id);
                   }}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${
-                    statusFilter === status.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${statusFilter === status.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
                 >
                   {status.label}
                 </button>
@@ -223,90 +248,90 @@ const BookingsMgmt: React.FC = () => {
           skeletonRows={5}
           skeletonColumns={5}
         >
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50/80">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">订单号</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">客户</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">金额</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50/80">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">订单号</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">客户</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">金额</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {items.map((b) => {
+                const st = getStatusInfo(b.orderStatus);
+                const route = b.origin && b.destination ? `${b.origin} → ${b.destination}` : '-';
+                const customerName = b.passengerName || (b.userId != null ? `用户#${b.userId}` : '-');
+                return (
+                  <tr key={String(b.orderNo)} className="hover:bg-indigo-50/30 transition-colors group">
+                    <td className="px-6 py-4">
+                      <EntityCell
+                        leading={
+                          <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <ShoppingCart className="w-5 h-5" />
+                          </div>
+                        }
+                        title={String(b.orderNo)}
+                        titleClassName="font-mono text-gray-800 flex items-center gap-2 min-w-0"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-gray-900">{customerName}</div>
+                      <div className="text-xs text-gray-400">
+                        <SensitiveField
+                          value={b.email}
+                          type="email"
+                          onRevealAudit={createRevealAudit('email', String(b.orderNo))}
+                          onCopyAudit={createCopyAudit('email', String(b.orderNo))}
+                        />
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <AdminBadge size="sm" variant="info">
+                          {b.flightNo || '-'}
+                        </AdminBadge>
+                        <span className="text-xs text-gray-400">{route}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 font-bold text-gray-900">¥{Number(b.totalAmount || 0).toLocaleString()}</td>
+                    <td className="px-6 py-4">
+                      <AdminBadge dot variant={st.variant}>
+                        {st.label}
+                      </AdminBadge>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <TableActionMenu
+                        isOpen={activeActionId === String(b.orderNo)}
+                        onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === String(b.orderNo) ? null : String(b.orderNo)); }}
+                        onClose={() => setActiveActionId(null)}
+                      >
+                        <button
+                          onClick={() => handleViewDetail(b)}
+                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-indigo-500" /> 查看详情
+                        </button>
+                        <button className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                          <Download className="w-3.5 h-3.5 text-gray-500" /> 下载票据
+                        </button>
+                        <div className="h-px bg-gray-100 my-0"></div>
+                        <button
+                          onClick={() => handleCancel(b.orderNo)}
+                          disabled={b.orderStatus !== ORDER_STATUS.PENDING_AUDIT && b.orderStatus !== ORDER_STATUS.PENDING_PAYMENT}
+                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-40"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> 取消订单
+                        </button>
+                      </TableActionMenu>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {items.map((b) => {
-                    const st = getStatusInfo(b.orderStatus);
-                    const route = b.origin && b.destination ? `${b.origin} → ${b.destination}` : '-';
-                    const customerName = b.passengerName || (b.userId != null ? `用户#${b.userId}` : '-');
-                    return (
-                      <tr key={String(b.orderNo)} className="hover:bg-indigo-50/30 transition-colors group">
-                        <td className="px-6 py-4">
-                          <EntityCell
-                            leading={
-                              <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                <ShoppingCart className="w-5 h-5" />
-                              </div>
-                            }
-                            title={String(b.orderNo)}
-                            titleClassName="font-mono text-gray-800 flex items-center gap-2 min-w-0"
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{customerName}</div>
-                          <div className="text-xs text-gray-400">
-                            <SensitiveField
-                              value={b.email}
-                              type="email"
-                              onRevealAudit={createRevealAudit('email', String(b.orderNo))}
-                              onCopyAudit={createCopyAudit('email', String(b.orderNo))}
-                            />
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <AdminBadge size="sm" variant="info">
-                              {b.flightNo || '-'}
-                            </AdminBadge>
-                            <span className="text-xs text-gray-400">{route}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 font-bold text-gray-900">¥{Number(b.totalAmount || 0).toLocaleString()}</td>
-                        <td className="px-6 py-4">
-                          <AdminBadge dot variant={st.variant}>
-                            {st.label}
-                          </AdminBadge>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <TableActionMenu
-                            isOpen={activeActionId === String(b.orderNo)}
-                            onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === String(b.orderNo) ? null : String(b.orderNo)); }}
-                            onClose={() => setActiveActionId(null)}
-                          >
-                            <button
-                              onClick={() => handleViewDetail(b)}
-                              className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-indigo-500" /> 查看详情
-                            </button>
-                            <button className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                              <Download className="w-3.5 h-3.5 text-gray-500" /> 下载票据
-                            </button>
-                            <div className="h-px bg-gray-100 my-0"></div>
-                            <button
-                              onClick={() => handleCancel(b.orderNo)}
-                              disabled={b.orderStatus !== ORDER_STATUS.PENDING_AUDIT && b.orderStatus !== ORDER_STATUS.PENDING_PAYMENT}
-                              className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-40"
-                            >
-                              <XCircle className="w-3.5 h-3.5" /> 取消订单
-                            </button>
-                          </TableActionMenu>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                )
+              })}
+            </tbody>
+          </table>
 
           {/* Pagination */}
           <Pagination

@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, Plane as PlaneIcon, Search, RefreshCw, Factory, Users, Layers } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, Plane as PlaneIcon, Search, RefreshCw, Factory, Users, Layers, Download } from 'lucide-react';
 import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, useAdminList, AdminTableState, useConfirm, useToast } from '@/features/admin';
 import { formatApiError } from '@/utils/apiError';
 import { listAircraftModels, createAircraftModel, updateAircraftModel, deleteAircraftModel, type AircraftModelItem } from '@/features/admin/api/aircraftModels';
 import { listCabinConfigs } from '@/features/admin/api/cabinConfigs';
 import EntityCell from '@/components/common/EntityCell';
+import { exportToCSV } from '@/utils/export';
 
 interface ModelFilters {
   keyword: string;
@@ -168,7 +169,7 @@ const AircraftModelsMgmt: React.FC = () => {
     const cabinCount = cabinCounts[item.modelId] || 0;
     const ok = await confirm({
       title: '删除机型',
-      message: cabinCount > 0 
+      message: cabinCount > 0
         ? `该机型关联了 ${cabinCount} 个舱位配置，删除后相关配置也将失效。确定删除「${item.modelName}」吗？`
         : `确定删除机型「${item.modelName}」吗？此操作不可恢复。`,
       confirmText: '删除',
@@ -186,6 +187,25 @@ const AircraftModelsMgmt: React.FC = () => {
     }
   };
 
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      const res = await listAircraftModels({ page: 1, size: 1000, keyword: filters.keyword || undefined });
+      const data = res.data ?? [];
+      if (!data.length) { toast.warning('暂无数据可导出'); return; }
+      exportToCSV(data, '机型列表', [
+        { key: 'modelId', label: '机型ID' },
+        { key: 'modelName', label: '机型名称' },
+        { key: 'manufacturer', label: '制造商', formatter: (i) => i.manufacturer || '' },
+        { key: 'totalPhysicalSeats', label: '座位容量' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <AdminPageHeader
@@ -194,12 +214,17 @@ const AircraftModelsMgmt: React.FC = () => {
         title="机型管理"
         description="管理飞机机型数据，包括机型名称、制造商、座位容量等信息"
         actions={
-          <button
-            onClick={handleOpenCreate}
-            className="px-4 py-2.5 bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-xl font-semibold shadow-lg shadow-sky-500/25 hover:shadow-xl hover:shadow-sky-500/30 transition-all duration-300 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" /> 新增机型
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={handleExport} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+              <Download className="w-4 h-4" /> 导出数据
+            </button>
+            <button
+              onClick={handleOpenCreate}
+              className="px-4 py-2.5 bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-xl font-semibold shadow-lg shadow-sky-500/25 hover:shadow-xl hover:shadow-sky-500/30 transition-all duration-300 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> 新增机型
+            </button>
+          </div>
         }
       />
 
@@ -334,35 +359,35 @@ const AircraftModelsMgmt: React.FC = () => {
         <form onSubmit={handleSave} className="p-6 space-y-5">
           <div className="space-y-2">
             <label className="text-xs font-semibold text-gray-600">机型名称 *</label>
-            <input 
-              name="modelName" 
-              defaultValue={editingItem?.modelName} 
-              required 
-              placeholder="如: Boeing 737-800" 
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+            <input
+              name="modelName"
+              defaultValue={editingItem?.modelName}
+              required
+              placeholder="如: Boeing 737-800"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all"
             />
           </div>
 
           <div className="space-y-2">
             <label className="text-xs font-semibold text-gray-600">制造商</label>
-            <input 
-              name="manufacturer" 
-              defaultValue={editingItem?.manufacturer ?? ''} 
-              placeholder="如: Boeing / Airbus" 
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+            <input
+              name="manufacturer"
+              defaultValue={editingItem?.manufacturer ?? ''}
+              placeholder="如: Boeing / Airbus"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all"
             />
           </div>
 
           <div className="space-y-2">
             <label className="text-xs font-semibold text-gray-600">座位容量 *</label>
-            <input 
-              type="number" 
-              name="totalPhysicalSeats" 
-              defaultValue={editingItem?.totalPhysicalSeats ?? ''} 
-              required 
-              min={1} 
-              placeholder="如: 189" 
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+            <input
+              type="number"
+              name="totalPhysicalSeats"
+              defaultValue={editingItem?.totalPhysicalSeats ?? ''}
+              required
+              min={1}
+              placeholder="如: 189"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all"
             />
             <p className="text-xs text-gray-500">该机型的物理座位总数上限</p>
           </div>

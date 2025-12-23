@@ -19,6 +19,7 @@ import {
   GENDER_OPTIONS,
 } from '@/features/admin';
 import EntityCell from '@/components/common/EntityCell';
+import { exportToCSV } from '@/utils/export';
 
 const maskPhone = (v?: string | number | null) => {
   const s = String(v ?? '').trim();
@@ -234,6 +235,31 @@ const UsersMgmt: React.FC = () => {
     }
   };
 
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      const res = await listAdminUsers({ page: 1, size: 1000, keyword: normalizedSearch || undefined });
+      const data = res.data ?? [];
+      if (!data.length) {
+        toast.warning('暂无数据可导出');
+        return;
+      }
+      exportToCSV(data, '用户列表', [
+        { key: 'userId', label: '用户ID' },
+        { key: 'phoneNumber', label: '手机号', formatter: (item) => maskPhone(item.phoneNumber) },
+        { key: 'realName', label: '姓名', formatter: (item) => item.realName || '' },
+        { key: 'email', label: '邮箱', formatter: (item) => item.email || '' },
+        { key: 'gender', label: '性别', formatter: (item) => item.gender != null && item.gender in GENDER_MAP ? GENDER_MAP[item.gender as keyof typeof GENDER_MAP] : '' },
+        { key: 'userStatus', label: '状态', formatter: (item) => item.userStatus === 1 ? '正常' : item.userStatus === 2 ? '锁定' : item.userStatus === 3 ? '注销' : '异常' },
+        { key: 'createTime', label: '创建时间', formatter: (item) => item.createTime ? String(item.createTime).replace('T', ' ').slice(0, 19) : '' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
@@ -244,7 +270,7 @@ const UsersMgmt: React.FC = () => {
         description="管理系统用户、角色与权限"
         actions={
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+            <button onClick={handleExport} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
               <Download className="w-4 h-4" /> 导出数据
             </button>
             <button
@@ -304,107 +330,107 @@ const UsersMgmt: React.FC = () => {
           skeletonRows={5}
           skeletonColumns={5}
         >
-            <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50/80">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">用户</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">角色</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">创建时间</th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {items.map((u) => (
-                  <tr key={String(u.userId)} className="hover:bg-indigo-50/30 transition-colors group">
-                    <td className="px-6 py-4">
-                      <EntityCell
-                        leading={
-                          <div className="w-10 h-10 rounded-full bg-indigo-600/10 text-indigo-700 flex items-center justify-center border-2 border-white shadow-sm font-bold">
-                            {(u.realName || u.phoneNumber || 'U').slice(0, 1).toUpperCase()}
-                          </div>
-                        }
-                        title={u.realName || maskPhone(u.phoneNumber) || '-'}
-                        subtitle={u.userId != null ? `UID:${String(u.userId)}` : undefined}
-                        meta={[
-                          { icon: Phone, text: maskPhone(u.phoneNumber) },
-                          { icon: Mail, text: u.email || '-' },
-                          { icon: CreditCard, text: u.idCardPresent ? (u.idCardMasked || '已实名') : '未实名' },
-                        ]}
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <AdminBadge icon={Shield} variant="info">
-                        USER
-                      </AdminBadge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <AdminBadge dot variant={u.userStatus === 1 ? 'success' : 'danger'}>
-                        {u.userStatus === 1 ? '正常' : u.userStatus === 2 ? '锁定' : u.userStatus === 3 ? '注销' : '异常'}
-                      </AdminBadge>
-                    </td>
-                    <td className="px-6 py-4 text-xs text-gray-500">
-                      {u.createTime ? String(u.createTime).replace('T', ' ').slice(0, 16) : '-'}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <TableActionMenu
-                        isOpen={activeActionId === String(u.userId)}
-                        onToggle={(e) => {
-                          e.stopPropagation();
-                          setActiveActionId(activeActionId === String(u.userId) ? null : String(u.userId));
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50/80">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">用户</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">角色</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">创建时间</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {items.map((u) => (
+                <tr key={String(u.userId)} className="hover:bg-indigo-50/30 transition-colors group">
+                  <td className="px-6 py-4">
+                    <EntityCell
+                      leading={
+                        <div className="w-10 h-10 rounded-full bg-indigo-600/10 text-indigo-700 flex items-center justify-center border-2 border-white shadow-sm font-bold">
+                          {(u.realName || u.phoneNumber || 'U').slice(0, 1).toUpperCase()}
+                        </div>
+                      }
+                      title={u.realName || maskPhone(u.phoneNumber) || '-'}
+                      subtitle={u.userId != null ? `UID:${String(u.userId)}` : undefined}
+                      meta={[
+                        { icon: Phone, text: maskPhone(u.phoneNumber) },
+                        { icon: Mail, text: u.email || '-' },
+                        { icon: CreditCard, text: u.idCardPresent ? (u.idCardMasked || '已实名') : '未实名' },
+                      ]}
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    <AdminBadge icon={Shield} variant="info">
+                      USER
+                    </AdminBadge>
+                  </td>
+                  <td className="px-6 py-4">
+                    <AdminBadge dot variant={u.userStatus === 1 ? 'success' : 'danger'}>
+                      {u.userStatus === 1 ? '正常' : u.userStatus === 2 ? '锁定' : u.userStatus === 3 ? '注销' : '异常'}
+                    </AdminBadge>
+                  </td>
+                  <td className="px-6 py-4 text-xs text-gray-500">
+                    {u.createTime ? String(u.createTime).replace('T', ' ').slice(0, 16) : '-'}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <TableActionMenu
+                      isOpen={activeActionId === String(u.userId)}
+                      onToggle={(e) => {
+                        e.stopPropagation();
+                        setActiveActionId(activeActionId === String(u.userId) ? null : String(u.userId));
+                      }}
+                      onClose={() => setActiveActionId(null)}
+                    >
+                      <button
+                        onClick={() => {
+                          setSelectedUser(u);
+                          setDetailDrawerOpen(true);
+                          setActiveActionId(null);
                         }}
-                        onClose={() => setActiveActionId(null)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                       >
+                        <Eye className="w-3.5 h-3.5 text-blue-500" /> 查看详情
+                      </button>
+                      <button
+                        onClick={() => openEdit(u)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-indigo-500" /> 编辑信息
+                      </button>
+                      <button
+                        onClick={() => openResetPwdModal(u)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <Lock className="w-3.5 h-3.5 text-orange-500" /> 重置密码
+                      </button>
+                      {u.userStatus === 1 ? (
                         <button
-                          onClick={() => {
-                            setSelectedUser(u);
-                            setDetailDrawerOpen(true);
-                            setActiveActionId(null);
-                          }}
+                          onClick={() => handleDisable(u)}
                           className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                         >
-                          <Eye className="w-3.5 h-3.5 text-blue-500" /> 查看详情
+                          <Ban className="w-3.5 h-3.5 text-gray-500" /> 禁用账号
                         </button>
+                      ) : (
                         <button
-                          onClick={() => openEdit(u)}
+                          onClick={() => handleEnable(u)}
                           className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                         >
-                          <Edit className="w-3.5 h-3.5 text-indigo-500" /> 编辑信息
+                          <Shield className="w-3.5 h-3.5 text-emerald-500" /> 启用账号
                         </button>
-                        <button
-                          onClick={() => openResetPwdModal(u)}
-                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <Lock className="w-3.5 h-3.5 text-orange-500" /> 重置密码
-                        </button>
-                        {u.userStatus === 1 ? (
-                          <button
-                            onClick={() => handleDisable(u)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <Ban className="w-3.5 h-3.5 text-gray-500" /> 禁用账号
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleEnable(u)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <Shield className="w-3.5 h-3.5 text-emerald-500" /> 启用账号
-                          </button>
-                        )}
-                        <div className="h-px bg-gray-100 my-0"></div>
-                        <button
-                          onClick={() => handleDelete(u)}
-                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> 删除用户
-                        </button>
-                      </TableActionMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      )}
+                      <div className="h-px bg-gray-100 my-0"></div>
+                      <button
+                        onClick={() => handleDelete(u)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> 删除用户
+                      </button>
+                    </TableActionMenu>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
           <Pagination
             currentPage={page}

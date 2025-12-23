@@ -5,6 +5,7 @@ import { createAdmin, deleteAdmin, resetAdminPassword, listAdminsPage, type Admi
 import EntityCell from '@/components/common/EntityCell';
 import { formatApiError } from '@/utils/apiError';
 import { formatDateTimeZhCN } from '@/utils/formatters';
+import { exportToCSV } from '@/utils/export';
 
 // 角色常量
 const ADMIN_ROLE = {
@@ -139,6 +140,29 @@ const AdminsMgmt: React.FC = () => {
     }
   };
 
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      const res = await listAdminsPage({ page: 1, size: 1000, keyword: String(filters.keyword ?? '').trim() || undefined });
+      const data = res.data ?? [];
+      if (!data.length) {
+        toast.warning('暂无数据可导出');
+        return;
+      }
+      exportToCSV(data, '管理员列表', [
+        { key: 'adminId', label: '管理员ID' },
+        { key: 'adminAccount', label: '账号' },
+        { key: 'role', label: '角色', formatter: (item) => ADMIN_ROLE_MAP[Number(item.role)]?.label || `角色${item.role}` },
+        { key: 'createTime', label: '创建时间', formatter: (item) => formatDateTimeZhCN(item.createTime) || '' },
+        { key: 'lastLoginTime', label: '最后登录', formatter: (item) => formatDateTimeZhCN(item.lastLoginTime) || '' },
+      ]);
+      toast.success('导出成功');
+    } catch (err) {
+      toast.error(formatApiError(err));
+    }
+  };
+
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -149,7 +173,7 @@ const AdminsMgmt: React.FC = () => {
         description="维护后台管理员账号与角色权限"
         actions={
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+            <button onClick={handleExport} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
               <Download className="w-4 h-4" /> 导出数据
             </button>
             <button
