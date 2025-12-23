@@ -25,6 +25,7 @@ public class Orders {
     private Long seatId;
     
     private LocalDateTime orderTime;
+    private LocalDateTime auditTime;
     private LocalDateTime payTime;
     private LocalDateTime refundTime;
     private LocalDateTime changeTime;

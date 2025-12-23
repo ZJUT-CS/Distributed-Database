@@ -10,3 +10,9 @@ VALUES (300, 10, 'ECONOMY', 1.0, 1, 5, '1pc', '1pc', 'basic', 1, 'ABCDEF');
 INSERT INTO users (user_id, phone_number, password_hash, real_name, email, avatar_url, id_card, gender, user_status, create_time)
 VALUES (5000, '13800000000', 'hash', 'Test User', 'test@example.com', NULL, NULL, 1, 1, CURRENT_TIMESTAMP());
 
+INSERT INTO seat (seat_id, flight_id, seat_number, cabin_type, status, update_time, version, order_id, passenger_index) VALUES
+  (90001, 2000, '1A', 'ECONOMY', 1, CURRENT_TIMESTAMP(), 0, NULL, 0),
+  (90002, 2000, '1B', 'ECONOMY', 1, CURRENT_TIMESTAMP(), 0, NULL, 0),
+  (90003, 2000, '1C', 'ECONOMY', 1, CURRENT_TIMESTAMP(), 0, NULL, 0),
+  (90004, 2000, '1D', 'ECONOMY', 1, CURRENT_TIMESTAMP(), 0, NULL, 0),
+  (90005, 2000, '1E', 'ECONOMY', 1, CURRENT_TIMESTAMP(), 0, NULL, 0);

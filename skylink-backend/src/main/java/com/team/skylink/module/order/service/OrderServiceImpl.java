@@ -166,12 +166,12 @@ public class OrderServiceImpl implements OrderService {
             BigDecimal unitPrice = route.getBasePrice().multiply(config.getCabinCoefficient());
             
             for (int pIdx = 0; pIdx < ticketCount; pIdx++) {
-                Long seatId = seatService.lockRandomSeat(f.getFlightId(), config.getConfigId());
+                Long oid = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
+                Long seatId = seatService.lockRandomSeat(f.getFlightId(), config.getConfigId(), oid);
                 BigDecimal totalAmount = unitPrice.multiply(BigDecimal.ONE);
                 totalAmountAll = totalAmountAll.add(totalAmount);
 
                 Orders o = new Orders();
-                Long oid = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
                 o.setOrderId(oid);
                 o.setUserId(req.getUserId());
                 o.setFlightId(f.getFlightId());
@@ -272,15 +272,32 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("订单状态非待审核，操作失败");
         }
 
+        LocalDateTime now = LocalDateTime.now();
         int newStatus = pass ? 1 : 3;
 
         if (order.getParentOrderId() != null) {
+            if (!pass) {
+                List<Orders> siblings = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
+                        .eq(Orders::getParentOrderId, order.getParentOrderId()));
+                for (Orders sib : siblings) {
+                    releaseSeatsForOrder(sib);
+                }
+            }
             LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(Orders::getParentOrderId, order.getParentOrderId())
                          .set(Orders::getOrderStatus, newStatus);
+            if (pass) {
+                updateWrapper.set(Orders::getAuditTime, now);
+            }
             orderMapper.update(null, updateWrapper);
         } else {
+            if (!pass) {
+                releaseSeatsForOrder(order);
+            }
             order.setOrderStatus(newStatus);
+            if (pass) {
+                order.setAuditTime(now);
+            }
             orderMapper.updateById(order);
         }
         
@@ -320,5 +337,14 @@ public class OrderServiceImpl implements OrderService {
             resp.add(r);
         }
         return Result.ok(resp);
+    }
+
+    private void releaseSeatsForOrder(Orders o) {
+        if (o == null) return;
+        if (o.getSeatId() != null) {
+            seatService.releaseSeat(o.getSeatId());
+        } else if (o.getOrderId() != null) {
+            seatService.releaseSeats(o.getOrderId());
+        }
     }
 }

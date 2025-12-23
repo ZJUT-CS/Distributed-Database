@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS seat;
 DROP TABLE IF EXISTS flights;
 DROP TABLE IF EXISTS routes;
 DROP TABLE IF EXISTS aircraft_cabin_configs;
@@ -64,6 +65,18 @@ CREATE TABLE users (
   create_time TIMESTAMP
 );
 
+CREATE TABLE seat (
+  seat_id BIGINT PRIMARY KEY,
+  flight_id BIGINT,
+  seat_number VARCHAR(16),
+  cabin_type VARCHAR(32),
+  status INT,
+  update_time TIMESTAMP,
+  version INT,
+  order_id BIGINT,
+  passenger_index INT
+);
+
 CREATE TABLE orders (
   order_id BIGINT PRIMARY KEY,
   user_id BIGINT,
@@ -76,7 +89,9 @@ CREATE TABLE orders (
   contact_email VARCHAR(128),
   contact_phone VARCHAR(32),
   passengers_json CLOB,
+  seat_id BIGINT,
   order_time TIMESTAMP,
+  audit_time TIMESTAMP,
   pay_time TIMESTAMP,
   refund_time TIMESTAMP,
   change_time TIMESTAMP,

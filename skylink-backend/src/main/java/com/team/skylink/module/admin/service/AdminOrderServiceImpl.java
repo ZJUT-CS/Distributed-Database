@@ -9,6 +9,7 @@ import com.team.skylink.common.enums.OrderStatusEnum;
 import com.team.skylink.module.admin.controller.AdminOrderController;
 import com.team.skylink.module.admin.service.AdminOrderService;
 import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper; // 替换
+import com.team.skylink.module.flight.service.SeatService;
 import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.mapper.FlightMapper;
 import com.team.skylink.module.order.entity.Orders;
@@ -19,6 +20,7 @@ import com.team.skylink.module.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,15 +32,18 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     private final UserMapper userMapper;
     private final AircraftCabinConfigMapper configMapper; // 替换
     private final OrderService orderService;
+    private final SeatService seatService;
 
     public AdminOrderServiceImpl(OrderMapper orderMapper, FlightMapper flightMapper, 
                                  UserMapper userMapper, AircraftCabinConfigMapper configMapper,
-                                 OrderService orderService) {
+                                 OrderService orderService,
+                                 SeatService seatService) {
         this.orderMapper = orderMapper;
         this.flightMapper = flightMapper;
         this.userMapper = userMapper;
         this.configMapper = configMapper;
         this.orderService = orderService;
+        this.seatService = seatService;
     }
 
     @Override
@@ -122,8 +127,37 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         Orders o = orderMapper.selectById(orderId);
         if (o == null) return Result.fail(404, "order not found");
         
-        // 动态库存逻辑：状态变为 3(拒绝), 5(退款), 6(取消) 时，库存自动释放
-        o.setOrderStatus(orderStatus);
+        Integer target = orderStatus;
+
+        if (o.getParentOrderId() != null) {
+            if (target != null && (target == OrderStatusEnum.REJECTED.getCode()
+                    || target == OrderStatusEnum.REFUNDED.getCode()
+                    || target == OrderStatusEnum.CANCELLED.getCode())) {
+                List<Orders> siblings = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
+                        .eq(Orders::getParentOrderId, o.getParentOrderId()));
+                for (Orders sib : siblings) {
+                    releaseSeatsForOrder(sib);
+                }
+            }
+
+            var update = Wrappers.<Orders>lambdaUpdate().eq(Orders::getParentOrderId, o.getParentOrderId())
+                    .set(Orders::getOrderStatus, target);
+            if (target != null && target == OrderStatusEnum.PENDING_PAYMENT.getCode()) {
+                update.set(Orders::getAuditTime, LocalDateTime.now());
+            }
+            return Result.ok(orderMapper.update(null, update) > 0);
+        }
+
+        if (target != null && (target == OrderStatusEnum.REJECTED.getCode()
+                || target == OrderStatusEnum.REFUNDED.getCode()
+                || target == OrderStatusEnum.CANCELLED.getCode())) {
+            releaseSeatsForOrder(o);
+        }
+
+        o.setOrderStatus(target);
+        if (target != null && target == OrderStatusEnum.PENDING_PAYMENT.getCode() && o.getAuditTime() == null) {
+            o.setAuditTime(LocalDateTime.now());
+        }
         return Result.ok(orderMapper.updateById(o) > 0);
     }
 
@@ -138,7 +172,19 @@ public class AdminOrderServiceImpl implements AdminOrderService {
              return Result.fail(409, "当前状态不可取消");
         }
 
-        o.setOrderStatus(6); // 设置为已取消
+        if (o.getParentOrderId() != null) {
+            List<Orders> siblings = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
+                    .eq(Orders::getParentOrderId, o.getParentOrderId()));
+            for (Orders sib : siblings) {
+                releaseSeatsForOrder(sib);
+            }
+            return Result.ok(orderMapper.update(null, Wrappers.<Orders>lambdaUpdate()
+                    .eq(Orders::getParentOrderId, o.getParentOrderId())
+                    .set(Orders::getOrderStatus, OrderStatusEnum.CANCELLED.getCode())) > 0);
+        }
+
+        releaseSeatsForOrder(o);
+        o.setOrderStatus(OrderStatusEnum.CANCELLED.getCode());
         return Result.ok(orderMapper.updateById(o) > 0);
     }
 
@@ -150,5 +196,14 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         if (s == 0 || s == 1 || s == 2) return Result.fail(409, "活跃订单不可删除");
         
         return Result.ok(orderMapper.deleteById(orderId) > 0);
+    }
+
+    private void releaseSeatsForOrder(Orders o) {
+        if (o == null) return;
+        if (o.getSeatId() != null) {
+            seatService.releaseSeat(o.getSeatId());
+        } else if (o.getOrderId() != null) {
+            seatService.releaseSeats(o.getOrderId());
+        }
     }
 }

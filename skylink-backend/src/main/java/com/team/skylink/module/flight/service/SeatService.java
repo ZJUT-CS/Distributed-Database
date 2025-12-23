@@ -59,9 +59,10 @@ public interface SeatService extends IService<Seat> {
      * Mode B：随机锁定一个座位（悲观锁）
      * @param flightId 航班ID
      * @param cabinId 舱位配置ID
+     * @param orderId 订单ID
      * @return 锁定的座位ID
      */
-    Long lockRandomSeat(Long flightId, Long cabinId);
+    Long lockRandomSeat(Long flightId, Long cabinId, Long orderId);
 
     /**
      * Mode B：释放单个座位

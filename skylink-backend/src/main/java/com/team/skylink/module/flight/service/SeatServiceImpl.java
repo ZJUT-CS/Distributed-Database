@@ -84,22 +84,31 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long lockRandomSeat(Long flightId, Long cabinId) {
+    public Long lockRandomSeat(Long flightId, Long cabinId, Long orderId) {
         AircraftCabinConfig cfg = configMapper.selectById(cabinId);
         if (cfg == null) {
             throw new IllegalArgumentException("invalid cabinId");
         }
-        Seat seat = baseMapper.selectOne(Wrappers.<Seat>lambdaQuery()
-                .eq(Seat::getFlightId, flightId)
-                .eq(Seat::getCabinType, cfg.getCabinType())
-                .eq(Seat::getStatus, 1)
-                .last("ORDER BY RAND() LIMIT 1 FOR UPDATE"));
-        if (seat == null) {
-            throw new InventoryShortageException("no available seat");
+        int retry = 0;
+        while (retry < 10) {
+            Seat seat = baseMapper.selectOne(Wrappers.<Seat>lambdaQuery()
+                    .eq(Seat::getFlightId, flightId)
+                    .eq(Seat::getCabinType, cfg.getCabinType())
+                    .eq(Seat::getStatus, 1)
+                    .last("ORDER BY RAND() LIMIT 1 FOR UPDATE"));
+            if (seat == null) {
+                throw new InventoryShortageException("no available seat");
+            }
+            seat.setStatus(3);
+            seat.setOrderId(orderId);
+            seat.setPassengerIndex(0);
+            int rows = baseMapper.updateById(seat);
+            if (rows > 0) {
+                return seat.getSeatId();
+            }
+            retry++;
         }
-        seat.setStatus(3);
-        baseMapper.updateById(seat);
-        return seat.getSeatId();
+        throw new InventoryShortageException("系统繁忙，锁定座位失败，请重试");
     }
 
     /**
