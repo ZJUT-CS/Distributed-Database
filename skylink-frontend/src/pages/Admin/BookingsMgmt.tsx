@@ -195,7 +195,6 @@ const BookingsMgmt: React.FC = () => {
           skeletonRows={5}
           skeletonColumns={5}
         >
-            <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50/80">
                   <tr>
@@ -280,7 +279,6 @@ const BookingsMgmt: React.FC = () => {
                   })}
                 </tbody>
               </table>
-            </div>
 
           {/* Pagination */}
           <Pagination

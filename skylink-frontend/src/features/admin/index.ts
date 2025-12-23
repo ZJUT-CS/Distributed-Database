@@ -37,3 +37,5 @@ export * from './api/routes';
 export * from './api/aircraftModels';
 export * from './api/cabinConfigs';
 export * from './api/refundChangeRequests';
+export * from './api/payments';
+export * from './api/admins';

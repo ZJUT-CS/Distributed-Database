@@ -3,16 +3,15 @@ package com.team.skylink.module.admin.controller;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.admin.entity.Admin;
 import com.team.skylink.module.admin.service.AdminManagementService;
+import com.team.skylink.module.system.entity.SystemLog;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.Data;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admins")
@@ -28,7 +27,14 @@ public class AdminController {
         return adminManagementService.login(request.getAdminAccount(), request.getPassword());
     }
 
-    // ▼▼▼▼▼▼ 新增：创建管理员的接口 ▼▼▼▼▼▼
+    // ▼▼▼▼▼▼ 管理员列表 ▼▼▼▼▼▼
+    @GetMapping("")
+    @Operation(summary = "获取管理员列表")
+    public Result<List<Admin>> listAdmins(@RequestParam(required = false) String keyword) {
+        return adminManagementService.listAdmins(keyword);
+    }
+
+    // ▼▼▼▼▼▼ 创建管理员 ▼▼▼▼▼▼
     @PostMapping("")
     @Operation(summary = "创建管理员（仅超级管理员）")
     @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
@@ -43,7 +49,24 @@ public class AdminController {
             body.getRole()
         );
     }
-    // ▲▲▲▲▲▲ 新增结束 ▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼ 删除管理员 ▼▼▼▼▼▼
+    @DeleteMapping("/{adminId}")
+    @Operation(summary = "删除管理员（仅超级管理员）")
+    public Result<Void> deleteAdmin(HttpServletRequest request, @PathVariable Long adminId) {
+        Result<?> guard = ensureSuperAdmin(request);
+        if (guard != null) return (Result<Void>) guard;
+        return adminManagementService.deleteAdmin(adminId);
+    }
+
+    // ▼▼▼▼▼▼ 重置密码 ▼▼▼▼▼▼
+    @PostMapping("/{adminId}/reset-password")
+    @Operation(summary = "重置管理员密码（仅超级管理员）")
+    public Result<Void> resetPassword(HttpServletRequest request, @PathVariable Long adminId, @RequestBody ResetPasswordRequest body) {
+        Result<?> guard = ensureSuperAdmin(request);
+        if (guard != null) return (Result<Void>) guard;
+        return adminManagementService.resetAdminPassword(adminId, body.getNewPassword());
+    }
 
     @GetMapping("/count")
     public Result<Long> adminCount() {
@@ -59,12 +82,29 @@ public class AdminController {
     @GetMapping("/refund-change-requests/count")
     public Result<Long> changeRequestCount() { return adminManagementService.changeRequestCount(); }
 
-    // 定义接收参数的内部类 (DTO)
+    // ▼▼▼▼▼▼ 系统日志列表 ▼▼▼▼▼▼
+    @GetMapping("/system-logs")
+    @Operation(summary = "获取系统操作日志列表")
+    public Result<List<SystemLog>> listSystemLogs(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String module,
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @RequestParam(required = false, defaultValue = "20") Integer size
+    ) {
+        return adminManagementService.listSystemLogs(keyword, module, page, size);
+    }
+
+    // DTO 定义
     @Data
     public static class AdminCreateRequest {
         private String adminAccount;
         private String password;
-        private Integer role; // 新增 role 字段，允许前端指定 (不传则是 null)
+        private Integer role;
+    }
+
+    @Data
+    public static class ResetPasswordRequest {
+        private String newPassword;
     }
 
     private static Result<?> ensureSuperAdmin(HttpServletRequest request) {

@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Save, MapPin, Plane as PlaneIcon, Download, Search, RefreshCw } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, useAdminList, AdminTableState } from '@/features/admin';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Save, MapPin, Plane as PlaneIcon, Download, Search, RefreshCw, Clock, Route } from 'lucide-react';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, useAdminList, AdminTableState, useConfirm, useToast } from '@/features/admin';
 import { formatApiError } from '@/utils/apiError';
 import { listRoutes, createRoute, updateRoute, deleteRoute, type RouteItem } from '@/features/admin/api/routes';
 import EntityCell from '@/components/common/EntityCell';
@@ -12,8 +12,9 @@ interface RouteFilters {
 
 const RoutesMgmt: React.FC = () => {
   const PAGE_SIZE = 10;
+  const { confirm } = useConfirm();
+  const toast = useToast();
 
-  // 使用 useAdminList 统一管理列表状态
   const fetchRoutes = useCallback(
     async (params: { page: number; size: number } & RouteFilters) => {
       const res = await listRoutes({
@@ -44,13 +45,24 @@ const RoutesMgmt: React.FC = () => {
     initialFilters: { keyword: '' },
   });
 
+  const [keywordInput, setKeywordInput] = useState('');
+
+  useEffect(() => {
+    setKeywordInput(filters.keyword);
+  }, [filters.keyword]);
+
+  useEffect(() => {
+    if (keywordInput === filters.keyword) return;
+    const t = window.setTimeout(() => {
+      setFilters({ keyword: keywordInput });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [keywordInput, filters.keyword, setFilters]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RouteItem | null>(null);
   const [activeActionId, setActiveActionId] = useState<number | null>(null);
-
-  const handleSearch = () => {
-    // setFilters 会自动重置到第一页
-  };
+  const [saving, setSaving] = useState(false);
 
   const handleOpenCreate = () => {
     setEditingItem(null);
@@ -65,94 +77,106 @@ const RoutesMgmt: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     const fd = new FormData(e.target as HTMLFormElement);
 
-    const departureCity = String(fd.get('departureCity') ?? '').trim();
-    const departureAirport = String(fd.get('departureAirport') ?? '').trim().toUpperCase();
-    const arrivalCity = String(fd.get('arrivalCity') ?? '').trim();
-    const arrivalAirport = String(fd.get('arrivalAirport') ?? '').trim().toUpperCase();
-    const basePrice = Number(fd.get('basePrice'));
-    const estimatedDuration = fd.get('estimatedDuration') ? Number(fd.get('estimatedDuration')) : undefined;
-    const distanceKm = fd.get('distanceKm') ? Number(fd.get('distanceKm')) : undefined;
+    const payload = {
+      departureCity: String(fd.get('departureCity') ?? '').trim(),
+      departureAirport: String(fd.get('departureAirport') ?? '').trim().toUpperCase(),
+      arrivalCity: String(fd.get('arrivalCity') ?? '').trim(),
+      arrivalAirport: String(fd.get('arrivalAirport') ?? '').trim().toUpperCase(),
+      basePrice: Number(fd.get('basePrice')),
+      estimatedDuration: fd.get('estimatedDuration') ? Number(fd.get('estimatedDuration')) : undefined,
+      distanceKm: fd.get('distanceKm') ? Number(fd.get('distanceKm')) : undefined,
+    };
 
     try {
       if (editingItem?.routeId) {
-        const ok = await updateRoute(editingItem.routeId, {
-          departureCity,
-          departureAirport,
-          arrivalCity,
-          arrivalAirport,
-          basePrice,
-          estimatedDuration,
-          distanceKm,
-        });
-        if (!ok) throw new Error('保存失败');
+        await updateRoute(editingItem.routeId, payload);
+        toast.success('航线更新成功');
       } else {
-        await createRoute({ departureCity, departureAirport, arrivalCity, arrivalAirport, basePrice, estimatedDuration, distanceKm });
+        await createRoute(payload);
+        toast.success('航线创建成功');
       }
       setIsModalOpen(false);
+      setEditingItem(null);
       refresh();
-    } catch (err: any) {
-      alert(formatApiError(err));
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (routeId: number) => {
-    if (!confirm('确定删除该航线吗？')) return;
+  const handleDelete = async (item: RouteItem) => {
+    const ok = await confirm({
+      title: '删除航线',
+      message: `确定删除航线「${item.departureCity} → ${item.arrivalCity}」吗？此操作不可恢复。`,
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    
     try {
-      await deleteRoute(routeId);
+      await deleteRoute(item.routeId);
+      toast.success('航线已删除');
       refresh();
-    } catch (err: any) {
-      alert(formatApiError(err));
+    } catch (err) {
+      toast.error(formatApiError(err));
     }
+  };
+
+  const formatDuration = (minutes?: number | null) => {
+    if (!minutes) return '-';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      {/* Header */}
       <AdminPageHeader
         icon={MapPin}
-        iconClassName="text-indigo-500"
+        iconClassName="text-emerald-500"
         title="航线管理"
-        description="管理航线基础数据（出发/到达城市、机场三字码、基准票价）"
+        description="管理航线基础数据，包括出发/到达城市、机场代码、基准票价等信息"
         actions={
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
-              <Download className="w-4 h-4" /> 导出数据
+            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm">
+              <Download className="w-4 h-4" /> 导出
             </button>
             <button
               onClick={handleOpenCreate}
-              className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 flex items-center gap-2"
+              className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300 flex items-center gap-2"
             >
-              <Plus className="w-4 h-4" />
-              新增航线
+              <Plus className="w-4 h-4" /> 新增航线
             </button>
           </div>
         }
       />
 
-      {/* Search Bar */}
       <FilterBar
         left={
-          <div className="relative flex-1 md:max-w-md w-full">
+          <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="搜索城市或机场三字码..."
-              value={filters.keyword}
-              onChange={(e) => setFilters({ keyword: e.target.value })}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
+              placeholder="搜索城市名称或机场代码..."
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-white transition-all outline-none text-sm"
             />
           </div>
         }
         right={
           <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">共 {total} 条航线</span>
             <button
               onClick={() => refresh()}
               disabled={loading}
-              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
-              title="刷新"
+              className="p-2.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors disabled:opacity-50"
+              title="刷新数据"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -160,134 +184,158 @@ const RoutesMgmt: React.FC = () => {
         }
       />
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible min-h-[400px] flex flex-col">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible">
         <AdminTableState
           loading={loading}
           error={error}
           isEmpty={routes.length === 0}
           onRetry={retry}
           emptyIcon={MapPin}
-          emptyTitle={filters.keyword ? '未找到匹配结果' : '暂无航线数据'}
-          emptyDescription={filters.keyword ? '请尝试调整搜索关键词' : '点击上方按钮创建第一条航线'}
-          emptyActionText={filters.keyword ? undefined : '新增航线'}
-          onEmptyAction={filters.keyword ? undefined : handleOpenCreate}
+          emptyTitle={filters.keyword ? '未找到匹配航线' : '暂无航线数据'}
+          emptyDescription={filters.keyword ? '尝试调整搜索关键词' : '点击「新增航线」创建第一条航线'}
+          emptyActionText={!filters.keyword ? '新增航线' : undefined}
+          onEmptyAction={!filters.keyword ? handleOpenCreate : undefined}
           skeletonRows={5}
-          skeletonColumns={6}
+          skeletonColumns={5}
         >
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50/80">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航线</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">出发机场</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">到达机场</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">基准票价</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">预计时长</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {routes.map((r) => (
-                    <tr key={r.routeId} className="hover:bg-indigo-50/30 transition-colors">
-                      <td className="px-6 py-4">
-                        <EntityCell
-                          leading={
-                            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
-                              <PlaneIcon className="w-5 h-5" />
-                            </div>
-                          }
-                          title={`${r.departureCity || '-'} → ${r.arrivalCity || '-'}`}
-                          subtitle={`#${r.routeId}`}
-                        />
-                      </td>
-                      <td className="px-6 py-4">
-                        <AdminBadge size="sm" variant="info" className="font-mono">{r.departureAirport || '-'}</AdminBadge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <AdminBadge size="sm" variant="primary" className="font-mono">{r.arrivalAirport || '-'}</AdminBadge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <AdminBadge size="sm" variant="success">¥{Number(r.basePrice).toFixed(0)}</AdminBadge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <AdminBadge size="sm" variant={r.estimatedDuration ? 'warning' : 'info'}>
-                          {r.estimatedDuration ? `${r.estimatedDuration}分钟` : '-'}
-                        </AdminBadge>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <TableActionMenu
-                          isOpen={activeActionId === r.routeId}
-                          onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === r.routeId ? null : r.routeId); }}
-                          onClose={() => setActiveActionId(null)}
-                        >
-                          <button onClick={() => handleOpenEdit(r)} className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                            <Edit2 className="w-3.5 h-3.5 text-indigo-500" /> 编辑
-                          </button>
-                          <button onClick={() => handleDelete(r.routeId)} className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2">
-                            <Trash2 className="w-3.5 h-3.5" /> 删除
-                          </button>
-                        </TableActionMenu>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50/80 border-b border-gray-100">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航线信息</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">距离 / 时长</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">基准票价</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider w-20">操作</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {routes.map((r) => (
+                <tr key={r.routeId} className="hover:bg-emerald-50/30 transition-colors group">
+                  <td className="px-6 py-4">
+                    <EntityCell
+                      leading={
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center text-emerald-600 shadow-sm">
+                          <Route className="w-5 h-5" />
+                        </div>
+                      }
+                      title={
+                        <span className="flex items-center gap-2">
+                          <span className="font-semibold">{r.departureCity || '-'}</span>
+                          <PlaneIcon className="w-4 h-4 text-gray-400" />
+                          <span className="font-semibold">{r.arrivalCity || '-'}</span>
+                        </span>
+                      }
+                      subtitle={
+                        <span className="font-mono text-xs">
+                          {r.departureAirport || '---'} → {r.arrivalAirport || '---'}
+                        </span>
+                      }
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-gray-900">
+                        {r.distanceKm ? `${r.distanceKm.toLocaleString()} km` : '-'}
+                      </span>
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatDuration(r.estimatedDuration)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-lg font-bold text-emerald-600">
+                      ¥{Number(r.basePrice).toLocaleString()}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <AdminBadge variant="success" size="sm">运营中</AdminBadge>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <TableActionMenu
+                      isOpen={activeActionId === r.routeId}
+                      onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === r.routeId ? null : r.routeId); }}
+                      onClose={() => setActiveActionId(null)}
+                    >
+                      <button onClick={() => handleOpenEdit(r)} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors">
+                        <Edit2 className="w-4 h-4 text-emerald-500" /> 编辑航线
+                      </button>
+                      <button onClick={() => handleDelete(r)} className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors">
+                        <Trash2 className="w-4 h-4" /> 删除航线
+                      </button>
+                    </TableActionMenu>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="border-t border-gray-100">
             <Pagination currentPage={page} totalPages={totalPages} setPage={setPage} totalItems={total} itemsPerPage={PAGE_SIZE} />
+          </div>
         </AdminTableState>
       </div>
 
-      {/* Modal */}
       <AdminModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingItem(null);
+        }}
         title={editingItem ? '编辑航线' : '新增航线'}
-        theme="indigo-purple"
+        theme="emerald-teal"
         maxWidth="lg"
       >
-        <form onSubmit={handleSave} className="p-6 space-y-4">
+        <form onSubmit={handleSave} className="p-6 space-y-5">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500">出发城市</label>
-              <input name="departureCity" defaultValue={editingItem?.departureCity} required placeholder="如: 上海" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">出发城市 *</label>
+              <input name="departureCity" defaultValue={editingItem?.departureCity} required placeholder="如: 上海" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500">出发机场 (三字码)</label>
-              <input name="departureAirport" defaultValue={editingItem?.departureAirport} required placeholder="如: SHA" maxLength={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono uppercase focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">机场代码 *</label>
+              <input name="departureAirport" defaultValue={editingItem?.departureAirport} required placeholder="SHA" maxLength={3} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-mono uppercase focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500">到达城市</label>
-              <input name="arrivalCity" defaultValue={editingItem?.arrivalCity} required placeholder="如: 北京" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">到达城市 *</label>
+              <input name="arrivalCity" defaultValue={editingItem?.arrivalCity} required placeholder="如: 北京" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500">到达机场 (三字码)</label>
-              <input name="arrivalAirport" defaultValue={editingItem?.arrivalAirport} required placeholder="如: PEK" maxLength={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono uppercase focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">机场代码 *</label>
+              <input name="arrivalAirport" defaultValue={editingItem?.arrivalAirport} required placeholder="PEK" maxLength={3} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-mono uppercase focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500">基准票价 (¥)</label>
-              <input type="number" name="basePrice" defaultValue={editingItem ? Number(editingItem.basePrice) : ''} required min={1} placeholder="如: 800" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">基准票价 (¥) *</label>
+              <input type="number" name="basePrice" defaultValue={editingItem ? Number(editingItem.basePrice) : ''} required min={1} placeholder="800" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500">预计时长 (分钟)</label>
-              <input type="number" name="estimatedDuration" defaultValue={editingItem?.estimatedDuration ?? ''} min={1} placeholder="如: 120" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">飞行时长 (分钟)</label>
+              <input type="number" name="estimatedDuration" defaultValue={editingItem?.estimatedDuration ?? ''} min={1} placeholder="120" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500">距离 (km)</label>
-              <input type="number" name="distanceKm" defaultValue={editingItem?.distanceKm ?? ''} min={1} placeholder="如: 1200" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-600">航程距离 (km)</label>
+              <input type="number" name="distanceKm" defaultValue={editingItem?.distanceKm ?? ''} min={1} placeholder="1200" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" />
             </div>
           </div>
 
-          <div className="pt-4 flex gap-3">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors">取消</button>
-            <button type="submit" className="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-md shadow-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/40 transition-all flex items-center justify-center gap-2">
-              <Save className="w-4 h-4" /> 保存
+          <div className="pt-4 flex gap-3 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingItem(null);
+              }}
+              className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              取消
+            </button>
+            <button type="submit" disabled={saving} className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+              <Save className="w-4 h-4" /> {saving ? '保存中...' : '保存'}
             </button>
           </div>
         </form>

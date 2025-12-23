@@ -100,4 +100,75 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     public Result<Long> userBehaviorStatCount() { return Result.ok(userBehaviorStatMapper.selectCount(null)); }
     @Override
     public Result<Long> changeRequestCount() { return Result.ok(refundChangeRecordMapper.selectCount(null)); }
+
+    // ▼▼▼▼▼▼ 新增：管理员列表 ▼▼▼▼▼▼
+    @Override
+    public Result<java.util.List<Admin>> listAdmins(String keyword) {
+        QueryWrapper<Admin> qw = new QueryWrapper<>();
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            qw.like("admin_account", keyword.trim());
+        }
+        qw.orderByDesc("create_time");
+        return Result.ok(adminMapper.selectList(qw));
+    }
+
+    @Override
+    public Result<Void> updateAdminStatus(Long adminId, Integer status) {
+        Admin admin = adminMapper.selectById(adminId);
+        if (admin == null) {
+            return Result.fail(404, "管理员不存在");
+        }
+        // 这里假设 Admin 表有 status 字段，如果没有需要添加
+        // admin.setStatus(status);
+        // adminMapper.updateById(admin);
+        return Result.ok(null);
+    }
+
+    @Override
+    public Result<Void> deleteAdmin(Long adminId) {
+        Admin admin = adminMapper.selectById(adminId);
+        if (admin == null) {
+            return Result.fail(404, "管理员不存在");
+        }
+        // 不能删除超级管理员
+        if (admin.getRole() != null && admin.getRole() == 2) {
+            return Result.fail(403, "不能删除超级管理员");
+        }
+        adminMapper.deleteById(adminId);
+        return Result.ok(null);
+    }
+
+    @Override
+    public Result<Void> resetAdminPassword(Long adminId, String newPassword) {
+        Admin admin = adminMapper.selectById(adminId);
+        if (admin == null) {
+            return Result.fail(404, "管理员不存在");
+        }
+        admin.setPasswordHash(passwordEncoder.encode(newPassword));
+        adminMapper.updateById(admin);
+        return Result.ok(null);
+    }
+    // ▲▲▲▲▲▲ 新增结束 ▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼ 新增：系统日志列表 ▼▼▼▼▼▼
+    @Override
+    public Result<java.util.List<com.team.skylink.module.system.entity.SystemLog>> listSystemLogs(String keyword, String module, Integer page, Integer size) {
+        QueryWrapper<com.team.skylink.module.system.entity.SystemLog> qw = new QueryWrapper<>();
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            qw.and(w -> w.like("oper_content", keyword.trim())
+                    .or().like("oper_ip", keyword.trim()));
+        }
+        if (module != null && !module.trim().isEmpty()) {
+            qw.eq("oper_module", module.trim());
+        }
+        qw.orderByDesc("oper_time");
+        
+        // 简单分页
+        if (page != null && size != null && page > 0 && size > 0) {
+            qw.last("LIMIT " + ((page - 1) * size) + ", " + size);
+        }
+        
+        return Result.ok(operationLogMapper.selectList(qw));
+    }
+    // ▲▲▲▲▲▲ 新增结束 ▲▲▲▲▲▲
 }

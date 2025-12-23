@@ -138,19 +138,48 @@ export const PAYMENT_TYPE_OPTIONS = [
 ];
 
 // ==================== 支付状态 ====================
+// 对应后端 Payment.paymentStatus: 0-待支付，1-已支付，2-支付失败，3-退款中，4-已退款
 export const PAYMENT_STATUS = {
-  SUCCESS: 'success',
-  PENDING: 'pending',
-  FAILED: 'failed',
+  PENDING: 0,      // 待支付
+  SUCCESS: 1,      // 已支付
+  FAILED: 2,       // 支付失败
+  REFUNDING: 3,    // 退款中
+  REFUNDED: 4,     // 已退款
 } as const;
 
-export const PAYMENT_STATUS_META: Record<string, StatusMeta> = {
-  [PAYMENT_STATUS.SUCCESS]: { label: '成功', variant: 'success', icon: CheckCircle },
-  [PAYMENT_STATUS.PENDING]: { label: '处理中', variant: 'warning', icon: Clock },
-  [PAYMENT_STATUS.FAILED]: { label: '失败', variant: 'danger', icon: XCircle },
+export const PAYMENT_STATUS_META: Record<number, StatusMeta> = {
+  [PAYMENT_STATUS.PENDING]: { label: '待支付', variant: 'warning', icon: Clock },
+  [PAYMENT_STATUS.SUCCESS]: { label: '已支付', variant: 'success', icon: CheckCircle },
+  [PAYMENT_STATUS.FAILED]: { label: '支付失败', variant: 'danger', icon: XCircle },
+  [PAYMENT_STATUS.REFUNDING]: { label: '退款中', variant: 'info', icon: RefreshCw },
+  [PAYMENT_STATUS.REFUNDED]: { label: '已退款', variant: 'primary', icon: Wallet },
 };
 
 export const PAYMENT_STATUS_MAP = PAYMENT_STATUS_META;
+
+export const PAYMENT_STATUS_OPTIONS = [
+  { value: '', label: '全部状态' },
+  { value: PAYMENT_STATUS.PENDING, label: '待支付' },
+  { value: PAYMENT_STATUS.SUCCESS, label: '已支付' },
+  { value: PAYMENT_STATUS.FAILED, label: '支付失败' },
+  { value: PAYMENT_STATUS.REFUNDING, label: '退款中' },
+  { value: PAYMENT_STATUS.REFUNDED, label: '已退款' },
+];
+
+// ==================== 支付方式 ====================
+export const PAYMENT_METHOD = {
+  WECHAT: 'wechat',
+  ALIPAY: 'alipay',
+  CARD: 'card',
+} as const;
+
+export const PAYMENT_METHOD_META: Record<string, StatusMeta> = {
+  [PAYMENT_METHOD.WECHAT]: { label: '微信支付', variant: 'success', icon: Wallet },
+  [PAYMENT_METHOD.ALIPAY]: { label: '支付宝', variant: 'primary', icon: CreditCard },
+  [PAYMENT_METHOD.CARD]: { label: '银行卡', variant: 'info', icon: CreditCard },
+};
+
+export const PAYMENT_METHOD_MAP = PAYMENT_METHOD_META;
 
 // ==================== 管理员角色 ====================
 export const ADMIN_ROLE = {

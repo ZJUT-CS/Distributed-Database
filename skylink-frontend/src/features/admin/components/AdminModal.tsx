@@ -6,8 +6,8 @@ export type AdminModalProps = {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  /** 渐变色主题：indigo-purple（默认）、blue-indigo、purple-pink */
-  theme?: 'indigo-purple' | 'blue-indigo' | 'purple-pink';
+  /** 渐变色主题 */
+  theme?: 'indigo-purple' | 'blue-indigo' | 'purple-pink' | 'emerald-teal' | 'sky-blue';
   /** 模态框最大宽度 */
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
 };
@@ -16,6 +16,8 @@ const themeGradient: Record<string, string> = {
   'indigo-purple': 'from-indigo-600 to-purple-600',
   'blue-indigo': 'from-blue-600 to-indigo-600',
   'purple-pink': 'from-purple-600 to-pink-600',
+  'emerald-teal': 'from-emerald-600 to-teal-600',
+  'sky-blue': 'from-sky-500 to-blue-500',
 };
 
 const maxWidthCls: Record<string, string> = {
