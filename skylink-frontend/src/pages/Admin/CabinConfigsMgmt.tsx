@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Edit2, Trash2, X, Save, Sliders, Plane as PlaneIcon, Download } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal } from '@/features/admin';
+import { Plus, Edit2, Trash2, Save, Sliders, Plane as PlaneIcon, Download, Search, X } from 'lucide-react';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, AdminTableState, ErrorBanner, useConfirm, useToast } from '@/features/admin';
 import {
   listCabinConfigs,
   createCabinConfig,
@@ -11,12 +11,17 @@ import {
   type CabinConfigItem,
 } from '@/features/admin/api/cabinConfigs';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
+import EntityCell from '@/components/common/EntityCell';
+import { formatApiError } from '@/utils/apiError';
 
 const CabinConfigsMgmt: React.FC = () => {
+  const { confirm } = useConfirm();
+  const toast = useToast();
   const [configs, setConfigs] = useState<CabinConfigItem[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filterModelId, setFilterModelId] = useState<number | ''>('');
   const [filterCabinType, setFilterCabinType] = useState('');
 
@@ -35,6 +40,7 @@ const CabinConfigsMgmt: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await listCabinConfigs({
         page,
@@ -45,7 +51,9 @@ const CabinConfigsMgmt: React.FC = () => {
       setConfigs(res.data ?? []);
       setTotal(res.total ?? 0);
     } catch (err: any) {
-      console.error('加载舱位配置失败', err);
+      setLoadError(formatApiError(err));
+      setConfigs([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -114,19 +122,28 @@ const CabinConfigsMgmt: React.FC = () => {
         });
       }
       setIsModalOpen(false);
+      toast.success(editingItem ? '保存成功' : '创建成功');
       loadData();
     } catch (err: any) {
-      alert(err?.message || '操作失败');
+      toast.error(formatApiError(err));
     }
   };
 
   const handleDelete = async (configId: number) => {
-    if (!confirm('确定删除该舱位配置吗？')) return;
+    const ok = await confirm({
+      title: '删除确认',
+      message: '确定删除该舱位配置吗？',
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await deleteCabinConfig(configId);
+      toast.success('删除成功');
       loadData();
     } catch (err: any) {
-      alert(err?.message || '删除失败');
+      toast.error(formatApiError(err));
     }
   };
 
@@ -160,75 +177,78 @@ const CabinConfigsMgmt: React.FC = () => {
       />
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-3">
-        <div className="relative w-full md:max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="搜索机型名称..."
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={filterModelId}
-            onChange={(e) => setFilterModelId(e.target.value ? Number(e.target.value) : '')}
-            className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-          >
-            <option value="">全部机型</option>
-            {modelOptions.map((m) => (
-              <option key={m.modelId} value={m.modelId}>{m.modelName}</option>
-            ))}
-          </select>
-          <select
-            value={filterCabinType}
-            onChange={(e) => setFilterCabinType(e.target.value)}
-            className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-          >
-            <option value="">全部舱位</option>
-            {CABIN_TYPE_OPTIONS.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </select>
+      <FilterBar
+        left={
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={filterModelId}
+              onChange={(e) => setFilterModelId(e.target.value ? Number(e.target.value) : '')}
+              className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+            >
+              <option value="">全部机型</option>
+              {modelOptions.map((m) => (
+                <option key={m.modelId} value={m.modelId}>{m.modelName}</option>
+              ))}
+            </select>
+            <select
+              value={filterCabinType}
+              onChange={(e) => setFilterCabinType(e.target.value)}
+              className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+            >
+              <option value="">全部舱位</option>
+              {CABIN_TYPE_OPTIONS.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+        }
+        right={
           <button onClick={handleSearch} className="px-4 py-2.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors">
             筛选
           </button>
-        </div>
-      </div>
+        }
+      />
+
+      {loadError && <ErrorBanner message={loadError} onRetry={loadData} />}
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50/80">
-              <tr>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">配置ID</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">机型</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">舱位 & 系数</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">布局 & 座位</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">行李</th>
-                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">座位规则</th>
-                <th className="px-4 py-4 text-right text-xs font-semibold text-gray-500 uppercase">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-12 text-gray-400">加载中...</td>
-                </tr>
-              ) : configs.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-12 text-gray-400">暂无舱位配置数据</td>
-                </tr>
-              ) : (
-                configs.map((c) => (
-                  <tr key={c.configId} className="hover:bg-indigo-50/30 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-700">{c.configId}</td>
-                    <td className="px-4 py-3">
-                      <AdminBadge size="sm" variant="info">
-                        {c.modelName || getModelName(c.modelId)}
-                      </AdminBadge>
-                    </td>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible min-h-[400px] flex flex-col">
+        <AdminTableState
+          loading={loading}
+          error={loadError}
+          isEmpty={configs.length === 0}
+          onRetry={loadData}
+          emptyTitle="暂无舱位配置数据"
+          emptyDescription="点击上方按钮创建第一个舱位配置"
+          skeletonRows={5}
+          skeletonColumns={6}
+        >
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50/80">
+                  <tr>
+                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">配置信息</th>
+                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">舱位 & 系数</th>
+                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">布局 & 座位</th>
+                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">行李</th>
+                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase">座位规则</th>
+                    <th className="px-4 py-4 text-right text-xs font-semibold text-gray-500 uppercase">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {configs.map((c) => (
+                    <tr key={c.configId} className="hover:bg-indigo-50/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <EntityCell
+                          leading={
+                            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
+                              <Sliders className="w-5 h-5" />
+                            </div>
+                          }
+                          title={c.modelName || getModelName(c.modelId)}
+                          subtitle={`#${c.configId}`}
+                        />
+                      </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         <AdminBadge
@@ -281,14 +301,12 @@ const CabinConfigsMgmt: React.FC = () => {
                       </TableActionMenu>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <Pagination currentPage={page} totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))} setPage={setPage} totalItems={total} itemsPerPage={PAGE_SIZE} />
+                ))}
+                </tbody>
+              </table>
+          </div>
+          <Pagination currentPage={page} totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))} setPage={setPage} totalItems={total} itemsPerPage={PAGE_SIZE} />
+        </AdminTableState>
       </div>
 
       {/* Modal */}

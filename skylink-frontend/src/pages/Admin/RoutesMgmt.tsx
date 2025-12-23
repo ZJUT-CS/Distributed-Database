@@ -1,42 +1,55 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, Search, Edit2, Trash2, X, Save, MapPin, Plane as PlaneIcon, Download } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal } from '@/features/admin';
+import React, { useState, useCallback } from 'react';
+import { Plus, Edit2, Trash2, Save, MapPin, Plane as PlaneIcon, Download, Search, RefreshCw } from 'lucide-react';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, useAdminList, AdminTableState } from '@/features/admin';
+import { formatApiError } from '@/utils/apiError';
 import { listRoutes, createRoute, updateRoute, deleteRoute, type RouteItem } from '@/features/admin/api/routes';
+import EntityCell from '@/components/common/EntityCell';
+
+interface RouteFilters {
+  keyword: string;
+  [key: string]: unknown;
+}
 
 const RoutesMgmt: React.FC = () => {
-  const [routes, setRoutes] = useState<RouteItem[]>([]);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [keyword, setKeyword] = useState('');
-
   const PAGE_SIZE = 10;
+
+  // 使用 useAdminList 统一管理列表状态
+  const fetchRoutes = useCallback(
+    async (params: { page: number; size: number } & RouteFilters) => {
+      const res = await listRoutes({
+        page: params.page,
+        size: params.size,
+        keyword: params.keyword || undefined,
+      });
+      return { data: res.data ?? [], total: res.total ?? 0 };
+    },
+    []
+  );
+
+  const {
+    items: routes,
+    total,
+    page,
+    totalPages,
+    loading,
+    error,
+    filters,
+    setPage,
+    setFilters,
+    refresh,
+    retry,
+  } = useAdminList<RouteItem, RouteFilters>({
+    fetchFn: fetchRoutes,
+    pageSize: PAGE_SIZE,
+    initialFilters: { keyword: '' },
+  });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RouteItem | null>(null);
   const [activeActionId, setActiveActionId] = useState<number | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await listRoutes({ page, size: PAGE_SIZE, keyword: keyword || undefined });
-      setRoutes(res.data ?? []);
-      setTotal(res.total ?? 0);
-    } catch (err: any) {
-      console.error('加载航线失败', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
-
   const handleSearch = () => {
-    setPage(1);
-    loadData();
+    // setFilters 会自动重置到第一页
   };
 
   const handleOpenCreate = () => {
@@ -78,9 +91,9 @@ const RoutesMgmt: React.FC = () => {
         await createRoute({ departureCity, departureAirport, arrivalCity, arrivalAirport, basePrice, estimatedDuration, distanceKm });
       }
       setIsModalOpen(false);
-      loadData();
+      refresh();
     } catch (err: any) {
-      alert(err?.message || '操作失败');
+      alert(formatApiError(err));
     }
   };
 
@@ -88,9 +101,9 @@ const RoutesMgmt: React.FC = () => {
     if (!confirm('确定删除该航线吗？')) return;
     try {
       await deleteRoute(routeId);
-      loadData();
+      refresh();
     } catch (err: any) {
-      alert(err?.message || '删除失败');
+      alert(formatApiError(err));
     }
   };
 
@@ -119,95 +132,110 @@ const RoutesMgmt: React.FC = () => {
       />
 
       {/* Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative flex-1 md:max-w-md w-full">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="搜索城市或机场三字码..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
-          />
-        </div>
-        <button onClick={handleSearch} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors">
-          搜索
-        </button>
-      </div>
+      <FilterBar
+        left={
+          <div className="relative flex-1 md:max-w-md w-full">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="搜索城市或机场三字码..."
+              value={filters.keyword}
+              onChange={(e) => setFilters({ keyword: e.target.value })}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
+            />
+          </div>
+        }
+        right={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => refresh()}
+              disabled={loading}
+              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+              title="刷新"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        }
+      />
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50/80">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航线ID</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">出发城市</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">出发机场</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">到达城市</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">到达机场</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">基准票价</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">预计时长</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-12 text-gray-400">加载中...</td>
-                </tr>
-              ) : routes.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-12 text-gray-400">暂无航线数据</td>
-                </tr>
-              ) : (
-                routes.map((r) => (
-                  <tr key={r.routeId} className="hover:bg-indigo-50/30 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-700">{r.routeId}</td>
-                    <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="info">{r.departureCity || '-'}</AdminBadge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="info" className="font-mono">{r.departureAirport || '-'}</AdminBadge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="primary">{r.arrivalCity || '-'}</AdminBadge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="info" className="font-mono">{r.arrivalAirport || '-'}</AdminBadge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant="success">¥{Number(r.basePrice).toFixed(0)}</AdminBadge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <AdminBadge size="sm" variant={r.estimatedDuration ? 'warning' : 'info'}>
-                        {r.estimatedDuration ? `${r.estimatedDuration}分钟` : '-'}
-                      </AdminBadge>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <TableActionMenu
-                        isOpen={activeActionId === r.routeId}
-                        onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === r.routeId ? null : r.routeId); }}
-                        onClose={() => setActiveActionId(null)}
-                      >
-                        <button onClick={() => handleOpenEdit(r)} className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                          <Edit2 className="w-3.5 h-3.5 text-indigo-500" /> 编辑
-                        </button>
-                        <button onClick={() => handleDelete(r.routeId)} className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2">
-                          <Trash2 className="w-3.5 h-3.5" /> 删除
-                        </button>
-                      </TableActionMenu>
-                    </td>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible min-h-[400px] flex flex-col">
+        <AdminTableState
+          loading={loading}
+          error={error}
+          isEmpty={routes.length === 0}
+          onRetry={retry}
+          emptyIcon={MapPin}
+          emptyTitle={filters.keyword ? '未找到匹配结果' : '暂无航线数据'}
+          emptyDescription={filters.keyword ? '请尝试调整搜索关键词' : '点击上方按钮创建第一条航线'}
+          emptyActionText={filters.keyword ? undefined : '新增航线'}
+          onEmptyAction={filters.keyword ? undefined : handleOpenCreate}
+          skeletonRows={5}
+          skeletonColumns={6}
+        >
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50/80">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航线</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">出发机场</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">到达机场</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">基准票价</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">预计时长</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <Pagination currentPage={page} totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))} setPage={setPage} totalItems={total} itemsPerPage={PAGE_SIZE} />
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {routes.map((r) => (
+                    <tr key={r.routeId} className="hover:bg-indigo-50/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <EntityCell
+                          leading={
+                            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                              <PlaneIcon className="w-5 h-5" />
+                            </div>
+                          }
+                          title={`${r.departureCity || '-'} → ${r.arrivalCity || '-'}`}
+                          subtitle={`#${r.routeId}`}
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <AdminBadge size="sm" variant="info" className="font-mono">{r.departureAirport || '-'}</AdminBadge>
+                      </td>
+                      <td className="px-6 py-4">
+                        <AdminBadge size="sm" variant="primary" className="font-mono">{r.arrivalAirport || '-'}</AdminBadge>
+                      </td>
+                      <td className="px-6 py-4">
+                        <AdminBadge size="sm" variant="success">¥{Number(r.basePrice).toFixed(0)}</AdminBadge>
+                      </td>
+                      <td className="px-6 py-4">
+                        <AdminBadge size="sm" variant={r.estimatedDuration ? 'warning' : 'info'}>
+                          {r.estimatedDuration ? `${r.estimatedDuration}分钟` : '-'}
+                        </AdminBadge>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <TableActionMenu
+                          isOpen={activeActionId === r.routeId}
+                          onToggle={(e) => { e.stopPropagation(); setActiveActionId(activeActionId === r.routeId ? null : r.routeId); }}
+                          onClose={() => setActiveActionId(null)}
+                        >
+                          <button onClick={() => handleOpenEdit(r)} className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                            <Edit2 className="w-3.5 h-3.5 text-indigo-500" /> 编辑
+                          </button>
+                          <button onClick={() => handleDelete(r.routeId)} className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2">
+                            <Trash2 className="w-3.5 h-3.5" /> 删除
+                          </button>
+                        </TableActionMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination currentPage={page} totalPages={totalPages} setPage={setPage} totalItems={total} itemsPerPage={PAGE_SIZE} />
+        </AdminTableState>
       </div>
 
       {/* Modal */}

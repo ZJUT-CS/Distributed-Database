@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Plus, Shield, UserCog, Mail, Phone, Lock, Trash2, RefreshCw, Download } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, EmptyState } from '@/features/admin';
 import EntityCell from '@/components/common/EntityCell';
 
 type AdminRole = 'super_admin' | 'ops' | 'auditor';
@@ -107,67 +107,74 @@ const AdminsMgmt: React.FC = () => {
         }
       />
 
-      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative flex-1 md:max-w-md w-full">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="搜索管理员用户名、姓名或邮箱..."
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-          <div className="flex bg-gray-100 p-1 rounded-lg">
-            {[
-              { id: 'all', label: '全部角色' },
-              { id: 'super_admin', label: '超级管理员' },
-              { id: 'ops', label: '运营' },
-              { id: 'auditor', label: '风控审核' },
-            ].map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => {
-                  setRoleFilter(opt.id as 'all' | AdminRole);
-                  setPage(1);
-                }}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                  roleFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+      <FilterBar
+        left={
+          <div className="relative flex-1 md:max-w-md w-full">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="搜索管理员用户名、姓名或邮箱..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+            />
           </div>
-          <div className="flex bg-gray-100 p-1 rounded-lg">
-            {[
-              { id: 'all', label: '全部状态' },
-              { id: 'active', label: '启用' },
-              { id: 'disabled', label: '停用' },
-            ].map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => {
-                  setStatusFilter(opt.id as 'all' | AdminStatus);
-                  setPage(1);
-                }}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                  statusFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+        }
+        right={
+          <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+              {[
+                { id: 'all', label: '全部角色' },
+                { id: 'super_admin', label: '超级管理员' },
+                { id: 'ops', label: '运营' },
+                { id: 'auditor', label: '风控审核' },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    setRoleFilter(opt.id as 'all' | AdminRole);
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
+                    roleFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+              {[
+                { id: 'all', label: '全部状态' },
+                { id: 'active', label: '启用' },
+                { id: 'disabled', label: '停用' },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    setStatusFilter(opt.id as 'all' | AdminStatus);
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
+                    statusFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+        {paginatedAdmins.length === 0 ? (
+          <EmptyState icon={Shield} title={searchTerm ? '未找到匹配管理员' : '暂无管理员'} description={searchTerm ? '请尝试调整搜索条件' : '当前无管理员记录'} />
+        ) : (
+          <>
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50/80">
             <tr>
@@ -238,13 +245,6 @@ const AdminsMgmt: React.FC = () => {
                 </td>
               </tr>
             ))}
-            {paginatedAdmins.length === 0 && (
-              <tr>
-                <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={6}>
-                  暂无符合条件的管理员记录
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
 
@@ -255,6 +255,8 @@ const AdminsMgmt: React.FC = () => {
           totalItems={filteredAdmins.length}
           itemsPerPage={ITEMS_PER_PAGE}
         />
+          </>
+        )}
       </div>
     </div>
   );
