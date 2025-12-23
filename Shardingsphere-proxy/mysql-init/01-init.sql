@@ -87,7 +87,6 @@ CREATE TABLE `orders` (
   `passengers_json` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '乘客信息JSON(下单时记录)',
   `seat_id` bigint DEFAULT NULL COMMENT '座位ID',
   `order_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
-  `audit_time` datetime DEFAULT NULL COMMENT '审核通过时间',
   `pay_time` datetime DEFAULT NULL COMMENT '支付完成时间',
   `refund_time` datetime DEFAULT NULL COMMENT '退票完成时间',
   `change_time` datetime DEFAULT NULL COMMENT '改签完成时间',

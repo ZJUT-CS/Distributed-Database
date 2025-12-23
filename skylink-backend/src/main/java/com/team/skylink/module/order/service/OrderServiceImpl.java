@@ -20,6 +20,7 @@ import com.team.skylink.module.order.dto.OrderSearchResponse;
 import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
 import com.team.skylink.module.flight.service.SeatService;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
@@ -167,7 +169,19 @@ public class OrderServiceImpl implements OrderService {
             
             for (int pIdx = 0; pIdx < ticketCount; pIdx++) {
                 Long oid = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
-                Long seatId = seatService.lockRandomSeat(f.getFlightId(), config.getConfigId(), oid);
+                Long seatId;
+                try {
+                    seatId = seatService.lockRandomSeat(f.getFlightId(), config.getConfigId(), oid);
+                } catch (Exception e) {
+                    if (e.getMessage() != null && e.getMessage().contains("InventoryShortage")) {
+                        throw new RuntimeException("抱歉，该航班座位已售罄");
+                    }
+                    if (e.getMessage() != null && e.getMessage().contains("no available seat")) {
+                         throw new RuntimeException("抱歉，该航班座位已售罄");
+                    }
+                    throw new RuntimeException("您选择的座位刚刚被抢走了，请重新选择");
+                }
+                
                 BigDecimal totalAmount = unitPrice.multiply(BigDecimal.ONE);
                 totalAmountAll = totalAmountAll.add(totalAmount);
 
@@ -176,7 +190,7 @@ public class OrderServiceImpl implements OrderService {
                 o.setUserId(req.getUserId());
                 o.setFlightId(f.getFlightId());
                 o.setCabinId(config.getConfigId());
-                o.setOrderStatus(0);
+                o.setOrderStatus(1); // 1=Pending Payment (无需审核)
                 o.setTicketNum(1);
                 o.setTotalAmount(totalAmount);
                 
@@ -191,7 +205,7 @@ public class OrderServiceImpl implements OrderService {
                     try {
                         singlePassengerJson = objectMapper.writeValueAsString(java.util.Collections.singletonList(pi));
                     } catch (JsonProcessingException e) {
-                        throw new RuntimeException("Failed to serialize passenger info", e);
+                        throw new RuntimeException("乘客信息格式错误，请检查", e);
                     }
                     
                     Object n = pi.get("name");
@@ -220,7 +234,7 @@ public class OrderServiceImpl implements OrderService {
         r.setOrderNo(String.valueOf(parentOrderId));
         r.setFlightNo(firstFlight.getFlightNo());
         r.setPassengerName(ordersToInsert.get(0).getPassengerName());
-        r.setOrderStatus(0);
+        r.setOrderStatus(1); // Pending Payment
         r.setTotalAmount(totalAmountAll);
         r.setOrderTime(ordersToInsert.get(0).getOrderTime());
         
@@ -233,17 +247,22 @@ public class OrderServiceImpl implements OrderService {
         if (orderId == null) return Result.fail(400, "orderId is required");
         
         Orders o = orderMapper.selectById(orderId);
-        if (o == null) return Result.fail(404, "order not found");
+        if (o == null) return Result.fail(404, "订单不存在");
         
         if (o.getOrderStatus() != 0 && o.getOrderStatus() != 1) {
-            return Result.fail(409, "order cannot be cancelled in current status");
+            return Result.fail(409, "订单状态不正确，无法取消");
         }
 
         // 释放座位 (Mode B)
-        if (o.getSeatId() != null) {
-            seatService.releaseSeat(o.getSeatId());
-        } else {
-            seatService.releaseSeats(o.getOrderId());
+        try {
+            if (o.getSeatId() != null) {
+                seatService.releaseSeat(o.getSeatId());
+            } else {
+                seatService.releaseSeats(o.getOrderId());
+            }
+        } catch (Exception e) {
+            log.warn("释放座位失败: " + e.getMessage());
+            // 不阻断取消流程
         }
 
         // 级联取消逻辑
@@ -268,15 +287,18 @@ public class OrderServiceImpl implements OrderService {
             return Result.fail(404, "订单不存在");
         }
 
-        if (order.getOrderStatus() != 0) { 
-            return Result.fail(400, "订单状态非待审核，操作失败");
+        // 移除针对状态0(待审核)的逻辑，仅处理售后申请(如状态4)
+        if (order.getOrderStatus() != 4) { 
+            return Result.fail(400, "当前订单状态不需要审核");
         }
 
         LocalDateTime now = LocalDateTime.now();
-        int newStatus = pass ? 1 : 3;
+        // 4=退票申请中 -> 5=已退款(Pass) OR 2=已确认/拒绝退票(Reject)
+        int newStatus = pass ? 5 : 2; 
 
         if (order.getParentOrderId() != null) {
-            if (!pass) {
+            if (pass) {
+                // 如果是退票通过，需要释放座位
                 List<Orders> siblings = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
                         .eq(Orders::getParentOrderId, order.getParentOrderId()));
                 for (Orders sib : siblings) {
@@ -287,17 +309,15 @@ public class OrderServiceImpl implements OrderService {
             updateWrapper.eq(Orders::getParentOrderId, order.getParentOrderId())
                          .set(Orders::getOrderStatus, newStatus);
             if (pass) {
-                updateWrapper.set(Orders::getAuditTime, now);
+                updateWrapper.set(Orders::getRefundTime, now);
             }
             orderMapper.update(null, updateWrapper);
         } else {
-            if (!pass) {
+            if (pass) {
                 releaseSeatsForOrder(order);
+                order.setRefundTime(now);
             }
             order.setOrderStatus(newStatus);
-            if (pass) {
-                order.setAuditTime(now);
-            }
             orderMapper.updateById(order);
         }
         

@@ -40,12 +40,14 @@ public class OrderTimeoutTask {
     @Scheduled(cron = "0 0/1 * * * ?")
     @Transactional(rollbackFor = Exception.class)
     public void cancelTimeoutOrders() {
-        LocalDateTime timeoutThreshold = LocalDateTime.now().minusMinutes(paymentTimeoutMinutes);
+        // 修改为2分钟超时
+        long actualTimeoutMinutes = 2;
+        LocalDateTime timeoutThreshold = LocalDateTime.now().minusMinutes(actualTimeoutMinutes);
 
         List<Orders> timeoutOrders = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
                 .eq(Orders::getOrderStatus, 1) // 1=Pending Payment
-                .isNotNull(Orders::getAuditTime)
-                .lt(Orders::getAuditTime, timeoutThreshold));
+                // 改为使用 OrderTime 判断超时，因为不再有 AuditTime
+                .lt(Orders::getOrderTime, timeoutThreshold));
 
         if (timeoutOrders.isEmpty()) return;
 
@@ -61,11 +63,11 @@ public class OrderTimeoutTask {
                     List<Orders> siblings = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
                             .eq(Orders::getParentOrderId, order.getParentOrderId())
                             .eq(Orders::getOrderStatus, 1)
-                            .isNotNull(Orders::getAuditTime)
-                            .lt(Orders::getAuditTime, timeoutThreshold));
+                            .lt(Orders::getOrderTime, timeoutThreshold));
 
                     for (Orders sib : siblings) {
                         releaseSeatsForOrder(sib);
+                        // 物理删除：从数据库移除
                         orderMapper.deleteById(sib.getOrderId());
                     }
                     log.info("Deleted timeout parent order: {}", order.getParentOrderId());
@@ -73,6 +75,7 @@ public class OrderTimeoutTask {
                 }
 
                 releaseSeatsForOrder(order);
+                // 物理删除：从数据库移除
                 orderMapper.deleteById(order.getOrderId());
                 log.info("Deleted order: {}", order.getOrderId());
             } catch (Exception e) {

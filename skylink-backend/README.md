@@ -2,10 +2,12 @@
 
 ## 📝 更新日志 (Changelog)
 - 2025-12-23
-  - 接口治理：合并审核接口，仅保留管理端 `/api/v1/admins/orders/{orderId}/audits`
+  - 订单状态机重构：移除“创建审核”环节，下单即“待支付(1)”。
+  - 支付策略调整：支付窗口缩短为 **2分钟**，超时自动从数据库删除订单并释放座位。
+  - 接口治理：合并审核接口，仅保留管理端 `/api/v1/admins/orders/{orderId}/audits` 用于退改签审核。
+  - 异常提示优化：全面替换技术性报错为用户友好的中文提示。
   - 订单创建：切换至 Mode B“下单即隐式锁座，支付后可选座”
   - 座位服务：新增单座操作接口（锁、释、确、换）
-  - 定时任务：仅保留“待支付(1)超时取消并释放座位”；停用“待审核(0)超时清理”
   - 数据库：为 `orders` 表新增 `seat_id` 字段
 
 SkyLink 是一个基于 **Spring Boot 4** 和 **MyBatis-Plus** 构建的高性能分布式航空订票系统后端。支持航班搜索、智能联程拼接、分布式事务订单处理、支付对接以及完整的后台管理功能。
@@ -35,7 +37,16 @@ SkyLink 是一个基于 **Spring Boot 4** 和 **MyBatis-Plus** 构建的高性�
 - **动态定价**：基于航线基础价 × 舱位系数自动计算最低票价。
 - **自动座位生成**：根据机型配置自动生成 `行号+列字母` (如 1A, 12F) 的座位布局。
 
-### 📦 订单交易
+### � 智能中转机制 (Smart Interline)
+系统内置基于内存拼接的"Split-Join"算法，实现高效的中转方案推荐：
+1. **双向检索**：同时查询`出发地->X`和`X->目的地`的航班集合。
+2. **内存匹配**：在应用层计算中转组合，强制约束 **2h ≤ 中转间隔 ≤ 24h**，确保行程合理。
+3. **原子交易**：
+   - **库存预占**：联程下单时，通过 `seatService.lockSeatsBatch` 对多段航班进行原子化锁座。
+   - **事务一致**：任一段失败（如库存不足）则全单回滚，保障"同买同退"。
+   - **数据关联**：生成统一 `parent_order_id` 关联多条子订单，支持一键支付全路段。
+
+### � 订单交易
 - **分布式事务**：保障联程订单（多航段）的数据一致性，任一段失败自动回滚。
 - **并发控制**：基于 Redis/DB 锁机制防止库存超卖。
 - **状态机管理**：完整的订单生命周期（待审核 -> 待支付 -> 已支付/已取消/已退款）。
@@ -89,19 +100,22 @@ graph TD
 ### 2. 订单状态流转
 ```mermaid
 stateDiagram-v2
-    [*] --> PendingAudit: 提交订单 (Status=0)
+    [*] --> PendingPayment: 提交订单 (Status=1)
     
     state "联程订单状态联动" as Link {
-        PendingAudit --> PendingPayment: 审核通过 (两段同时)
-        PendingAudit --> Rejected: 审核拒绝 (任一段被拒 -> 全单拒绝)
         PendingPayment --> Paid: 支付成功 (ParentID关联所有子单)
+        PendingPayment --> [*]: 超时未支付(2min)/用户取消 (物理删除)
         Paid --> Refunded: 全额退款 (触发级联退票)
     }
     
-    PendingPayment --> Cancelled: 超时未支付/用户取消
+    state "售后审核" as Audit {
+        Paid --> RefundRequest: 申请退票 (Status=4)
+        RefundRequest --> Refunded: 审核通过 (Status=5)
+        RefundRequest --> Paid: 审核拒绝 (Status=2)
+    }
+
     Paid --> [*]
     Refunded --> [*]
-    Rejected --> [*]
 ```
 
 ---
@@ -131,6 +145,41 @@ stateDiagram-v2
 ### 3. 基础环境
 - **Base URL**: `http://localhost:9999`
 - **Swagger UI**: `http://localhost:9999/swagger-ui/index.html`
+
+### 4. 联程/转机业务对接 (Interline Integration)
+
+**场景**: 用户搜索 "A -> C"，系统返回 "A -> B" + "B -> C" 的组合方案。
+
+**Step 1: 展示搜索结果**
+- **API**: `GET /api/v1/flights`
+- **数据源**: 响应体中的 `data.interlineFlights` 数组。
+- **展示逻辑**:
+  - 外层卡片：显示总价 (`totalPrice`)、总时长、中转城市 (`transferCity`)。
+  - 详情展开：遍历 `segments` 数组，展示每一程的航班号、起降时间。
+  - **关键校验**: 确保第二程的起飞时间晚于第一程的到达时间（后端已过滤，前端可二次确认）。
+
+**Step 2: 提交下单 (Booking)**
+- **API**: `POST /api/v1/orders`
+- **Payload 构造**:
+  - 将所有航段的 `flightNo` 按顺序放入 `flightNos` 数组。
+  - 示例:
+    ```json
+    {
+      "userId": 1001,
+      "flightNos": ["MU5588", "CA1818"], // 核心：传递多段航班号
+      "cabinType": "ECONOMY",
+      "ticketNum": 1,
+      "passengerName": "Alice",
+      "contactPhone": "13900000000"
+    }
+    ```
+
+**Step 3: 结果处理**
+- **成功**: 返回 `200`，`data` 中包含 `orderNo` (即 Parent Order ID) 和 `orderStatus: 1` (待支付)。
+- **注意**: 请提示用户在 **2分钟** 内完成支付，否则订单将自动取消。
+- **失败**: 
+  - `4001`: 库存不足 (任一段无票即全单失败)。
+  - `4002`: 中转时间非法 (后端二次校验)。
 
 ---
 
@@ -185,7 +234,8 @@ stateDiagram-v2
 #### ✅ 订单审核
 - **管理员审核通过/拒绝**: `POST /api/v1/admins/orders/{orderId}/audits`
   - Body: `{ "pass": true | false }`
-  - 逻辑：核心状态机封装于 `OrderService.audit(orderId, pass)`，`AdminOrderService` 负责权限与透传
+  - 逻辑：仅处理状态为 `4` (退票/改签申请中) 的订单。
+  - 结果：通过 -> 状态变更为 `5` (已退款)；拒绝 -> 状态回滚为 `2` (已确认)。
   - 联程订单：审核任一段将级联更新同一 `parentOrderId` 下的所有子单
 
 ---
@@ -259,8 +309,8 @@ skylink-backend/
 
 ## 🧹 订单状态自动治理
 ### 超时未支付自动取消
-- 策略：当订单状态为 `1`（待支付）且 `orderTime` 超过 **2 分钟**，系统自动取消并释放座位
-- 触发：定时任务每分钟扫描并取消
+- 策略：当订单状态为 `1`（待支付）且 `orderTime` 超过 **2 分钟**，系统自动 **物理删除** 订单并释放座位
+- 触发：定时任务每分钟扫描并执行
 - 位置：`module/order/task/OrderTimeoutTask`
 - 释放策略：优先按 `seat_id` 释放；兼容旧逻辑按 `order_id` 释放
 
