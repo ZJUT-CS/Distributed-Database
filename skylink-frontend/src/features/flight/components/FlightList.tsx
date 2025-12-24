@@ -64,7 +64,7 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
             <div className="flex flex-col items-start gap-1">
               <div className="flex items-center gap-1 bg-cyan-50 text-cyan-600 border border-cyan-100 text-[10px] px-1.5 py-0.5 rounded-sm">
                 <Luggage className="w-3 h-3" />
-                <span>托运行李 {flight.baggageWeight} 公斤</span>
+                <span>托运行李 {flight.baggageAllowance || `${flight.baggageWeight}KG`}</span>
               </div>
 
               <div className="flex flex-col gap-0.5">

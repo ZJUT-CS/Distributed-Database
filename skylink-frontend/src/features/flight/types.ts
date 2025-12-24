@@ -28,7 +28,9 @@ export interface Flight {
   remainingSeats?: number;
   duration: string;
   stops: number;
+  /** 托运行李额度 (kg) */
   baggageWeight: number;
+  /** 机上服务/设施 */
   amenities: {
     hasPower: boolean;
     hasMeal: boolean;
@@ -36,6 +38,11 @@ export interface Flight {
     hasEntertainment: boolean;
   };
   aircraft?: string;
+
+  /** 原始行李数据 (后端返回，如 "23kg") */
+  baggageAllowance?: string;
+  /** 原始服务数据 (后端返回，如 "餐食,WiFi") */
+  services?: string;
 
   // 联程航班专用字段
   /** 联程航段详情 */

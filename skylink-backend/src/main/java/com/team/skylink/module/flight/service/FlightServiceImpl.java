@@ -243,6 +243,7 @@ public class FlightServiceImpl implements FlightService {
         BigDecimal bestPrice = null;
         Integer bestSeats = 0;
         String bestCabin = null;
+        AircraftCabinConfig bestConfig = null; // ✅ 记录最佳舱位配置
 
         Map<String, Integer> flightSeats = seatMap.getOrDefault(f.getFlightId(), Collections.emptyMap());
 
@@ -259,6 +260,7 @@ public class FlightServiceImpl implements FlightService {
                 bestPrice = price;
                 bestSeats = availableCount;
                 bestCabin = cfg.getCabinType();
+                bestConfig = cfg; // ✅ 保存配置
             }
         }
 
@@ -286,6 +288,12 @@ public class FlightServiceImpl implements FlightService {
         AircraftModel model = modelMap.get(f.getModelId());
         dto.setAircraftModel(model != null ? model.getModelName() : "Unknown");
 
+        // ✅ 填充行李额度和服务信息
+        if (bestConfig != null) {
+            dto.setBaggageAllowance(bestConfig.getDefaultChecked());
+            dto.setServices(bestConfig.getDefaultServices());
+        }
+
         return dto;
     }
 
@@ -304,6 +312,7 @@ public class FlightServiceImpl implements FlightService {
         BigDecimal bestPrice = null;
         Integer bestSeats = 0;
         String bestCabin = null;
+        AircraftCabinConfig bestConfig = null; // ✅ 记录最佳舱位配置
 
         for (AircraftCabinConfig cfg : configs) {
             BigDecimal price = route.getBasePrice();
@@ -322,6 +331,7 @@ public class FlightServiceImpl implements FlightService {
                 bestPrice = price;
                 bestSeats = (int) availableCount;
                 bestCabin = cfg.getCabinType();
+                bestConfig = cfg; // ✅ 保存配置
             }
         }
 
@@ -348,6 +358,12 @@ public class FlightServiceImpl implements FlightService {
         // ✅ 填充机型名称（直飞航班）
         AircraftModel model = aircraftModelMapper.selectById(f.getModelId());
         dto.setAircraftModel(model != null ? model.getModelName() : "Unknown");
+
+        // ✅ 填充行李额度和服务信息
+        if (bestConfig != null) {
+            dto.setBaggageAllowance(bestConfig.getDefaultChecked());
+            dto.setServices(bestConfig.getDefaultServices());
+        }
 
         return dto;
     }
