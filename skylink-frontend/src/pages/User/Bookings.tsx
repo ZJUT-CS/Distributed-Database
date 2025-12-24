@@ -10,6 +10,7 @@ import { loadOrderPassengers } from '@/utils/storage';
 import { ORDER_STATUS } from '@/features/admin/constants';
 import { API_CONFIG } from '@/config/constants';
 import InterlineJourneyTimeline from '@/components/booking/InterlineJourneyTimeline';
+import { useToast } from '@/features/admin/components/Toast';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -165,6 +166,7 @@ export default BookingsPage;
 export const BookingDetailsPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const params = useParams();
   const location = useLocation();
   const stateBooking = (location.state as { booking?: ConfirmedBooking } | null)?.booking;
@@ -317,34 +319,62 @@ export const BookingDetailsPage: React.FC = () => {
     }
   };
 
-  const handlePay = () => {
-    const expired = Date.now() >= getPaymentDeadlineMs(booking.bookingDate);
-    if (expired) {
-      cancelOrder(booking.id)
-        .then(() => {
-          if (user?.id) {
-            return searchOrders({ userId: user.id, orderNo: booking.id }).then((res) => {
-              if (res.length > 0) setBooking(mapOrderToBooking(res[0]));
-            });
-          }
-        })
-        .catch(() => setBooking({ ...booking, status: 'cancelled' }));
-      alert('订单已超时，已自动取消');
+  const handlePay = async () => {
+    // 🔧 支付前先从后端重新获取最新订单状态，避免使用缓存的过期数据
+    if (!user?.id) {
+      toast.error('请先登录');
       return;
     }
+
     setPayPreparing(true);
     setPayError(null);
-    createPaymentConfirmToken({ orderNo: booking.id, amount: Number(booking.totalPrice || 0) })
-      .then((token) => {
-        setPayToken(token);
-        setPayModalOpen(true);
-      })
-      .catch((e: any) => {
-        const msg = e?.message || '支付准备失败';
-        setPayError(msg);
-        alert(msg);
-      })
-      .finally(() => setPayPreparing(false));
+
+    try {
+      // 尝试重新获取最新订单状态
+      let currentBooking = booking;
+      try {
+        const latestOrders = await searchOrders({ userId: user.id, orderNo: booking.id });
+        if (latestOrders.length > 0) {
+          currentBooking = mapOrderToBooking(latestOrders[0]);
+          setBooking(currentBooking);
+        }
+      } catch (refreshErr) {
+        // 刷新失败时继续使用缓存数据
+        console.warn('刷新订单状态失败，继续使用缓存数据', refreshErr);
+      }
+
+      // 检查订单状态
+      if (currentBooking.status !== 'pending_payment') {
+        const statusMsg = currentBooking.status === 'confirmed' ? '订单已支付' :
+          currentBooking.status === 'cancelled' ? '订单已取消' : '订单状态异常';
+        setPayError(statusMsg);
+        toast.warning(statusMsg);
+        return;
+      }
+
+      // 检查是否超时
+      const expired = Date.now() >= getPaymentDeadlineMs(currentBooking.bookingDate);
+      if (expired) {
+        cancelOrder(currentBooking.id)
+          .then(() => searchOrders({ userId: user.id, orderNo: currentBooking.id }).then((res) => {
+            if (res.length > 0) setBooking(mapOrderToBooking(res[0]));
+          }))
+          .catch(() => setBooking({ ...currentBooking, status: 'cancelled' }));
+        toast.warning('订单已超时，已自动取消');
+        return;
+      }
+
+      // 创建支付令牌
+      const token = await createPaymentConfirmToken({ orderNo: currentBooking.id, amount: Number(currentBooking.totalPrice || 0) });
+      setPayToken(token);
+      setPayModalOpen(true);
+    } catch (e: any) {
+      const msg = e?.message || '支付准备失败';
+      setPayError(msg);
+      toast.error(msg);
+    } finally {
+      setPayPreparing(false);
+    }
   };
 
   const closePayModal = () => {
@@ -374,7 +404,7 @@ export const BookingDetailsPage: React.FC = () => {
       })
       .then(() => {
         closePayModal();
-        alert('支付成功！');
+        toast.success('支付成功！');
       })
       .catch((e: any) => setPayError(e?.message || '支付失败'))
       .finally(() => setPayConfirming(false));
@@ -407,7 +437,7 @@ export const BookingDetailsPage: React.FC = () => {
                 onClick={() => {
                   const flightId = booking.flight?.id || booking.flights?.[0]?.id || '';
                   const cabinType = booking.flight?.cabinType || booking.flights?.[0]?.cabinType || '';
-                  navigate(`/booking/seat-selection?orderNo=${encodeURIComponent(booking.id)}&flightId=${encodeURIComponent(flightId)}&cabinType=${encodeURIComponent(cabinType)}`);
+                  navigate(`/booking/seat-selection?orderId=${encodeURIComponent(booking.id)}&flightId=${encodeURIComponent(flightId)}&cabinType=${encodeURIComponent(cabinType)}`);
                 }}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
               >

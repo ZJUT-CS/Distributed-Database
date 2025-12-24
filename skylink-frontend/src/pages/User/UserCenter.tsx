@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CalendarDays, Check, Lock, Mail, Phone, Shield, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../features/auth/hooks/useAuth';
+import { useToast } from '../../features/admin/components/Toast';
 import {
   bindEmail,
   bindPhone,
@@ -13,12 +14,12 @@ import {
 } from '../../features/auth/api/auth';
 
 type TabKey = 'profile' | 'security';
-type ToastState = { type: 'success' | 'error'; message: string };
 
 const UserCenterPage: React.FC = () => {
   const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const toast = useToast();
 
   const initialTab = useMemo<TabKey>(() => {
     const tab = new URLSearchParams(location.search).get('tab');
@@ -26,7 +27,6 @@ const UserCenterPage: React.FC = () => {
   }, [location.search]);
 
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
-  const [toast, setToast] = useState<ToastState | null>(null);
 
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [emailDraft, setEmailDraft] = useState('');
@@ -57,12 +57,6 @@ const UserCenterPage: React.FC = () => {
   }, [initialTab]);
 
   useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 2500);
-    return () => window.clearTimeout(t);
-  }, [toast]);
-
-  useEffect(() => {
     if (!user) return;
     setEmailDraft(user.email || '');
     setEmailCodeDraft('');
@@ -76,8 +70,9 @@ const UserCenterPage: React.FC = () => {
 
   const isVerified = !!user?.realName && !!user?.idCard;
 
-  const showToast = (type: ToastState['type'], message: string) => {
-    setToast({ type, message });
+  const showToast = (type: 'success' | 'error', message: string) => {
+    if (type === 'success') toast.success(message);
+    else toast.error(message);
   };
 
   const applyProfileToLocalUser = (p: any) => {
@@ -165,7 +160,7 @@ const UserCenterPage: React.FC = () => {
   const handleSubmitRealName = () => {
     if (saving) return;
     if (isVerified) {
-      alert('实名信息无法直接修改，请联系客服人工审核。');
+      toast.warning('实名信息无法直接修改，请联系客服人工审核。');
       return;
     }
     const rn = realNameDraft.trim();
@@ -346,18 +341,6 @@ const UserCenterPage: React.FC = () => {
 
   return (
     <div className="relative animate-fade-in-up mt-8 w-full max-w-screen-2xl mx-auto mb-20 px-4 sm:px-6 lg:px-8">
-      {toast && (
-        <div
-          className={`fixed top-4 right-4 z-50 rounded-2xl px-4 py-3 shadow-xl border text-sm font-semibold ${
-            toast.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              : 'bg-red-50 text-red-800 border-red-200'
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
-
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-40 -right-40 h-[520px] w-[520px] rounded-full bg-sky-200/35 blur-3xl" />
         <div className="absolute -bottom-52 -left-48 h-[560px] w-[560px] rounded-full bg-indigo-200/25 blur-3xl" />
@@ -506,7 +489,7 @@ const UserCenterPage: React.FC = () => {
                       <div className="text-xs font-bold text-gray-500 mb-1">姓名</div>
                       <div
                         onClick={() => {
-                          if (isVerified) alert('实名信息无法直接修改，请联系客服人工审核。');
+                          if (isVerified) toast.warning('实名信息无法直接修改，请联系客服人工审核。');
                         }}
                         className="relative"
                       >
@@ -528,7 +511,7 @@ const UserCenterPage: React.FC = () => {
                       <div className="text-xs font-bold text-gray-500 mb-1">身份证号</div>
                       <div
                         onClick={() => {
-                          if (isVerified) alert('实名信息无法直接修改，请联系客服人工审核。');
+                          if (isVerified) toast.warning('实名信息无法直接修改，请联系客服人工审核。');
                         }}
                         className="relative"
                       >

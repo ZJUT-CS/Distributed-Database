@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, Bell, Globe, Save, Smartphone, Mail, ArrowLeft, DollarSign, Key, LogOut } from 'lucide-react';
+import { useToast } from '@/features/admin/components/Toast';
 
 interface UserSettingsProps {
   onBack?: () => void;
@@ -7,6 +8,7 @@ interface UserSettingsProps {
 }
 
 const UserSettings: React.FC<UserSettingsProps> = ({ onBack, mode = 'page' }) => {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState({
     emailOrder: true,
@@ -28,7 +30,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ onBack, mode = 'page' }) =>
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      alert('系统设置已保存');
+      toast.success('系统设置已保存');
     }, 1000);
   };
 
@@ -105,7 +107,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ onBack, mode = 'page' }) =>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-gray-400 font-medium">未开启</span>
-                <Toggle active={false} onClick={() => alert('请先绑定手机号')} />
+                <Toggle active={false} onClick={() => toast.warning('请先绑定手机号')} />
               </div>
             </div>
           </div>

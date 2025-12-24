@@ -1,8 +1,6 @@
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import type { User } from '../types';
-
-const TOKEN_KEY = 'skylink_token';
-const USER_KEY = 'skylink_user';
+import { TOKEN_KEY, USER_KEY, normalizeUserRole, readStoredToken, readStoredUserRaw } from '@/lib/authStorage';
 
 interface AuthContextType {
   user: User | null;
@@ -16,25 +14,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const normalizeUserRole = (role: unknown): 'user' | 'admin' => {
-  if (role === 2 || role === '2') return 'admin';
-  const r = String(role ?? '').trim().toLowerCase();
-  return r.includes('admin') ? 'admin' : 'user';
-};
-
 const parseStoredUser = (): { user: User | null; token: string | null } => {
   try {
-    const token = localStorage.getItem(TOKEN_KEY);
-    const userRaw = localStorage.getItem(USER_KEY);
+    const token = readStoredToken();
+    const raw = readStoredUserRaw();
 
-    if (!token || !userRaw) {
+    if (!token || !raw) {
       return { user: null, token: null };
     }
 
-    const parsed = JSON.parse(userRaw) as any;
-    if (!parsed || typeof parsed !== 'object') {
-      return { user: null, token: null };
-    }
+    const parsed = raw as any;
 
     const user: User = {
       id: parsed.id ?? parsed.userId,

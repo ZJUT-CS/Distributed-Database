@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Lock, ArrowRight, ShieldAlert, Mail } from 'lucide-react';
 import { adminLoginApi, loginApi, registerApi } from '../api/auth';
 import type { User } from '../types';
+import { useToast } from '@/features/admin/components/Toast';
 
 interface LoginFormProps {
   onLogin: (user: User, token?: string) => void;
@@ -11,6 +12,7 @@ interface LoginFormProps {
 
 const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
@@ -28,25 +30,25 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
 
     if (!account || !pwd) return;
     if (!isAdminMode && !/^\d{11}$/.test(account)) {
-      alert('请输入正确的手机号（11位数字）');
+      toast.error('请输入正确的手机号（11位数字）');
       return;
     }
     if (pwd.length < 6) {
-      alert('密码长度至少 6 位');
+      toast.error('密码长度至少 6 位');
       return;
     }
 
     if (isRegisterMode) {
       if (!mail) {
-        alert('请输入邮箱');
+        toast.error('请输入邮箱');
         return;
       }
       if (!/^\S+@\S+\.\S+$/.test(mail)) {
-        alert('请输入正确的邮箱');
+        toast.error('请输入正确的邮箱');
         return;
       }
       if (pwd !== confirmPassword) {
-        alert('两次输入的密码不一致');
+        toast.error('两次输入的密码不一致');
         return;
       }
     }
@@ -87,7 +89,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
         avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedUsername)}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`,
       }, res.token);
     } catch (err: any) {
-      alert(err?.message || '请求失败，请稍后再试');
+      toast.error(err?.message || '请求失败，请稍后再试');
     } finally {
       setLoading(false);
     }
@@ -169,7 +171,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
                 {!isRegisterMode && (
                   <button
                     type="button"
-                    onClick={() => alert('重置密码链接已发送至您的邮箱')}
+                    onClick={() => toast.info('重置密码链接已发送至您的邮箱')}
                     className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
                   >
                     忘记密码？

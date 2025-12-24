@@ -5,11 +5,13 @@ import { type Flight } from '@/features/flight';
 import { useAuth } from '@/features/auth';
 import { createOrder } from '@/features/booking/api/order';
 import { saveOrderPassengers } from '@/utils/storage';
+import { useToast } from '@/features/admin/components/Toast';
 
 const BookingPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const flights = (location.state?.flights as Flight[]) || [];
   const passengerCount = (() => {
     const raw = Number(location.state?.passengers ?? 1);
@@ -33,7 +35,7 @@ const BookingPage: React.FC = () => {
   const handleConfirm = async (details: BookingDetails) => {
     const flightNo = String(flights[0]?.flightNumber || flights[0]?.id || '').trim();
     if (!flightNo) {
-      alert('缺少航班号，无法下单');
+      toast.error('缺少航班号，无法下单');
       return;
     }
 
@@ -82,7 +84,7 @@ const BookingPage: React.FC = () => {
 
       navigate(`/my-bookings/${encodeURIComponent(id)}`, { state: { booking: newBooking } });
     } catch (e: any) {
-      alert(e?.message || '下单失败');
+      toast.error(e?.message || '下单失败');
     }
   };
 
