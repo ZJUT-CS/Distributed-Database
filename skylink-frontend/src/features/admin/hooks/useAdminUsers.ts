@@ -12,6 +12,8 @@ export const useAdminUsers = (params: {
     queryKey: ['admin', 'users', params],
     queryFn: () => listAdminUsers(params),
     enabled,
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    gcTime: 8 * 60 * 1000, // 8 minutes
   });
 };
 

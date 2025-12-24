@@ -56,3 +56,27 @@ export const useInvalidateRefundChanges = () => {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: ['refundChanges'] });
 };
+
+export const useApproveRefundChange = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (recordId: number | string) => 
+      request({ method: 'POST', url: `/api/v1/refund-change-requests/${recordId}/approvals` }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['refundChanges'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+};
+
+export const useRejectRefundChange = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (recordId: number | string) => 
+      request({ method: 'POST', url: `/api/v1/refund-change-requests/${recordId}/rejections` }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['refundChanges'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+};

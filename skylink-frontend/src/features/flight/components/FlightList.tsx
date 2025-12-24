@@ -100,11 +100,13 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
               </div>
 
               {/* 联程航班中转信息 */}
-              {flight.stops > 0 && flight.transferCity && (
+              {flight.stops > 0 && (
                 <div className="mt-2 flex flex-col items-center gap-1">
-                  <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100">
-                    经 {flight.transferCity}
-                  </span>
+                  {flight.transferCity && (
+                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100">
+                      经 {flight.transferCity}
+                    </span>
+                  )}
                   {flight.transferDuration != null && (
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${flight.transferDuration < 150
                         ? 'bg-orange-50 text-orange-600 border border-orange-200'
@@ -114,6 +116,18 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
                       }`}>
                       ⏱ 中转 {Math.floor(flight.transferDuration / 60)}h {flight.transferDuration % 60}m
                     </span>
+                  )}
+                  {/* 航段详情 */}
+                  {flight.segments && flight.segments.length > 1 && (
+                    <div className="flex flex-col gap-1 mt-1">
+                      {flight.segments.map((segment, index) => (
+                        <div key={index} className="text-xs text-gray-500 flex items-center gap-1">
+                          <span className="font-mono">{segment.flightNumber}</span>
+                          <ArrowRight className="w-3 h-3" />
+                          <span>{segment.origin} → {segment.destination}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}

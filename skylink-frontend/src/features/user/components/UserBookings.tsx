@@ -1,9 +1,12 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ConfirmedBooking } from '../../booking/types';
 import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '../../booking/api/payment';
 import { cancelOrder } from '../../booking/api/order';
-import { ArrowLeft, Plane, Calendar, CheckCircle, XCircle, Route, Ticket, CircleDollarSign, Clock, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plane, Calendar, CheckCircle, XCircle, Route, Ticket, CircleDollarSign, Clock, RefreshCw, Download } from 'lucide-react';
+import { exportToCSV, type ExportColumn } from '@/utils/export';
+import { Countdown } from '@/components';
+import { API_CONFIG } from '@/config/constants';
 
 interface UserBookingsProps {
   bookings: ConfirmedBooking[];
@@ -55,40 +58,9 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
     return new Date(isoString).toLocaleString('zh-CN');
   };
 
+  /** 使用统一配置计算支付截止时间 */
   const getPaymentDeadlineMs = (bookingDate: string) => {
-    return new Date(bookingDate).getTime() + 30 * 60 * 1000;
-  };
-
-  const Countdown = ({ date, onExpire }: { date: string; onExpire?: () => void }) => {
-    const [timeLeft, setTimeLeft] = useState('');
-    const expiredCalledRef = useRef(false);
-
-    useEffect(() => {
-      const targetTime = getPaymentDeadlineMs(date);
-
-      const timer = setInterval(() => {
-        const now = Date.now();
-        const diff = targetTime - now;
-
-        if (diff <= 0) {
-          setTimeLeft('00:00');
-          if (!expiredCalledRef.current) {
-            expiredCalledRef.current = true;
-            onExpire?.();
-          }
-          clearInterval(timer);
-          return;
-        }
-
-        const minutes = Math.floor((diff / 1000 / 60) % 60);
-        const seconds = Math.floor((diff / 1000) % 60);
-        setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }, [date, onExpire]);
-
-    return <span>{timeLeft}</span>;
+    return new Date(bookingDate).getTime() + API_CONFIG.PAYMENT_TIMEOUT_MS;
   };
 
   const handlePay = (booking: ConfirmedBooking) => {
@@ -167,7 +139,9 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-100">
             <Clock className="w-3.5 h-3.5" /> 待支付 (
             <Countdown
-              date={booking.bookingDate}
+              targetTime={getPaymentDeadlineMs(booking.bookingDate)}
+              variant="inline"
+              showIcon={false}
               onExpire={() => {
                 cancelOrder(booking.id)
                   .then(() => onUpdateBooking(booking))
@@ -224,11 +198,10 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
             <button
               onClick={() => handlePay(booking)}
               disabled={isExpired || actionLoading || payPreparing}
-              className={`px-6 py-2 rounded-xl text-white text-sm font-bold transition-all shadow-lg shadow-orange-500/20 ${
-                isExpired || payPreparing
-                  ? 'bg-gray-300 cursor-not-allowed shadow-none'
-                  : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
-              }`}
+              className={`px-6 py-2 rounded-xl text-white text-sm font-bold transition-all shadow-lg shadow-orange-500/20 ${isExpired || payPreparing
+                ? 'bg-gray-300 cursor-not-allowed shadow-none'
+                : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
+                }`}
             >
               {payPreparing ? '准备中...' : '去支付'}
             </button>
@@ -373,22 +346,40 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
                   key={opt.id}
                   type="button"
                   onClick={() => setStatusFilter(opt.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                    statusFilter === opt.id ? 'bg-white text-sky-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${statusFilter === opt.id ? 'bg-white text-sky-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
                 >
                   {opt.label}
                 </button>
               ))}
             </div>
 
-            <div className="w-full lg:w-auto">
+            <div className="flex items-center gap-2 w-full lg:w-auto">
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="搜索订单号 / 乘客 / 航线"
-                className="w-full lg:w-72 px-4 py-2.5 rounded-2xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                className="flex-1 lg:w-72 px-4 py-2.5 rounded-2xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-sky-500 bg-white"
               />
+              <button
+                type="button"
+                onClick={() => {
+                  const columns: ExportColumn<ConfirmedBooking>[] = [
+                    { key: 'id', label: '订单号' },
+                    { key: 'passengerName', label: '乘客姓名' },
+                    { key: 'status', label: '状态', formatter: (item) => item.status === 'confirmed' ? '已确认' : item.status === 'pending_payment' ? '待支付' : item.status === 'cancelled' ? '已取消' : item.status === 'refunding' ? '退改中' : item.status },
+                    { key: 'flight.origin', label: '出发地', formatter: (item) => item.flight?.origin || item.flights?.[0]?.origin || '' },
+                    { key: 'flight.destination', label: '目的地', formatter: (item) => item.flight?.destination || item.flights?.[item.flights.length - 1]?.destination || '' },
+                    { key: 'totalPrice', label: '金额', formatter: (item) => `¥${Number(item.totalPrice || 0).toLocaleString()}` },
+                    { key: 'bookingDate', label: '下单时间', formatter: (item) => new Date(item.bookingDate).toLocaleString('zh-CN') },
+                  ];
+                  exportToCSV(filteredBookings, `我的订单_${statusFilter}`, columns);
+                }}
+                className="px-4 py-2.5 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 text-sm font-bold hover:bg-emerald-100 transition-all flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                导出
+              </button>
             </div>
           </div>
 

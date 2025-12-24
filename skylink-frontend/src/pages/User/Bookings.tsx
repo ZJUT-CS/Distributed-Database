@@ -8,6 +8,7 @@ import { searchOrders, type OrderSearchResult, cancelOrder } from '@/features/bo
 import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '@/features/booking/api/payment';
 import { loadOrderPassengers } from '@/utils/storage';
 import { ORDER_STATUS } from '@/features/admin/constants';
+import { API_CONFIG } from '@/config/constants';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -104,7 +105,7 @@ const formatLocalYmd = (d: Date) => {
 };
 
 const getPaymentDeadlineMs = (bookingDate: string) => {
-  return new Date(bookingDate).getTime() + 30 * 60 * 1000;
+  return new Date(bookingDate).getTime() + API_CONFIG.PAYMENT_TIMEOUT_MS;
 };
 
 const BookingsPage: React.FC = () => {

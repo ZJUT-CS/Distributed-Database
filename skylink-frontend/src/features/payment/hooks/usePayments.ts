@@ -16,6 +16,8 @@ export const useAdminPayments = (params: PaymentSearchPageParams, enabled = true
     queryKey: ['admin', 'payments', params],
     queryFn: () => listPaymentsPage(params),
     enabled,
+    staleTime: 4 * 60 * 1000, // 4 minutes
+    gcTime: 9 * 60 * 1000, // 9 minutes
   });
 };
 

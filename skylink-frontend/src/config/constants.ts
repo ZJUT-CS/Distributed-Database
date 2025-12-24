@@ -1,6 +1,8 @@
 export const API_CONFIG = {
-  PAYMENT_TIMEOUT_MINUTES: 2,
-  PAYMENT_TIMEOUT_MS: 2 * 60 * 1000,
+  /** 支付超时 (分钟) - 与后端 OrderTimeoutTask 保持一致 */
+  PAYMENT_TIMEOUT_MINUTES: 1,
+  /** 支付超时 (毫秒) */
+  PAYMENT_TIMEOUT_MS: 1 * 60 * 1000,
   ORDER_STATUS: {
     PENDING: 1,
     PAID: 2,

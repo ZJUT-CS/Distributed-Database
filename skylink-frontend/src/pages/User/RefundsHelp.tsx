@@ -15,6 +15,10 @@ const RefundsHelpPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<RefundChangeRecord | null>(null);
   const [editReason, setEditReason] = useState('');
@@ -54,6 +58,18 @@ const RefundsHelpPage: React.FC = () => {
       })
       .sort((a, b) => new Date(b.applyTime).getTime() - new Date(a.applyTime).getTime());
   }, [audits, searchTerm, statusFilter]);
+
+  // 分页计算
+  const totalPages = Math.max(1, Math.ceil(filteredAudits.length / pageSize));
+  const paginatedAudits = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAudits.slice(start, start + pageSize);
+  }, [filteredAudits, currentPage, pageSize]);
+
+  // 筛选变化时重置页码
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   const pendingCount = audits.filter((a) => a.status === 'pending').length;
 
@@ -236,7 +252,7 @@ const RefundsHelpPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {filteredAudits.map((a) => (
+            {paginatedAudits.map((a) => (
               <tr key={a.id} className="hover:bg-gray-50/80 transition-colors">
                 <td className="px-6 py-4 font-mono text-gray-700">{a.id}</td>
                 <td className="px-6 py-4 font-mono text-gray-600">{a.orderId}</td>
@@ -298,6 +314,58 @@ const RefundsHelpPage: React.FC = () => {
             )}
           </tbody>
         </table>
+
+        {/* 分页控件 */}
+        {filteredAudits.length > pageSize && (
+          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+            <div className="text-sm text-gray-500">
+              显示 {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredAudits.length)} / 共 {filteredAudits.length} 条
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                上一页
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  // 计算显示的页码范围
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${currentPage === pageNum
+                          ? 'bg-sky-600 text-white'
+                          : 'hover:bg-gray-100 text-gray-600'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Re-apply Modal */}

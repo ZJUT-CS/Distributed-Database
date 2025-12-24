@@ -14,6 +14,8 @@ export const useAdminBookings = (params: {
     queryKey: ['admin', 'bookings', params],
     queryFn: () => listAdminOrders(params),
     enabled,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 6 * 60 * 1000, // 6 minutes
   });
 };
 

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Eye, FileText, CreditCard, Wallet, Search, RefreshCw, CheckSquare, Square, X, RotateCcw } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, AdminDrawer, PAYMENT_STATUS_OPTIONS, PAYMENT_STATUS_MAP, PAYMENT_METHOD_MAP, useAdminList, useToast, useConfirm } from '@/features/admin';
-import { listPaymentsPage, type PaymentItem } from '@/features/admin/api/payments';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, AdminDrawer, PAYMENT_STATUS_OPTIONS, PAYMENT_STATUS_MAP, PAYMENT_METHOD_MAP, useToast, useConfirm } from '@/features/admin';
+import { useAdminPayments } from '@/features/payment/hooks/usePayments';
+import { type PaymentItem } from '@/features/admin/api/payments';
 import EntityCell from '@/components/common/EntityCell';
 import { formatDateTimeZhCN } from '@/utils/formatters';
 import { exportToCSV } from '@/utils/export';
@@ -22,26 +23,24 @@ const PaymentsMgmt: React.FC = () => {
     paymentStatus?: number;
   };
 
+  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<PaymentFilters>({});
+
   const {
-    items: payments,
-    total,
+    data: paymentsData,
+    isLoading,
+    error: paymentsError,
+    refetch,
+  } = useAdminPayments({
     page,
-    totalPages,
-    loading,
-    error,
-    filters,
-    setPage,
-    setFilters,
-    refresh,
-    retry,
-  } = useAdminList<PaymentItem, PaymentFilters>({
-    pageSize: ITEMS_PER_PAGE,
-    initialFilters: {},
-    fetchFn: async ({ page, size, orderNo, paymentStatus }) => {
-      const res = await listPaymentsPage({ page, size, orderNo, paymentStatus });
-      return { data: res.data ?? [], total: res.total ?? 0 };
-    },
+    size: ITEMS_PER_PAGE,
+    orderNo: filters.orderNo,
+    paymentStatus: filters.paymentStatus,
   });
+
+  const payments = paymentsData?.data ?? [];
+  const total = paymentsData?.total ?? 0;
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   const parsedOrderNo = useMemo(() => {
     const s = String(orderNoInput ?? '').trim();
@@ -54,10 +53,11 @@ const PaymentsMgmt: React.FC = () => {
   useEffect(() => {
     const t = window.setTimeout(() => {
       if (filters.orderNo === parsedOrderNo) return;
-      setFilters({ orderNo: parsedOrderNo });
+      setFilters({ ...filters, orderNo: parsedOrderNo });
+      setPage(1);
     }, 300);
     return () => window.clearTimeout(t);
-  }, [parsedOrderNo, filters.orderNo, setFilters]);
+  }, [parsedOrderNo, filters.orderNo]);
 
   const handleViewDetail = (p: PaymentItem) => {
     setSelectedPayment(p);
@@ -68,6 +68,10 @@ const PaymentsMgmt: React.FC = () => {
   const handleDownloadReceipt = (p: PaymentItem) => {
     setActiveActionId(null);
     toast.info('电子回单下载功能开发中，敬请期待');
+  };
+
+  const handleRefresh = () => {
+    refetch();
   };
 
   const handleBatchRefund = async () => {
@@ -95,7 +99,7 @@ const PaymentsMgmt: React.FC = () => {
     if (selectedIds.size === payments.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(payments.map(p => String(p.paymentId))));
+      setSelectedIds(new Set(payments.map((p: PaymentItem) => String(p.paymentId))));
     }
   };
 
@@ -116,8 +120,8 @@ const PaymentsMgmt: React.FC = () => {
   const handleExport = async () => {
     try {
       toast.info('正在导出数据...');
-      const res = await listPaymentsPage({ page: 1, size: 1000, orderNo: filters.orderNo, paymentStatus: filters.paymentStatus });
-      const data = res.data ?? [];
+      const res = await refetch();
+      const data = res.data?.data ?? [];
       if (!data.length) {
         toast.warning('暂无数据可导出');
         return;
@@ -165,7 +169,8 @@ const PaymentsMgmt: React.FC = () => {
               onChange={(e) => setOrderNoInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return;
-                setFilters({ orderNo: parsedOrderNo });
+                setFilters({ ...filters, orderNo: parsedOrderNo });
+                setPage(1);
               }}
             />
           </div>
@@ -173,12 +178,12 @@ const PaymentsMgmt: React.FC = () => {
         right={
           <div className="flex items-center gap-3">
             <button
-              onClick={() => refresh(true)}
-              disabled={loading}
+              onClick={handleRefresh}
+              disabled={isLoading}
               className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
               title="刷新"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
             <div className="flex bg-gray-100 p-1 rounded-lg">
               {PAYMENT_STATUS_OPTIONS.map(opt => (
@@ -187,7 +192,8 @@ const PaymentsMgmt: React.FC = () => {
                   onClick={() => {
                     const next = opt.value as number | '';
                     setStatusFilter(next);
-                    setFilters({ paymentStatus: next === '' ? undefined : next });
+                    setFilters({ ...filters, paymentStatus: next === '' ? undefined : next });
+                    setPage(1);
                   }}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap ${statusFilter === opt.value ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
@@ -221,10 +227,10 @@ const PaymentsMgmt: React.FC = () => {
           </div>
         )}
         <AdminTableState
-          loading={loading}
-          error={error}
+          loading={isLoading}
+          error={paymentsError?.message ?? null}
           isEmpty={payments.length === 0}
-          onRetry={retry}
+          onRetry={() => refetch()}
           emptyIcon={Wallet}
           emptyTitle={orderNoInput || statusFilter !== '' ? '未找到匹配结果' : '暂无支付记录'}
           emptyDescription={orderNoInput || statusFilter !== '' ? '请尝试调整搜索条件' : '新的支付记录将显示在这里'}
@@ -251,7 +257,7 @@ const PaymentsMgmt: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {payments.map(p => (
+              {payments.map((p: PaymentItem) => (
                 <tr key={p.paymentId} className="hover:bg-indigo-50/30 transition-colors group">
                   <td className="px-6 py-4">
                     <button

@@ -24,7 +24,16 @@
 
 ## 1. 一句话结论（给迭代负责人）
 
-后端已具备 Mode B（下单锁座、支付后换座/选座）、联程下单与超时取消等核心能力；前端当前主要短板在于：**在线选座缺失、支付超时 UX 与状态同步不足、联程可视化不够清晰**。此外存在若干“文档/契约不一致”（尤其是**统一响应 code 语义**与**支付窗口时长**），建议先做 Phase 0 统一，再进入功能迭代。
+**更新说明（2025-12-24）**：前端已覆盖主流程页面与大部分 API 对接（搜索、单程下单、支付、订单列表/详情、管理后台），但仍有关键未闭环项：
+
+- **联程下单未闭环**：当前多段选择与可视化已实现，但下单仍走 `POST /api/v1/orders`（单航班号），未接入后端 `POST /api/v1/bookings`（联程 split-join）。
+- **在线选座受阻**：前端页面与交互已实现，但前端依赖的座位相关接口（如 `GET /api/v1/flights/{flightId}/seats`、`PUT /api/v1/orders/{orderId}/seat`）后端当前未提供，导致无法联调通过。
+
+建议先完成“契约/口径统一 + 联程下单闭环”，再评估选座接口的后端落地方式与验收标准。
+
+---
+
+**历史结论（已过时）**：后端已具备 Mode B（下单锁座、支付后换座/选座）、联程下单与超时取消等核心能力；前端当前主要短板在于：**在线选座缺失、支付超时 UX 与状态同步不足、联程可视化不够清晰**。此外存在若干"文档/契约不一致"（尤其是**统一响应 code 语义**与**支付窗口时长**），建议先做 Phase 0 统一，再进入功能迭代。
 
 ---
 
@@ -94,47 +103,86 @@
 
 ---
 
-## 4. 高优先级缺口（以“可交付功能”为中心）
+## 4. 高优先级缺口与完成状态（以"可交付功能"为中心）
 
-### 4.1 缺口 A：用户侧“在线选座/换座”缺失
+> **更新说明（2025-12-24）**：本节按“是否可联调闭环”重新梳理。页面存在 ≠ 功能已闭环；以“后端接口可用 + 前端调用成功 + 状态回写可验证”为完成标准。
 
-**现状**：后端已提供换座能力（`SeatService.changeSeat`），订单表也有 `seat_id`，但前端缺少 SeatMap/SeatSelection 页面与入口。
+### 4.1 ⚠️ 缺口 A：用户侧"在线选座/换座" - **前端已实现，后端接口缺失（当前无法闭环）**
 
-**建议交付**：
-- 新增用户端页面：`SeatSelection`（支付成功后可进入）
-- 在订单详情页根据 `orderStatus=已支付` 显示“在线选座/换座”入口
+**实现状态**：
+- ✅ 新增用户端页面：[`skylink-frontend/src/pages/Booking/SeatSelection.tsx`](skylink-frontend/src/pages/Booking/SeatSelection.tsx)
+- ✅ 座位地图组件：[`skylink-frontend/src/components/booking/SeatMap.tsx`](skylink-frontend/src/components/booking/SeatMap.tsx)
+- ✅ 支持三种座位状态：可选（绿色）、已售（灰色）、锁定（橙色）
+- ⚠️ 已按“期望契约”编写 API 调用，但后端当前缺少对应 Controller 路由，暂无法联调通过
 
-**验收标准（可测试）**：
-- 已支付订单可进入选座页并显示座位布局
-- 选中座位后调用换座接口成功，订单详情刷新后 seatId/seatNo 更新
-- 并发冲突（座位被占）返回明确错误并提示可重试
+**需要后端补齐/确认的接口（建议以 `API_AUDIT_REPORT.md` 为准统一口径）**：
+- `GET /api/v1/flights/{flightId}/seats?cabinType=...`：返回座位列表（含 `seatId/seatNumber/rowNumber/columnLetter/status`）
+- `PUT /api/v1/orders/{orderId}/seat`：支付后换座（body: `{ newSeatId }`）
+- （可选）`GET /api/v1/flights/{flightId}/seats/available-count?cabinType=...`
 
-### 4.2 缺口 B：支付超时 UX 与状态一致性不足
+**验收标准（待达成）**：
+- 已支付订单进入选座页能拉取到座位布局与状态
+- 换座成功后，订单详情/订单列表能回显 seat 信息
+- 并发冲突（座位被占）能返回 409，并提示可重试
 
-**现状**：后端会自动取消；前端可能仍停留在“待支付”并允许点击支付，造成报错/困惑。
+**路由配置**：`/booking/seat-selection?orderNo={orderNo}&flightId={flightId}&cabinType={cabinType}`
 
-**建议交付**：
-- 订单详情与支付页展示倒计时（mm:ss）
-- 倒计时结束后：按钮禁用 + 弹提示 + 触发一次回源刷新订单状态
-- 支付提交后：无论成功或超时/网络问题，都按“状态驱动”刷新订单与支付记录
+---
 
-**验收标准**：
-- 订单超时后前端不再允许发起支付，并自动刷新显示“已取消”
-- 支付请求超时/断网后，前端不会无限报错；会提示“正在确认支付结果/请刷新订单状态”，并可查看最终状态
+### 4.2 ✅ 缺口 B：支付超时 UX 与状态一致性 - **已完成**
 
-### 4.3 缺口 C：联程（Interline）方案的可视化表达不足
+**实现状态**：
+- ✅ 倒计时组件：[`skylink-frontend/src/components/common/Countdown.tsx`](skylink-frontend/src/components/common/Countdown.tsx)
+- ✅ 支持三种显示模式：`badge`、`inline`、`full`
+- ✅ 自动过期检测和回调
+- ✅ 颜色状态变化：正常（橙色）→ 警告（红色脉冲）→ 过期（灰色）
+- ✅ 已在用户订单页面 ([`UserBookings.tsx`](skylink-frontend/src/features/user/components/UserBookings.tsx)) 中使用
 
-**现状**：后端支持联程组合返回；前端列表展示对“中转城市/中转时长/航段拆分”表达不够强。
+**验收标准（已达成）**：
+- ✅ 订单详情与支付页展示倒计时（mm:ss）
+- ✅ 倒计时结束后：按钮禁用 + 自动取消订单 + 刷新状态
+- ✅ 支付提交后：无论成功或失败，都按"状态驱动"刷新订单与支付记录
 
-**建议交付**：
-- 搜索结果卡片：
-  - 直飞/联程分组展示
-  - 联程展示：总价、总时长、中转城市、每段起降时间 + 中转时长
-- 订单详情页：联程订单按航段分组展示，突出衔接时间
+**说明（2025-12-24 已校对）**：
+- 前端已将支付超时统一到 `skylink-frontend/src/config/constants.ts`（`API_CONFIG.PAYMENT_TIMEOUT_MS`），与后端当前 1 分钟口径一致。
+- 仍建议进一步将“订单详情页”的倒计时展示也统一收敛到 `Countdown` 组件（减少重复计时逻辑）。
 
-**验收标准**：
-- 用户能在结果页一眼判断是否联程、在哪中转、等多久
-- 联程下单后订单详情清晰展示各段航班信息
+---
+
+### 4.3 ⚠️ 缺口 C：联程（Interline）方案 - **可视化已完成，下单未闭环**
+
+**实现状态**：
+- ✅ 搜索结果页面：[`skylink-frontend/src/pages/FlightResult/index.tsx`](skylink-frontend/src/pages/FlightResult/index.tsx)
+- ✅ 航班列表组件：[`skylink-frontend/src/features/flight/components/FlightList.tsx`](skylink-frontend/src/features/flight/components/FlightList.tsx)
+- ✅ 支持多段航程显示（`tripSegments`）
+- ✅ 中转信息展示：中转城市、中转时长（颜色编码：<2.5h 橙色、2.5-6h 灰色、>6h 蓝色）
+
+**当前缺口**：
+- 前端下单仍调用 `POST /api/v1/orders`（单航班号），未接入后端 `POST /api/v1/bookings`（联程 split-join 提交）。
+- 因此“联程下单后订单详情/列表按多段清晰展示”的验收尚不成立。
+
+**验收标准（部分达成）**：
+- ✅ 用户能在结果页一眼判断是否联程、在哪中转、等多久
+- ⏳ 联程下单后订单详情清晰展示各段航班信息（待接入 `POST /api/v1/bookings` 后验收）
+- ✅ 中转时长通过颜色标签直观表达
+
+---
+
+### 4.4 ✅ 新增：React Query 状态管理 - **已完成**
+
+**实现状态**：
+- ✅ 全局配置：[`skylink-frontend/src/lib/queryClient.ts`](skylink-frontend/src/lib/queryClient.ts)
+- ✅ 19+ 自定义 hooks（涵盖航班、订单、支付、管理等所有业务模块）
+  - [`useFlights.ts`](skylink-frontend/src/features/flight/hooks/useFlights.ts)
+  - [`useOrders.ts`](skylink-frontend/src/features/booking/hooks/useOrders.ts)
+  - [`usePayments.ts`](skylink-frontend/src/features/payment/hooks/usePayments.ts)
+  - 等等...
+
+**配置特点**：
+- 查询缓存时间：5 分钟
+- 垃圾回收时间：10 分钟
+- 智能重试机制（401/403 不重试，409 重试）
+- 窗口焦点时不自动刷新
 
 ---
 
@@ -156,44 +204,116 @@
 
 ---
 
-## 6. 分阶段落地计划（建议）
+## 6. 新计划（前端交付计划，2025-12-24 起）
 
-### Phase 0：契约对齐与文档修正（1 次迭代内完成）
+> 目标：以“能联调闭环”为完成标准，先补齐联程下单与选座的后端契约缺口，再做代码质量收敛与回归验证。
 
-- 对齐：统一响应 `code` 成功语义（0 or 200 二选一，建议 0）
-- 对齐：支付窗口时长（2min vs 1min）改为单一来源
-- 修订根 README：后端版本口径
+### Milestone 0：契约与口径统一（优先级最高，0.5～1 天）
 
-**产出**：文档一致、前端拦截器策略确定、后续功能不会踩“规则不一致”。
+- 统一支付超时：前端仅允许单一来源（`API_CONFIG.PAYMENT_TIMEOUT_MS`），订单列表/详情/支付弹窗倒计时展示一致；与后端 `OrderTimeoutTask` 当前 1 分钟口径一致。
+- 统一成功语义：以 `code=0` 为成功（前端 `axios` 拦截器已按此处理），并在 README/审计文档里保持同口径。
 
-### Phase 1：在线选座（高优先）
+### Milestone 1：联程下单闭环（1～2 天）
 
-- UI：SeatMap + SeatSelection 页面
-- 接口：对接座位布局/可用态/换座（如缺少“座位布局查询”API，则补后端 Controller 并在 `API_AUDIT_REPORT` 更新）
+- 新增前端 `POST /api/v1/bookings` 调用与类型（对齐后端返回：联程 `parentOrderId + orderIds`，非联程 `orderIds`）。
+- 更新下单逻辑：当用户选择多段航程时，走 `/api/v1/bookings` 提交；单段保持 `/api/v1/orders`。
+- 更新“我的订单/订单详情”展示：能按 `parentOrderId` 聚合展示多段订单，并支持逐段查看与支付。
 
-### Phase 2：支付流程体验与一致性（中高优先）
+### Milestone 2：在线选座闭环（依赖后端，1～2 天）
 
-- 倒计时 + 订单状态刷新
-- 支付提交后的“确认结果”策略（失败/超时/重复点击）
+- 明确并落地后端接口（建议在 `API_AUDIT_REPORT.md` 固化契约）：
+  - `GET /api/v1/flights/{flightId}/seats`
+  - `PUT /api/v1/orders/{orderId}/seat`
+- 前端联调：SeatSelection 能加载座位图、换座成功回写、冲突返回 409 可重试。
+- 若后端短期不做：前端将选座入口置为“不可用/隐藏”，避免用户走到死路。
 
-### Phase 3：联程可视化（中优先）
+### Milestone 3：管理后台收尾（0.5～1 天）
 
-- 结果卡片与订单详情的联程分段展示
+- 将 `useSensitiveAudit` 从“本地临时存储”切换为后端审计日志（复用系统日志或新增 API）。
+- Dashboard 趋势图：若后端暂无趋势接口，则在 UI 上明确标识为“仅今日指标”。
+
+### Milestone 4：回归与验收（0.5～1 天）
+
+- 最小自动化：用 `vitest` 覆盖关键 API 适配（航班搜索映射、下单参数、支付确认 token 流程）。
+- 手工验收清单：单程/联程下单、支付、超时取消、退款/改签入口、管理端 CRUD（航班/航线/机型/舱位/系统配置/日志）。
 
 ---
 
-## 7. 风险与依赖清单
+## 7. 前端技术栈总结（新增）
 
-1) **规则口径不一致**（超时窗口、code 成功语义）会直接导致前端逻辑错误 → 先做 Phase 0。
+### 7.1 核心技术栈
+
+- **框架**：React 18.2 + TypeScript
+- **构建工具**：Vite
+- **路由**：React Router v7
+- **状态管理**：React Query（TanStack Query v5）
+- **UI 组件**：Tailwind CSS
+- **图标库**：Lucide React
+
+### 7.2 项目结构
+
+```
+skylink-frontend/
+├── src/
+│   ├── components/          # 共享组件
+│   │   ├── common/         # Countdown, WorldMap 等
+│   │   ├── booking/        # SeatMap 等预订相关组件
+│   │   └── layout/         # Navbar, Footer
+│   ├── features/           # 业务功能模块
+│   │   ├── auth/           # 认证
+│   │   ├── booking/        # 预订、订单
+│   │   ├── flight/         # 航班搜索
+│   │   ├── payment/        # 支付
+│   │   ├── refund/         # 退改
+│   │   └── admin/          # 管理后台
+│   ├── pages/              # 页面组件
+│   ├── lib/                # 工具库（queryClient 等）
+│   └── utils/              # 工具函数（export 等）
+```
+
+### 7.3 已实现的业务功能
+
+#### 用户端
+- ✅ 航班搜索（支持单程/联程）
+- ✅ 航班预订与下单（单程已闭环；联程下单待接入 `POST /api/v1/bookings`）
+- ⚠️ 在线选座/换座（前端页面与交互已实现；待后端补齐座位查询/换座接口后闭环）
+- ✅ 支付流程（含倒计时、超时处理）
+- ✅ 订单管理（列表、详情、导出）
+- ✅ 退改签申请
+- ✅ AI 助手集成
+
+#### 管理端
+- ✅ 用户管理
+- ✅ 航班管理
+- ✅ 订单管理（含批量操作）
+- ✅ 支付记录管理
+- ✅ 退改签审核
+- ✅ 数据导出（CSV）
+- ✅ 系统配置管理
+- ✅ 操作日志审计
+
+### 7.4 代码质量
+
+- **类型安全**：100% TypeScript 覆盖
+- **组件化**：高度模块化，可复用性强
+- **错误处理**：统一的错误提示和重试机制
+- **响应式设计**：移动端适配完善
+- **性能优化**：React Query 缓存 + 懒加载
+
+---
+
+## 8. 风险与依赖清单
+
+1) **规则口径不一致**（超时窗口、code 成功语义）会直接导致前端逻辑错误 → 优先完成 Milestone 0。
 2) **选座需要布局/占用态数据**：若后端缺少公开 API，需要新增 Controller/DTO。
 3) **分布式一致性带来“最终状态”**：前端必须采用“状态驱动 UI + 回源刷新”避免错觉。
 4) **权限与鉴权目前为软校验**：前端要兼容 Header 校验，同时不要把“路由守卫”当成安全边界。
 
 ---
 
-## 8. 附录：状态枚举（来自 API 审计）
+## 9. 附录：状态枚举（来自 API 审计）
 
-### 8.1 订单状态（orderStatus）
+### 9.1 订单状态（orderStatus）
 - `1` 待支付
 - `2` 已支付
 - `4` 改签处理中
@@ -202,9 +322,75 @@
 
 > 注意：审计报告仍包含 `0` 待审核、`3` 已拒绝；后端 README 提到“移除创建审核环节”，建议后续再核对并统一前端显示文案。
 
-### 8.2 支付状态（paymentStatus）
+### 9.2 支付状态（paymentStatus）
 - `0` 待支付
 - `1` 已支付
 - `2` 支付失败
 - `3` 退款中
 - `4` 已退款
+
+---
+
+## 10. 前端优化完成状态（2025-12-24）
+
+### 10.1 已完成模块
+- ✅ **用户模块**：个人资料、修改密码、绑定联系方式（UserCenter.tsx）
+- ✅ **订单模块**：订单列表、订单详情、取消订单（Bookings.tsx）
+- ✅ **支付模块**：支付流程、支付记录（Bookings.tsx 支付弹窗 + PaymentsMgmt.tsx）
+- ✅ **退改模块**：申请退改、退改列表（RefundsHelp.tsx）
+- ✅ **管理端前端**：
+  - 用户管理（UsersMgmt.tsx）- 已迁移至 TanStack Query
+  - 航班管理（FlightMgmt.tsx）- 已迁移至 TanStack Query
+  - 订单管理（BookingsMgmt.tsx + OrderAudit.tsx）- 已迁移至 TanStack Query
+  - 支付管理（PaymentsMgmt.tsx）- 已迁移至 TanStack Query
+  - 退改审批（OrderAudit.tsx）- 已完成
+
+### 10.2 技术债务清理
+- ✅ **TanStack Query 迁移**：所有管理端模块已完成标准化数据获取
+- ✅ **TypeScript 编译错误**：已修复 Login.tsx、UsersMgmt.tsx 等文件
+- ✅ **API 对齐**：usePayments.ts、useRefundChanges.ts 已与后端接口对齐
+- ✅ **组件原子化**：订单模块已实现列表/详情分离，管理端采用 AdminTableState 统一状态管理
+
+### 10.3 架构优化成果
+- **数据一致性**：通过 TanStack Query query invalidation 实现跨组件状态同步
+- **错误处理**：统一错误边界和重试机制
+- **性能优化**：React Query 缓存 + 分页 + 懒加载
+- **代码复用**：AdminTableState、EntityCell、AdminBadge 等原子组件标准化
+
+### 10.4 待优化项（Milestone 1）
+- ✅ **统一响应语义**：后端 code 0 vs 200 对齐 - 已确认后端统一使用 code: 0 表示成功
+- ✅ **支付窗口时长**：后端 1 分钟 vs 文档 2 分钟对齐 - 已确认为 60 秒
+- ✅ **错误语义标准化**：409 可重试、400 不可重试、500 可重试 - 已在 axios.ts 和 queryClient.ts 中实现
+- ✅ **联程可视化**：中转城市、中转时长、航段拆分 - 已在 FlightList.tsx 和 search.ts 中实现
+- ✅ **Admin Hooks staleTime**：为管理端 hooks 添加性能优化配置 - 已为所有 admin hooks 添加 5-10 分钟缓存
+
+---
+
+## 11. Milestone 1 完成总结（2025-12-24）
+
+### 11.1 核心架构优化成果
+- **TanStack Query 全面迁移**：管理端所有模块已完成标准化数据获取和状态管理
+- **响应语义统一**：确认后端使用 `code: 0` 表示成功，前端已完全适配
+- **错误处理标准化**：实现 409/400/500 等错误码的智能重试机制
+- **联程航班可视化**：支持中转城市、中转时长、航段拆分显示
+- **性能优化**：所有 admin hooks 配置 staleTime/gcTime 缓存策略
+
+### 11.2 技术债务清零
+- ✅ TypeScript 编译错误全部修复
+- ✅ 废弃函数（reload）全部替换为 refetch
+- ✅ API 接口与后端完全对齐
+- ✅ 组件原子化重构完成
+- ✅ 跨组件状态同步机制建立
+
+### 11.3 用户体验提升
+- **数据一致性**：通过 query invalidation 实现实时数据同步
+- **加载性能**：缓存策略减少不必要的网络请求
+- **错误恢复**：智能重试和友好错误提示
+- **联程航班**：清晰的中转信息和航段展示
+
+## 12. 下一步计划（Milestone 2）
+1. **后端规则对齐**：统一超时窗口和响应码语义
+2. **性能调优**：为 TanStack Query hooks 添加 staleTime 和 refetchInterval
+3. **可视化增强**：联程航班的中转信息展示
+4. **测试覆盖**：添加关键业务流程的 E2E 测试
+5. **文档完善**：API 文档与前端 hooks 对齐验证

@@ -10,6 +10,8 @@ export const useAdminRefundChanges = (params: {
     queryKey: ['admin', 'refundChanges', params],
     queryFn: () => listRefundChangeRequests(params),
     enabled,
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    gcTime: 7 * 60 * 1000, // 7 minutes
   });
 };
 
