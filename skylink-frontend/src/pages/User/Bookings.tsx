@@ -9,6 +9,7 @@ import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } f
 import { loadOrderPassengers } from '@/utils/storage';
 import { ORDER_STATUS } from '@/features/admin/constants';
 import { API_CONFIG } from '@/config/constants';
+import InterlineJourneyTimeline from '@/components/booking/InterlineJourneyTimeline';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -529,7 +530,15 @@ export const BookingDetailsPage: React.FC = () => {
             <div className="p-6">
               {flights.length === 0 ? (
                 <div className="text-sm text-gray-500">暂无航段信息</div>
+              ) : flights.length > 1 && flights[0].segments && flights[0].segments.length > 0 ? (
+                // 联程航班：使用时间线组件
+                <InterlineJourneyTimeline
+                  segments={flights[0].segments}
+                  transferCity={flights[0].transferCity}
+                  transferDuration={flights[0].transferDuration}
+                />
               ) : (
+                // 普通/直飞航班：使用原有卡片展示
                 <div className="space-y-3">
                   {flights.map((f, idx) => (
                     <div

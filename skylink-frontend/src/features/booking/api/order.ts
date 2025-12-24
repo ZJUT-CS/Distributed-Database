@@ -17,6 +17,10 @@ export interface OrderSearchResult {
   destination?: string | null;
   departureTime?: string | null;
   arrivalTime?: string | null;
+  // 联程订单关联字段
+  flightId?: string | null;
+  seatId?: string | null;
+  parentOrderId?: string | null;
 }
 
 export type CreateOrderResult = OrderSearchResult;

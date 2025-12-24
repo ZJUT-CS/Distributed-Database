@@ -1,5 +1,19 @@
 export type FlightStatus = 'active' | 'delayed' | 'cancelled' | 'full';
 
+/**
+ * 联程航班航段信息
+ */
+export interface FlightSegment {
+  flightNumber: string;
+  airline: string;
+  airlineCode: string;
+  origin: string;
+  destination: string;
+  departureTime: string;
+  arrivalTime: string;
+  duration: string;
+}
+
 export interface Flight {
   id: string;
   airline: string;
@@ -22,6 +36,16 @@ export interface Flight {
     hasEntertainment: boolean;
   };
   aircraft?: string;
+
+  // 联程航班专用字段
+  /** 联程航段详情 */
+  segments?: FlightSegment[];
+  /** 中转城市 */
+  transferCity?: string;
+  /** 中转时长（分钟） */
+  transferDuration?: number;
+  /** 是否为联程航班 */
+  isInterline?: boolean;
 }
 
 export interface Airport {
@@ -70,4 +94,5 @@ export interface FilterState {
   destinationAirports: string[];
   durationMax: number;
 }
+
 

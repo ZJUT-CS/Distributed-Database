@@ -4,6 +4,7 @@ import type { Flight } from '../../flight/types';
 import type { BookingDetails, PassengerInfo } from '../types';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { CreditCard, User, ShieldCheck, Plane, Clock, Mail, Phone, ChevronRight, CheckCircle2, QrCode, Smartphone, Wallet, ArrowLeft, AlertCircle, Lock, BadgeCheck } from 'lucide-react';
+import InterlineJourneyTimeline from '@/components/booking/InterlineJourneyTimeline';
 
 interface BookingFormProps {
   flights: Flight[];
@@ -279,35 +280,48 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
         </div>
 
         <div className="p-6">
-          <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-            {flights.map((flight, idx) => (
-              <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-sky-500" />
-                <div className="flex justify-between items-start mb-2 pl-2">
-                  <span className="text-[10px] font-extrabold text-sky-700 bg-sky-50 px-2 py-0.5 rounded uppercase">
-                    Flight {idx + 1}
-                  </span>
-                  <span className="font-extrabold text-gray-900">¥{flight.price.toLocaleString()}</span>
-                </div>
-                <div className="pl-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-extrabold text-gray-900">{flight.origin}</span>
-                    <ArrowLeft className="w-3 h-3 text-gray-300 rotate-180" />
-                    <span className="text-sm font-extrabold text-gray-900">{flight.destination}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-1">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {new Date(flight.departureTime).toLocaleDateString('zh-CN')}
+          {/* 联程航班展示 */}
+          {flights.length > 0 && flights[0].segments && flights[0].segments.length > 1 ? (
+            <div className="max-h-[400px] overflow-y-auto">
+              <InterlineJourneyTimeline
+                segments={flights[0].segments}
+                transferCity={flights[0].transferCity}
+                transferDuration={flights[0].transferDuration}
+                className="scale-95"
+              />
+            </div>
+          ) : (
+            // 普通航班列表
+            <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+              {flights.map((flight, idx) => (
+                <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-sky-500" />
+                  <div className="flex justify-between items-start mb-2 pl-2">
+                    <span className="text-[10px] font-extrabold text-sky-700 bg-sky-50 px-2 py-0.5 rounded uppercase">
+                      Flight {idx + 1}
                     </span>
-                    <span>{flight.duration}</span>
+                    <span className="font-extrabold text-gray-900">¥{flight.price.toLocaleString()}</span>
                   </div>
-                  <div className="text-xs text-gray-400">
-                    {flight.airline} • {flight.flightNumber}
+                  <div className="pl-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-extrabold text-gray-900">{flight.origin}</span>
+                      <ArrowLeft className="w-3 h-3 text-gray-300 rotate-180" />
+                      <span className="text-sm font-extrabold text-gray-900">{flight.destination}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mb-1">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {new Date(flight.departureTime).toLocaleDateString('zh-CN')}
+                      </span>
+                      <span>{flight.duration}</span>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {flight.airline} • {flight.flightNumber}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="mt-4 flex flex-wrap gap-2">
             {meta.benefits.map((b) => (
@@ -600,11 +614,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                   <button
                     onClick={handleNextStep}
                     aria-disabled={validation.hasErrors}
-                    className={`text-white px-8 py-3.5 rounded-2xl font-extrabold shadow-xl flex items-center gap-2 transition-all transform hover:-translate-y-1 active:scale-95 ${
-                      validation.hasErrors
-                        ? 'bg-gray-300 shadow-none hover:-translate-y-0 cursor-pointer'
-                        : 'bg-sky-600 hover:bg-sky-700 shadow-sky-500/30'
-                    }`}
+                    className={`text-white px-8 py-3.5 rounded-2xl font-extrabold shadow-xl flex items-center gap-2 transition-all transform hover:-translate-y-1 active:scale-95 ${validation.hasErrors
+                      ? 'bg-gray-300 shadow-none hover:-translate-y-0 cursor-pointer'
+                      : 'bg-sky-600 hover:bg-sky-700 shadow-sky-500/30'
+                      }`}
                   >
                     下一步：支付订单 <ChevronRight className="w-4 h-4" />
                   </button>
