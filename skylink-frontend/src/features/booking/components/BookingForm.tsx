@@ -37,7 +37,7 @@ const cabinMeta = (c: 'economy' | 'business' | 'first') => {
 };
 
 const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabinClass, onConfirm, onCancel }) => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();  // ✅ 获取 refreshUser
   const navigate = useNavigate();
   const location = useLocation();
   const [step, setStep] = useState<BookingStep>(1);
@@ -59,6 +59,16 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('alipay');
   const [loading, setLoading] = useState(false);
+
+  // ✅ 关键修复：进入下单页时刷新用户信息，确保实名认证数据最新
+  useEffect(() => {
+    const token = localStorage.getItem('skylink_token');
+    if (token && refreshUser) {
+      refreshUser().catch(err => {
+        console.warn('Failed to refresh user data:', err);
+      });
+    }
+  }, [refreshUser]);
 
   useEffect(() => {
     setPassengers(createPassengers(passengerCount));

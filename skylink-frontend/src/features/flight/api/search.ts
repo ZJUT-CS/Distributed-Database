@@ -104,6 +104,24 @@ export async function searchFlights(params: {
     const airline = first?.airlineCompany || '';
     const airlineCode = (first?.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2);
 
+    // 将后端 segments 转换为 FlightSegment 格式
+    const flightSegments = segs.map((s) => ({
+      flightNumber: s.flightNo,
+      origin: s.departurePlace,
+      destination: s.destination,
+      departureTime: s.departureTime,
+      arrivalTime: s.arrivalTime,
+      duration: s.duration,
+      airline: s.airlineCompany,
+      airlineCode: (s.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
+    }));
+
+    // 计算最小剩余座位数（短板效应）
+    const minSeats = segs.reduce((min, s) => {
+      const seats = typeof s.remainingSeats === 'number' ? s.remainingSeats : Infinity;
+      return Math.min(min, seats);
+    }, Infinity);
+
     return {
       id,
       airline,
@@ -115,15 +133,30 @@ export async function searchFlights(params: {
       departureTime: first?.departureTime || '',
       arrivalTime: last?.arrivalTime || '',
       price: Number(it.totalPrice ?? 0),
-      remainingSeats: undefined,
+      remainingSeats: minSeats === Infinity ? undefined : minSeats,
       duration: it.transferDuration || '',
       stops: Math.max(0, segs.length - 1),
       baggageWeight: 23,
       amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
       aircraft: undefined,
+      // ✅ 联程专用字段
+      isInterline: true,
+      transferCity: it.transferCity,
+      transferDuration: it.transferDuration ? parseTransferDuration(it.transferDuration) : undefined,
+      segments: flightSegments,
     } satisfies Flight;
   });
 
   return [...direct, ...interline];
+}
+
+// 解析中转时长字符串为分钟数
+function parseTransferDuration(durationStr: string): number | undefined {
+  // 格式如 "3h 30m"
+  const match = durationStr.match(/(\d+)h\s*(\d+)m/);
+  if (match) {
+    return parseInt(match[1]) * 60 + parseInt(match[2]);
+  }
+  return undefined;
 }
 

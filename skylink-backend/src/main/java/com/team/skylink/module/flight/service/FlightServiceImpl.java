@@ -53,11 +53,11 @@ public class FlightServiceImpl implements FlightService {
     private final OrderMapper orderMapper;
 
     public FlightServiceImpl(FlightMapper flightMapper,
-                             AircraftModelMapper aircraftModelMapper,
-                             RouteMapper routeMapper,
-                             AircraftCabinConfigMapper cabinConfigMapper,
-                             SeatService seatService,
-                             OrderMapper orderMapper) {
+            AircraftModelMapper aircraftModelMapper,
+            RouteMapper routeMapper,
+            AircraftCabinConfigMapper cabinConfigMapper,
+            SeatService seatService,
+            OrderMapper orderMapper) {
         this.flightMapper = flightMapper;
         this.aircraftModelMapper = aircraftModelMapper;
         this.routeMapper = routeMapper;
@@ -68,23 +68,33 @@ public class FlightServiceImpl implements FlightService {
 
     @Override
     @Cacheable(value = "flightSearch", key = "#departurePlace + #destination + #departureDate + #page + #size", unless = "#result.data.directFlights.total == 0")
-    public Result<FlightSearchResult> search(String departurePlace, String destination, String flightNo, String airlineCompany, String cabinType, Integer status, LocalDate departureDate, LocalDateTime departureTimeFrom, LocalDateTime departureTimeTo, int page, int size) {
+    public Result<FlightSearchResult> search(String departurePlace, String destination, String flightNo,
+            String airlineCompany, String cabinType, Integer status, LocalDate departureDate,
+            LocalDateTime departureTimeFrom, LocalDateTime departureTimeTo, int page, int size) {
         // 1. Direct Search
         LambdaQueryWrapper<Flight> qw = Wrappers.lambdaQuery();
 
-        if (StringUtils.hasText(departurePlace)) qw.eq(Flight::getDepartureCity, departurePlace);
-        if (StringUtils.hasText(destination)) qw.eq(Flight::getArrivalCity, destination);
-        if (StringUtils.hasText(flightNo)) qw.eq(Flight::getFlightNo, flightNo);
-        if (StringUtils.hasText(airlineCompany)) qw.like(Flight::getAirlineCompany, airlineCompany);
-        if (status != null) qw.eq(Flight::getStatus, status);
-        else qw.eq(Flight::getStatus, 1); 
+        if (StringUtils.hasText(departurePlace))
+            qw.eq(Flight::getDepartureCity, departurePlace);
+        if (StringUtils.hasText(destination))
+            qw.eq(Flight::getArrivalCity, destination);
+        if (StringUtils.hasText(flightNo))
+            qw.eq(Flight::getFlightNo, flightNo);
+        if (StringUtils.hasText(airlineCompany))
+            qw.like(Flight::getAirlineCompany, airlineCompany);
+        if (status != null)
+            qw.eq(Flight::getStatus, status);
+        else
+            qw.eq(Flight::getStatus, 1);
 
         if (departureDate != null) {
             qw.ge(Flight::getDepartureTime, departureDate.atStartOfDay());
             qw.lt(Flight::getDepartureTime, departureDate.plusDays(1).atStartOfDay());
         }
-        if (departureTimeFrom != null) qw.ge(Flight::getDepartureTime, departureTimeFrom);
-        if (departureTimeTo != null) qw.le(Flight::getDepartureTime, departureTimeTo);
+        if (departureTimeFrom != null)
+            qw.ge(Flight::getDepartureTime, departureTimeFrom);
+        if (departureTimeTo != null)
+            qw.le(Flight::getDepartureTime, departureTimeTo);
 
         Page<Flight> pageParam = new Page<>(page, size);
         IPage<Flight> flightPage = flightMapper.selectPage(pageParam, qw);
@@ -100,27 +110,25 @@ public class FlightServiceImpl implements FlightService {
         // 2. Interline Search (Only if Origin/Dest/Date are specified)
         List<InterlineFlightResponse> interlineFlights = new ArrayList<>();
         if (StringUtils.hasText(departurePlace) && StringUtils.hasText(destination) && departureDate != null) {
-             // Find Leg 1 candidates: Origin -> Any, Date = departureDate
+            // Find Leg 1 candidates: Origin -> Any, Date = departureDate
             List<Flight> leg1Candidates = flightMapper.selectList(Wrappers.<Flight>lambdaQuery()
-                .eq(Flight::getDepartureCity, departurePlace)
-                .eq(Flight::getStatus, 1)
-                .ge(Flight::getDepartureTime, departureDate.atStartOfDay())
-                .lt(Flight::getDepartureTime, departureDate.plusDays(1).atStartOfDay())
-            );
-            
+                    .eq(Flight::getDepartureCity, departurePlace)
+                    .eq(Flight::getStatus, 1)
+                    .ge(Flight::getDepartureTime, departureDate.atStartOfDay())
+                    .lt(Flight::getDepartureTime, departureDate.plusDays(1).atStartOfDay()));
+
             // Find Leg 2 candidates: Any -> Dest, Date = departureDate or +1
             List<Flight> leg2Candidates = flightMapper.selectList(Wrappers.<Flight>lambdaQuery()
-                .eq(Flight::getArrivalCity, destination)
-                .eq(Flight::getStatus, 1)
-                .ge(Flight::getDepartureTime, departureDate.atStartOfDay().plusHours(2)) 
-                .lt(Flight::getDepartureTime, departureDate.plusDays(2).atStartOfDay())
-            );
+                    .eq(Flight::getArrivalCity, destination)
+                    .eq(Flight::getStatus, 1)
+                    .ge(Flight::getDepartureTime, departureDate.atStartOfDay().plusHours(2))
+                    .lt(Flight::getDepartureTime, departureDate.plusDays(2).atStartOfDay()));
 
             // Optimization: Pre-fetch Routes, Configs, Seats
             Set<Long> allFlightIds = new HashSet<>();
             Set<Long> allRouteIds = new HashSet<>();
             Set<Long> allModelIds = new HashSet<>();
-            
+
             leg1Candidates.forEach(f -> {
                 allFlightIds.add(f.getFlightId());
                 allRouteIds.add(f.getRouteId());
@@ -140,35 +148,63 @@ public class FlightServiceImpl implements FlightService {
                     routeMap = routes.stream().collect(Collectors.toMap(Route::getRouteId, Function.identity()));
                 }
 
-                // Bulk fetch Configs (by ModelId - a bit tricky as selectBatchIds not applicable for non-PK, but can use IN)
+                // ✅ Bulk fetch Aircraft Models for aircraftModel field
+                Map<Long, AircraftModel> modelMap = new HashMap<>();
+                if (!allModelIds.isEmpty()) {
+                    List<AircraftModel> models = aircraftModelMapper.selectBatchIds(allModelIds);
+                    modelMap = models.stream()
+                            .collect(Collectors.toMap(AircraftModel::getModelId, Function.identity()));
+                }
+
+                // Bulk fetch Configs (by ModelId - a bit tricky as selectBatchIds not
+                // applicable for non-PK, but can use IN)
                 Map<Long, List<AircraftCabinConfig>> configMap = new HashMap<>();
                 if (!allModelIds.isEmpty()) {
-                    List<AircraftCabinConfig> allConfigs = cabinConfigMapper.selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
-                            .in(AircraftCabinConfig::getModelId, allModelIds));
+                    List<AircraftCabinConfig> allConfigs = cabinConfigMapper
+                            .selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
+                                    .in(AircraftCabinConfig::getModelId, allModelIds));
                     configMap = allConfigs.stream().collect(Collectors.groupingBy(AircraftCabinConfig::getModelId));
                 }
 
                 // Bulk fetch Seats
-                Map<Long, Map<String, Integer>> seatMap = seatService.getAvailableCountBatch(new ArrayList<>(allFlightIds));
+                Map<Long, Map<String, Integer>> seatMap = seatService
+                        .getAvailableCountBatch(new ArrayList<>(allFlightIds));
 
                 for (Flight leg1 : leg1Candidates) {
-                    if (leg1.getArrivalCity().equals(destination)) continue; // Skip direct
+                    if (leg1.getArrivalCity().equals(destination))
+                        continue; // Skip direct
 
                     for (Flight leg2 : leg2Candidates) {
                         if (leg1.getArrivalCity().equals(leg2.getDepartureCity())) {
                             Duration transferTime = Duration.between(leg1.getArrivalTime(), leg2.getDepartureTime());
                             if (transferTime.toMinutes() >= 120 && transferTime.toHours() <= 24) {
-                                FlightSearchResponse r1 = convertToResponseOptimized(leg1, cabinType, routeMap, configMap, seatMap);
-                                FlightSearchResponse r2 = convertToResponseOptimized(leg2, cabinType, routeMap, configMap, seatMap);
-                                
+                                FlightSearchResponse r1 = convertToResponseOptimized(leg1, cabinType, routeMap,
+                                        configMap, seatMap, modelMap);
+                                FlightSearchResponse r2 = convertToResponseOptimized(leg2, cabinType, routeMap,
+                                        configMap, seatMap, modelMap);
+
                                 if (r1 != null && r2 != null) {
                                     InterlineFlightResponse i = new InterlineFlightResponse();
                                     i.setSegments(Arrays.asList(r1, r2));
                                     i.setTotalPrice(r1.getPrice().add(r2.getPrice()));
                                     i.setTransferCity(leg1.getArrivalCity());
+
+                                    // 设置中转时长
                                     long hours = transferTime.toHours();
                                     long minutes = transferTime.toMinutesPart();
                                     i.setTransferDuration(hours + "h " + minutes + "m");
+
+                                    // ✅ 计算总行程时长 (Leg2.Arrival - Leg1.Departure)
+                                    Duration totalTrip = Duration.between(leg1.getDepartureTime(),
+                                            leg2.getArrivalTime());
+                                    i.setTotalDuration(totalTrip.toHours() + "h " + totalTrip.toMinutesPart() + "m");
+
+                                    // ✅ 计算剩余座位（短板效应：取最小值）
+                                    int minSeats = Math.min(
+                                            r1.getRemainingSeats() != null ? r1.getRemainingSeats() : 0,
+                                            r2.getRemainingSeats() != null ? r2.getRemainingSeats() : 0);
+                                    i.setRemainingSeats(minSeats);
+
                                     interlineFlights.add(i);
                                 }
                             }
@@ -185,21 +221,24 @@ public class FlightServiceImpl implements FlightService {
     }
 
     private FlightSearchResponse convertToResponseOptimized(
-            Flight f, 
-            String cabinType, 
-            Map<Long, Route> routeMap, 
-            Map<Long, List<AircraftCabinConfig>> configMap, 
-            Map<Long, Map<String, Integer>> seatMap) {
-        
+            Flight f,
+            String cabinType,
+            Map<Long, Route> routeMap,
+            Map<Long, List<AircraftCabinConfig>> configMap,
+            Map<Long, Map<String, Integer>> seatMap,
+            Map<Long, AircraftModel> modelMap) {
+
         Route route = routeMap.get(f.getRouteId());
-        if (route == null) return null;
+        if (route == null)
+            return null;
 
         List<AircraftCabinConfig> configs = configMap.getOrDefault(f.getModelId(), Collections.emptyList());
         if (StringUtils.hasText(cabinType)) {
             configs = configs.stream().filter(c -> c.getCabinType().equals(cabinType)).collect(Collectors.toList());
         }
 
-        if (configs.isEmpty()) return null;
+        if (configs.isEmpty())
+            return null;
 
         BigDecimal bestPrice = null;
         Integer bestSeats = 0;
@@ -223,7 +262,8 @@ public class FlightServiceImpl implements FlightService {
             }
         }
 
-        if (bestPrice == null) return null;
+        if (bestPrice == null)
+            return null;
 
         FlightSearchResponse dto = new FlightSearchResponse();
         dto.setFlightNo(f.getFlightNo());
@@ -231,28 +271,35 @@ public class FlightServiceImpl implements FlightService {
         dto.setDestination(f.getArrivalCity());
         dto.setDepartureTime(f.getDepartureTime());
         dto.setArrivalTime(f.getArrivalTime());
-        
+
         Duration duration = Duration.between(f.getDepartureTime(), f.getArrivalTime());
         long hours = duration.toHours();
         long minutes = duration.toMinutesPart();
         dto.setDuration(hours + "h " + minutes + "m");
-        
+
         dto.setPrice(bestPrice);
         dto.setRemainingSeats(bestSeats);
         dto.setAirlineCompany(f.getAirlineCompany());
         dto.setCabinType(bestCabin);
+
+        // ✅ 填充机型名称（联程航班）
+        AircraftModel model = modelMap.get(f.getModelId());
+        dto.setAircraftModel(model != null ? model.getModelName() : "Unknown");
+
         return dto;
     }
 
     private FlightSearchResponse convertToResponse(Flight f, String cabinType) {
         Route route = routeMapper.selectById(f.getRouteId());
-        if (route == null) return null;
+        if (route == null)
+            return null;
 
         List<AircraftCabinConfig> configs = cabinConfigMapper.selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
                 .eq(AircraftCabinConfig::getModelId, f.getModelId())
                 .eq(StringUtils.hasText(cabinType), AircraftCabinConfig::getCabinType, cabinType));
 
-        if (configs.isEmpty()) return null;
+        if (configs.isEmpty())
+            return null;
 
         BigDecimal bestPrice = null;
         Integer bestSeats = 0;
@@ -278,7 +325,8 @@ public class FlightServiceImpl implements FlightService {
             }
         }
 
-        if (bestPrice == null) return null;
+        if (bestPrice == null)
+            return null;
 
         FlightSearchResponse dto = new FlightSearchResponse();
         dto.setFlightNo(f.getFlightNo());
@@ -286,16 +334,21 @@ public class FlightServiceImpl implements FlightService {
         dto.setDestination(f.getArrivalCity());
         dto.setDepartureTime(f.getDepartureTime());
         dto.setArrivalTime(f.getArrivalTime());
-        
+
         Duration duration = Duration.between(f.getDepartureTime(), f.getArrivalTime());
         long hours = duration.toHours();
         long minutes = duration.toMinutesPart();
         dto.setDuration(hours + "h " + minutes + "m");
-        
+
         dto.setPrice(bestPrice);
         dto.setRemainingSeats(bestSeats);
         dto.setAirlineCompany(f.getAirlineCompany());
         dto.setCabinType(bestCabin);
+
+        // ✅ 填充机型名称（直飞航班）
+        AircraftModel model = aircraftModelMapper.selectById(f.getModelId());
+        dto.setAircraftModel(model != null ? model.getModelName() : "Unknown");
+
         return dto;
     }
 
@@ -304,31 +357,33 @@ public class FlightServiceImpl implements FlightService {
     public Result<Boolean> createFlight(FlightCreateRequest req) {
         // 1. 基础校验
         Long exists = flightMapper.selectCount(Wrappers.<Flight>lambdaQuery()
-            .eq(Flight::getFlightNo, req.getFlightNo())
-            .eq(Flight::getDepartureTime, req.getDepartureTime()));
+                .eq(Flight::getFlightNo, req.getFlightNo())
+                .eq(Flight::getDepartureTime, req.getDepartureTime()));
         if (exists != null && exists > 0) {
             return Result.fail(409, "flight already exists");
         }
 
         AircraftModel model = aircraftModelMapper.selectById(req.getModelId());
-        if (model == null) return Result.fail(404, "aircraft model not found");
+        if (model == null)
+            return Result.fail(404, "aircraft model not found");
 
         Route route = routeMapper.selectById(req.getRouteId());
-        if (route == null) return Result.fail(404, "route not found");
+        if (route == null)
+            return Result.fail(404, "route not found");
 
         // 2. 组装 Flight 对象
         Flight f = new Flight();
         f.setFlightNo(req.getFlightNo());
         f.setModelId(req.getModelId());
         f.setRouteId(req.getRouteId());
-        
+
         f.setDepartureCity(route.getDepartureCity());
         f.setDepartureAirport(route.getDepartureAirport());
         f.setArrivalCity(route.getArrivalCity());
         f.setArrivalAirport(route.getArrivalAirport());
-        
+
         f.setDepartureTime(req.getDepartureTime());
-        
+
         if (req.getArrivalTime() != null) {
             f.setArrivalTime(req.getArrivalTime());
         } else {
@@ -362,7 +417,7 @@ public class FlightServiceImpl implements FlightService {
                 }
             }
         }
-        
+
         BigDecimal lowestPrice = route.getBasePrice();
         if (minCoeff != null) {
             lowestPrice = route.getBasePrice().multiply(minCoeff);
@@ -371,10 +426,11 @@ public class FlightServiceImpl implements FlightService {
 
         // 4. 落库
         int rows = flightMapper.insert(f);
-        if (rows <= 0) return Result.fail(500, "insert flight failed");
+        if (rows <= 0)
+            return Result.fail(500, "insert flight failed");
 
         // 5. 生成物理座位
-        seatService.remove(Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, f.getFlightId())); 
+        seatService.remove(Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, f.getFlightId()));
 
         List<Seat> allSeats = new ArrayList<>();
         // 复用生成逻辑
@@ -391,7 +447,8 @@ public class FlightServiceImpl implements FlightService {
     @Transactional(rollbackFor = Exception.class)
     public Result<Boolean> updateFlight(Long flightId, FlightCreateRequest req) {
         Flight f = flightMapper.selectById(flightId);
-        if (f == null) return Result.fail(404, "flight not found");
+        if (f == null)
+            return Result.fail(404, "flight not found");
 
         // 1. 检查是否修改了关键字段 (机型)
         boolean modelChanged = !f.getModelId().equals(req.getModelId());
@@ -401,7 +458,7 @@ public class FlightServiceImpl implements FlightService {
         f.setModelId(req.getModelId());
         f.setRouteId(req.getRouteId());
         f.setAirlineCompany(req.getAirlineCompany());
-        f.setDepartureTime(req.getDepartureTime()); 
+        f.setDepartureTime(req.getDepartureTime());
         f.setStatus(req.getStatus() != null ? req.getStatus() : 1);
         f.setUpdateTime(LocalDateTime.now());
         f.setStopoverInfo(req.getStopoverInfo());
@@ -413,11 +470,11 @@ public class FlightServiceImpl implements FlightService {
             f.setArrivalCity(route.getArrivalCity());
             f.setDepartureAirport(route.getDepartureAirport());
             f.setArrivalAirport(route.getArrivalAirport());
-            
+
             // 简单更新最低价 (生产环境可能需要更复杂的计算)
             f.setLowestPrice(route.getBasePrice());
         }
-        
+
         // 4. 自动计算到达时间
         if (req.getArrivalTime() != null) {
             f.setArrivalTime(req.getArrivalTime());
@@ -433,7 +490,7 @@ public class FlightServiceImpl implements FlightService {
         if (modelChanged) {
             // A. 先删掉所有旧座位
             seatService.remove(Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, flightId));
-            
+
             // B. 重新获取新机型的配置
             AircraftModel model = aircraftModelMapper.selectById(req.getModelId());
             if (model != null) {
@@ -443,9 +500,10 @@ public class FlightServiceImpl implements FlightService {
 
                 // C. 获取新机型的舱位配置
                 Integer layoutNo = req.getLayoutNo() != null ? req.getLayoutNo() : 1;
-                List<AircraftCabinConfig> configs = cabinConfigMapper.selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
-                        .eq(AircraftCabinConfig::getModelId, model.getModelId())
-                        .eq(AircraftCabinConfig::getCabinLayoutNo, layoutNo));
+                List<AircraftCabinConfig> configs = cabinConfigMapper
+                        .selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
+                                .eq(AircraftCabinConfig::getModelId, model.getModelId())
+                                .eq(AircraftCabinConfig::getCabinLayoutNo, layoutNo));
 
                 // D. 重新生成座位
                 List<Seat> allSeats = new ArrayList<>();
@@ -473,10 +531,10 @@ public class FlightServiceImpl implements FlightService {
 
         // 1. 先把这个航班下的所有座位删掉 (物理删除)
         seatService.remove(Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, flightId));
-        
+
         // 2. 再删航班本身
         int rows = flightMapper.deleteById(flightId);
-        
+
         if (rows > 0) {
             return Result.ok(true);
         } else {
@@ -484,39 +542,40 @@ public class FlightServiceImpl implements FlightService {
         }
     }
 
-
     /**
      * 提取公共座位生成逻辑，供 createFlight 和 updateFlight 复用
      */
     private void generateSeats(Flight f, List<AircraftCabinConfig> configs, List<Seat> allSeats) {
         for (AircraftCabinConfig cfg : configs) {
             int capacity = cfg.getCapacity() == null ? 0 : cfg.getCapacity();
-            
-            String colLayout = cfg.getSeatColLayout(); 
-            if (colLayout == null || colLayout.isEmpty()) colLayout = "ABCDEF"; 
-            
-            int startRow = cfg.getStartRowNum() != null ? cfg.getStartRowNum() : 1; 
-            
+
+            String colLayout = cfg.getSeatColLayout();
+            if (colLayout == null || colLayout.isEmpty())
+                colLayout = "ABCDEF";
+
+            int startRow = cfg.getStartRowNum() != null ? cfg.getStartRowNum() : 1;
+
             int seatsPerRow = colLayout.length();
             int totalRows = (int) Math.ceil((double) capacity / seatsPerRow);
-            
+
             int generatedCount = 0;
-            
+
             for (int r = 0; r < totalRows; r++) {
                 int currentRow = startRow + r;
                 for (int c = 0; c < seatsPerRow; c++) {
-                    if (generatedCount >= capacity) break; 
-                    
+                    if (generatedCount >= capacity)
+                        break;
+
                     Seat s = new Seat();
                     s.setFlightId(f.getFlightId());
                     s.setCabinType(cfg.getCabinType());
-                    
+
                     char colChar = colLayout.charAt(c);
                     s.setSeatNumber(currentRow + String.valueOf(colChar));
-                    
+
                     s.setStatus(1);
                     s.setUpdateTime(LocalDateTime.now());
-                    
+
                     allSeats.add(s);
                     generatedCount++;
                 }

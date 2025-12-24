@@ -67,9 +67,22 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
                 <span>托运行李 {flight.baggageWeight} 公斤</span>
               </div>
 
-              <div className="flex items-baseline gap-2">
+              <div className="flex flex-col gap-0.5">
                 <p className="font-bold text-gray-900 text-lg leading-tight">{flight.airline}</p>
-                <p className="text-xs text-gray-400 font-mono">{flight.flightNumber}</p>
+                {flight.isInterline && flight.segments ? (
+                  <div className="flex flex-col gap-0.5 mt-0.5">
+                    {flight.segments.map((seg, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <span className="w-3.5 h-3.5 rounded-full bg-gray-100 flex items-center justify-center text-[9px] font-bold text-gray-600">{idx + 1}</span>
+                        <span className="font-mono">{seg.flightNumber}</span>
+                        <span className="text-gray-300">|</span>
+                        <span>{seg.airline}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 font-mono">{flight.flightNumber}</p>
+                )}
               </div>
 
               <div className="flex items-center gap-3 mt-1 h-4">
@@ -99,34 +112,28 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
                 </div>
               </div>
 
-              {/* 联程航班中转信息 */}
+              {/* 联程航班中转信息 - 优化版布局 */}
               {flight.stops > 0 && (
-                <div className="mt-2 flex flex-col items-center gap-1">
-                  {flight.transferCity && (
-                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100">
-                      经 {flight.transferCity}
-                    </span>
-                  )}
-                  {flight.transferDuration != null && (
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${flight.transferDuration < 150
-                        ? 'bg-orange-50 text-orange-600 border border-orange-200'
-                        : flight.transferDuration >= 360
-                          ? 'bg-blue-50 text-blue-500 border border-blue-200'
-                          : 'bg-gray-50 text-gray-500 border border-gray-200'
+                <div className="mt-3 flex flex-col items-center gap-1.5 w-full">
+                  {/* 中转时长 + 城市 */}
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-orange-50 to-amber-50 rounded-full border border-orange-100 shadow-sm">
+                    {flight.transferCity && (
+                      <span className="text-xs text-amber-700 font-bold">
+                        经 {flight.transferCity}
+                      </span>
+                    )}
+                    <span className="w-1 h-1 rounded-full bg-orange-300"></span>
+                    <span className={`text-xs font-mono font-medium ${(flight.transferDuration || 0) < 120 ? 'text-orange-600' : 'text-amber-600'
                       }`}>
-                      ⏱ 中转 {Math.floor(flight.transferDuration / 60)}h {flight.transferDuration % 60}m
+                      {Math.floor((flight.transferDuration || 0) / 60)}h {(flight.transferDuration || 0) % 60}m
                     </span>
-                  )}
-                  {/* 航段详情 */}
-                  {flight.segments && flight.segments.length > 1 && (
-                    <div className="flex flex-col gap-1 mt-1">
-                      {flight.segments.map((segment, index) => (
-                        <div key={index} className="text-xs text-gray-500 flex items-center gap-1">
-                          <span className="font-mono">{segment.flightNumber}</span>
-                          <ArrowRight className="w-3 h-3" />
-                          <span>{segment.origin} → {segment.destination}</span>
-                        </div>
-                      ))}
+                  </div>
+
+                  {/* 航司组合 (简化显示) */}
+                  {flight.segments && flight.segments.length > 0 && (
+                    <div className="flex items-center gap-1 opacity-60 text-[10px] text-gray-500">
+                      <span>{flight.segments.map(s => s.airlineCode).join('+')}</span>
+                      <span>联程</span>
                     </div>
                   )}
                 </div>

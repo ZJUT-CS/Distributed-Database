@@ -5,13 +5,13 @@ export type FlightStatus = 'active' | 'delayed' | 'cancelled' | 'full';
  */
 export interface FlightSegment {
   flightNumber: string;
-  airline: string;
-  airlineCode: string;
+  airline?: string;
+  airlineCode?: string;
   origin: string;
   destination: string;
   departureTime: string;
   arrivalTime: string;
-  duration: string;
+  duration?: string;
 }
 
 export interface Flight {
