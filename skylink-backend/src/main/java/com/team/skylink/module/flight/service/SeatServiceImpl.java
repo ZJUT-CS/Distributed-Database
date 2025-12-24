@@ -2,19 +2,22 @@ package com.team.skylink.module.flight.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team.skylink.common.exception.InventoryShortageException;
 import com.team.skylink.module.aircraft.entity.AircraftCabinConfig;
 import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper;
 import com.team.skylink.module.flight.entity.Seat;
 import com.team.skylink.module.flight.mapper.SeatMapper;
 import com.team.skylink.module.order.mapper.OrderMapper;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
-
+import org.springframework.data.redis.core.RedisCallback;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 座位服务实现类
@@ -26,12 +29,18 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
     private final AircraftCabinConfigMapper configMapper;
     // OrderMapper 在此处主要用于查单，若不需要可移除，降低耦合
     private final OrderMapper orderMapper;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     public SeatServiceImpl(SeatMapper seatMapper,
             AircraftCabinConfigMapper configMapper,
-            OrderMapper orderMapper) {
+            OrderMapper orderMapper,
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper) {
         this.configMapper = configMapper;
         this.orderMapper = orderMapper;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -44,44 +53,61 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
     public List<Seat> lockSeats(Long flightId, String cabinType, int count, Long userId) {
         List<Seat> lockedSeats = new ArrayList<>();
 
-        for (int i = 0; i < count; i++) {
-            boolean success = false;
-            int retry = 0;
-            // 自旋重试，解决并发冲突
-            while (!success && retry < 10) {
-                // 1. 查询一个可用座位 (Status=1)
-                Seat seat = baseMapper.selectOne(Wrappers.<Seat>lambdaQuery()
-                        .eq(Seat::getFlightId, flightId)
-                        .eq(Seat::getCabinType, cabinType)
-                        .eq(Seat::getStatus, 1) // 1-可用
-                        .last("LIMIT 1")); // 只取一个
+        try {
+            for (int i = 0; i < count; i++) {
+                boolean success = false;
+                int retry = 0;
+                // 自旋重试，解决并发冲突
+                while (!success && retry < 10) {
+                    // 1. 查询一个可用座位 (Status=1)
+                    Seat seat = baseMapper.selectOne(Wrappers.<Seat>lambdaQuery()
+                            .eq(Seat::getFlightId, flightId)
+                            .eq(Seat::getCabinType, cabinType)
+                            .eq(Seat::getStatus, 1) // 1-可用
+                            .last("LIMIT 1")); // 只取一个
 
-                if (seat == null) {
-                    throw new InventoryShortageException("余票不足 (" + cabinType + ")");
+                    if (seat == null) {
+                        throw new InventoryShortageException("余票不足 (" + cabinType + ")");
+                    }
+
+                    // 2. 修改状态准备更新
+                    seat.setStatus(3); // 3-锁定中
+                    seat.setUserId(userId); // 【关键】记录是谁锁的
+                    seat.setOrderId(null); // 暂时不填订单号，等订单生成后再回填
+                    seat.setUpdateTime(LocalDateTime.now());
+                    // 3. 执行更新 (MyBatis-Plus 会自动校验 @Version 版本号)
+                    // 如果 version 被别人改了，rows 就会返回 0
+                    int rows = baseMapper.updateById(seat);
+
+                    if (rows > 0) {
+                        success = true;
+                        lockedSeats.add(seat);
+                        try {
+                            updateRedisSeatStatus(flightId, seat.getSeatId(), 3);
+                        } catch (Exception e) {
+                            log.warn("Redis update failed", e);
+                        }
+                    } else {
+                        // 更新失败，说明被别人抢先修改了版本号，进行重试
+                        retry++;
+                    }
                 }
 
-                // 2. 修改状态准备更新
-                seat.setStatus(3); // 3-锁定中
-                seat.setUserId(userId); // 【关键】记录是谁锁的
-                seat.setOrderId(null); // 暂时不填订单号，等订单生成后再回填
-                seat.setUpdateTime(LocalDateTime.now());
-                // 3. 执行更新 (MyBatis-Plus 会自动校验 @Version 版本号)
-                // 如果 version 被别人改了，rows 就会返回 0
-                int rows = baseMapper.updateById(seat);
-
-                if (rows > 0) {
-                    success = true;
-                    lockedSeats.add(seat);
-                } else {
-                    // 更新失败，说明被别人抢先修改了版本号，进行重试
-                    retry++;
+                if (!success) {
+                    // 如果循环多次都失败，抛出异常回滚之前锁定的座位（Transactional 会处理）
+                    throw new InventoryShortageException("系统繁忙，座位锁定失败，请稍后重试");
                 }
             }
-
-            if (!success) {
-                // 如果循环多次都失败，抛出异常回滚之前锁定的座位（Transactional 会处理）
-                throw new InventoryShortageException("系统繁忙，座位锁定失败，请稍后重试");
+        } catch (Exception e) {
+            // 回滚 Redis 状态
+            for (Seat s : lockedSeats) {
+                try {
+                    updateRedisSeatStatus(flightId, s.getSeatId(), 1);
+                } catch (Exception ex) {
+                    log.warn("Failed to revert Redis status for seat {}", s.getSeatId(), ex);
+                }
             }
+            throw e;
         }
         return lockedSeats;
     }
@@ -152,6 +178,11 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
 
                 int rows = baseMapper.updateById(seat); // 乐观锁更新
                 if (rows > 0) {
+                    try {
+                        updateRedisSeatStatus(flightId, seat.getSeatId(), 3);
+                    } catch (Exception e) {
+                        log.warn("Redis update failed", e);
+                    }
                     return seat.getSeatId();
                 }
             }
@@ -167,12 +198,20 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean releaseSeat(Long seatId) {
-        return update(null, Wrappers.<Seat>lambdaUpdate()
+        Seat seat = baseMapper.selectById(seatId);
+        if (seat == null) return false;
+
+        boolean ok = update(null, Wrappers.<Seat>lambdaUpdate()
                 .eq(Seat::getSeatId, seatId)
                 .set(Seat::getStatus, 1) // 恢复可用
                 .set(Seat::getOrderId, null)
                 .set(Seat::getUserId, null) // 清空用户
                 .set(Seat::getPassengerIndex, null));
+        
+        if (ok) {
+            updateRedisSeatStatus(seat.getFlightId(), seatId, 1);
+        }
+        return ok;
     }
 
     /**
@@ -182,21 +221,41 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean confirmSeats(Long orderId) {
-        return update(null, Wrappers.<Seat>lambdaUpdate()
+        List<Seat> seats = list(Wrappers.<Seat>lambdaQuery().eq(Seat::getOrderId, orderId).eq(Seat::getStatus, 3));
+        if (seats.isEmpty()) return true;
+
+        boolean ok = update(null, Wrappers.<Seat>lambdaUpdate()
                 .eq(Seat::getOrderId, orderId)
                 .eq(Seat::getStatus, 3)
                 .set(Seat::getStatus, 2));
+        
+        if (ok) {
+            for (Seat s : seats) {
+                updateRedisSeatStatus(s.getFlightId(), s.getSeatId(), 2);
+            }
+        }
+        return ok;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean releaseSeats(Long orderId) {
-        return update(null, Wrappers.<Seat>lambdaUpdate()
+        List<Seat> seats = list(Wrappers.<Seat>lambdaQuery().eq(Seat::getOrderId, orderId));
+        if (seats.isEmpty()) return true;
+
+        boolean ok = update(null, Wrappers.<Seat>lambdaUpdate()
                 .eq(Seat::getOrderId, orderId)
                 .set(Seat::getStatus, 1)
                 .set(Seat::getOrderId, null)
                 .set(Seat::getUserId, null)
                 .set(Seat::getPassengerIndex, null));
+
+        if (ok) {
+            for (Seat s : seats) {
+                updateRedisSeatStatus(s.getFlightId(), s.getSeatId(), 1);
+            }
+        }
+        return ok;
     }
 
     // 换座逻辑保持原样，或者根据新的 UserId 逻辑微调
@@ -234,6 +293,14 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
                 .set(Seat::getOrderId, orderId));
         if (!ok)
             return false;
+        
+        // Update Redis for new seat
+        try {
+            updateRedisSeatStatus(seat.getFlightId(), newSeatId, 3);
+        } catch (Exception e) {
+            log.warn("Redis update failed for changeSeat", e);
+        }
+
         if (order.getSeatId() != null && !Objects.equals(order.getSeatId(), newSeatId)) {
             releaseSeat(order.getSeatId());
         }
@@ -279,11 +346,113 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
     public boolean confirmSeat(Long seatId, Long orderId) {
         // 将指定 seatId 的座位从 锁定(3) 改为 已售(2)
         // 同时确保 orderId 正确
-        return update(null, Wrappers.<Seat>lambdaUpdate()
+        Seat seat = baseMapper.selectById(seatId);
+        if (seat == null) return false;
+
+        boolean ok = update(null, Wrappers.<Seat>lambdaUpdate()
                 .eq(Seat::getSeatId, seatId)
                 .eq(Seat::getStatus, 3)
                 .set(Seat::getStatus, 2)
                 .set(Seat::getOrderId, orderId));
+        
+        if (ok) {
+            updateRedisSeatStatus(seat.getFlightId(), seatId, 2);
+        }
+        return ok;
     }
 
+    @Override
+    public List<Seat> getSeatMap(Long flightId) {
+        String listKey = getSeatListKey(flightId);
+        String bitmapKey = getBitmapKey(flightId);
+
+        // 1. Try get List
+        String json = redisTemplate.opsForValue().get(listKey);
+        if (json == null) {
+            syncSeatMapToRedis(flightId);
+            json = redisTemplate.opsForValue().get(listKey);
+            if (json == null) return Collections.emptyList();
+        }
+
+        List<Seat> seats;
+        try {
+            seats = objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<List<Seat>>(){});
+        } catch (Exception e) {
+            log.error("Failed to parse seat list", e);
+            return Collections.emptyList();
+        }
+
+        // 2. Get BitMap Status via Pipeline
+        // We need to know the size or iterate the list
+        List<Object> results = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (int i = 0; i < seats.size(); i++) {
+                connection.getBit(bitmapKey.getBytes(), i);
+            }
+            return null;
+        });
+
+        // 3. Merge
+        for (int i = 0; i < seats.size(); i++) {
+            Boolean occupied = (Boolean) results.get(i);
+            // 0 -> 1 (Available), 1 -> 2 (Occupied)
+            // Note: We lose the distinction between Sold(2) and Locked(3) if we only store 1 bit.
+            // But for seat map display, usually "Unavailable" is enough.
+            // If needed, we could use 2 bits, but user requested BitMap (0/1).
+            seats.get(i).setStatus(occupied ? 2 : 1);
+        }
+        return seats;
+    }
+
+    // Keys
+    private String getSeatListKey(Long flightId) { return "flight:" + flightId + ":seats"; }
+    private String getBitmapKey(Long flightId) { return "flight:" + flightId + ":bitmap"; }
+    private String getSeatIndexKey(Long flightId) { return "flight:" + flightId + ":seat_index"; }
+
+    private void syncSeatMapToRedis(Long flightId) {
+        // 1. Load all seats from DB
+        List<Seat> seats = baseMapper.selectList(Wrappers.<Seat>lambdaQuery()
+                .eq(Seat::getFlightId, flightId)
+                .orderByAsc(Seat::getSeatId)); // Ensure consistent order
+
+        if (seats.isEmpty()) return;
+
+        // 2. Cache Structure (List of Seat objects)
+        try {
+            String json = objectMapper.writeValueAsString(seats);
+            redisTemplate.opsForValue().set(getSeatListKey(flightId), json, 1, TimeUnit.HOURS);
+        } catch (Exception e) {
+            log.error("Failed to cache seat list", e);
+        }
+
+        // 3. Cache Index Map (SeatId -> Index)
+        Map<String, String> indexMap = new HashMap<>();
+        for (int i = 0; i < seats.size(); i++) {
+            indexMap.put(String.valueOf(seats.get(i).getSeatId()), String.valueOf(i));
+        }
+        redisTemplate.opsForHash().putAll(getSeatIndexKey(flightId), indexMap);
+        redisTemplate.expire(getSeatIndexKey(flightId), 1, TimeUnit.HOURS);
+
+        // 4. Cache BitMap (Status)
+        String bitmapKey = getBitmapKey(flightId);
+        redisTemplate.delete(bitmapKey); 
+        for (int i = 0; i < seats.size(); i++) {
+            Seat s = seats.get(i);
+            boolean isOccupied = s.getStatus() != 1;
+            redisTemplate.opsForValue().setBit(bitmapKey, i, isOccupied);
+        }
+        redisTemplate.expire(bitmapKey, 1, TimeUnit.HOURS);
+    }
+
+    private void updateRedisSeatStatus(Long flightId, Long seatId, Integer status) {
+        Object indexObj = redisTemplate.opsForHash().get(getSeatIndexKey(flightId), String.valueOf(seatId));
+        if (indexObj == null) {
+            // Maybe expired or not initialized. Sync.
+            syncSeatMapToRedis(flightId);
+            indexObj = redisTemplate.opsForHash().get(getSeatIndexKey(flightId), String.valueOf(seatId));
+            if (indexObj == null) return;
+        }
+        long index = Long.parseLong((String)indexObj);
+        boolean occupied = status != 1;
+        redisTemplate.opsForValue().setBit(getBitmapKey(flightId), index, occupied);
+    }
 }

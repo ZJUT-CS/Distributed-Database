@@ -36,19 +36,22 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.team.skylink.module.flight.service.SeatService;
 
 @RestController
 @RequestMapping("/api/v1/flights")
 public class FlightController {
     private final FlightService flightService;
+    private final SeatService seatService;
     private final SeatMapper seatMapper;
     private final FlightMapper flightMapper;
     private final RouteMapper routeMapper;
     private final AircraftCabinConfigMapper configMapper;
 
-    public FlightController(FlightService flightService, SeatMapper seatMapper, FlightMapper flightMapper,
+    public FlightController(FlightService flightService, SeatService seatService, SeatMapper seatMapper, FlightMapper flightMapper,
             RouteMapper routeMapper, AircraftCabinConfigMapper configMapper) {
         this.flightService = flightService;
+        this.seatService = seatService;
         this.seatMapper = seatMapper;
         this.flightMapper = flightMapper;
         this.routeMapper = routeMapper;
@@ -86,6 +89,45 @@ public class FlightController {
     @PostMapping("")
     public Result<Boolean> createFlight(@Valid @RequestBody FlightCreateRequest req) {
         return flightService.createFlight(req);
+    }
+
+    /**
+     * Get Seat Map using Redis BitMap
+     * Replaces the heavy DB query in listSeats
+     */
+    @GetMapping("/{flightId}/seat-map")
+    public Result<List<Map<String, Object>>> getSeatMap(@PathVariable Long flightId) {
+        // 1. Get from Redis (Structure + BitMap Status)
+        List<Seat> seats = seatService.getSeatMap(flightId);
+        
+        // 2. Map to Frontend Format
+        List<Map<String, Object>> data = new ArrayList<>();
+        for (Seat s : seats) {
+            Map<String, Object> it = new HashMap<>();
+            it.put("seatId", String.valueOf(s.getSeatId()));
+            it.put("seatNumber", s.getSeatNumber());
+            it.put("flightId", s.getFlightId());
+            it.put("cabinType", s.getCabinType());
+            it.put("status", s.getStatus()); // 1=Available, 2=Occupied
+            
+            // Parse Row/Col
+            Integer rowNumber = null;
+            String columnLetter = null;
+            if (s.getSeatNumber() != null) {
+                String sn = s.getSeatNumber().trim();
+                int i = 0;
+                while (i < sn.length() && Character.isDigit(sn.charAt(i))) i++;
+                if (i > 0) {
+                    try { rowNumber = Integer.parseInt(sn.substring(0, i)); } catch (Exception ignore) {}
+                }
+                if (i < sn.length()) columnLetter = sn.substring(i).toUpperCase();
+            }
+            it.put("rowNumber", rowNumber);
+            it.put("columnLetter", columnLetter);
+            
+            data.add(it);
+        }
+        return Result.ok(data);
     }
 
     @GetMapping("/{flightId}/seats")

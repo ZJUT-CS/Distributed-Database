@@ -35,6 +35,6 @@ public interface SeatService extends IService<Seat> {
 
     Map<Long, Map<String, Integer>> getAvailableCountBatch(List<Long> flightIds);
 
-    // 以前的批量锁座如果不用了，可以注释掉，或者保留定义
-    // void lockSeatsBatch(List<SeatLockRequest> requests);
+    // Get Seat Map using Redis BitMap
+    List<Seat> getSeatMap(Long flightId);
 }

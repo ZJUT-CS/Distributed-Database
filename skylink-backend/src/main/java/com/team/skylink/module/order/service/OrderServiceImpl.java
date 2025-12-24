@@ -41,15 +41,18 @@ public class OrderServiceImpl implements OrderService {
     private final AircraftCabinConfigMapper configMapper;
     private final RouteMapper routeMapper;
     private final SeatService seatService;
+    private final PriceStrategyService priceStrategyService;
 
     public OrderServiceImpl(OrderMapper orderMapper, FlightMapper flightMapper, UserMapper userMapper,
-            AircraftCabinConfigMapper configMapper, RouteMapper routeMapper, SeatService seatService) {
+            AircraftCabinConfigMapper configMapper, RouteMapper routeMapper, SeatService seatService,
+            PriceStrategyService priceStrategyService) {
         this.orderMapper = orderMapper;
         this.flightMapper = flightMapper;
         this.userMapper = userMapper;
         this.configMapper = configMapper;
         this.routeMapper = routeMapper;
         this.seatService = seatService;
+        this.priceStrategyService = priceStrategyService;
     }
 
     @Override
@@ -152,6 +155,15 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Long parentOrderId = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
+        
+        // Check Price Strategy Flags
+        boolean isNewUser = false;
+        if (req.getUserId() != null) {
+             Long count = orderMapper.selectCount(new QueryWrapper<Orders>().eq("user_id", req.getUserId()));
+             isNewUser = (count != null && count == 0);
+        }
+        boolean isInterline = flightNos.size() > 1;
+        
         BigDecimal totalAmountAll = BigDecimal.ZERO;
         List<Orders> ordersToInsert = new ArrayList<>();
         Flight firstFlight = null;
@@ -199,7 +211,9 @@ public class OrderServiceImpl implements OrderService {
             Route route = routeMapper.selectById(f.getRouteId());
             if (route == null)
                 return Result.fail(404, "找不到航线信息: " + fNo);
-            BigDecimal unitPrice = route.getBasePrice().multiply(config.getCabinCoefficient());
+            
+            // New Price Strategy
+            BigDecimal unitPrice = priceStrategyService.calculateSegmentPrice(f, route, config, isInterline);
 
             for (int pIdx = 0; pIdx < ticketCount; pIdx++) {
                 Long oid = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
@@ -217,7 +231,12 @@ public class OrderServiceImpl implements OrderService {
                     throw new RuntimeException("您选择的座位刚刚被抢走了，请重新选择");
                 }
 
-                BigDecimal totalAmount = unitPrice.multiply(BigDecimal.ONE);
+                BigDecimal totalAmount = unitPrice;
+                // Apply L4 (New User) to the first ticket of the first flight
+                if (isNewUser && i == 0 && pIdx == 0) {
+                    totalAmount = priceStrategyService.applyUserDiscount(totalAmount, true);
+                }
+
                 totalAmountAll = totalAmountAll.add(totalAmount);
 
                 Orders o = new Orders();

@@ -127,55 +127,96 @@ public class RefundChangeServiceImpl implements RefundChangeService {
         Orders o = orderMapper.selectById(req.getOrderNo());
         if (o == null) return Result.fail(404, "order not found");
         
+        // 1. Determine Target Orders (Bundled)
+        List<Orders> targetOrders = new ArrayList<>();
+        if (o.getParentOrderId() != null) {
+            targetOrders = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
+                    .eq(Orders::getParentOrderId, o.getParentOrderId()));
+        } else {
+            targetOrders.add(o);
+        }
+        
         LocalDateTime now = LocalDateTime.now();
-        Integer operType = req.getOperType(); // 1退票 2改签
-
-        RefundChangeRecord r = new RefundChangeRecord();
-        r.setOrderId(o.getOrderId());
-        r.setOperType(operType);
-        r.setOldFlightId(o.getFlightId());
-        r.setOldCabinId(o.getCabinId());
-        r.setOperUserId(o.getUserId());
-        r.setOperUserType( 1);
-        r.setAuditStatus(0);
-        r.setOperTime(now);
-        r.setRemark(req.getRemark());
-
+        Integer operType = req.getOperType(); // 1=Refund, 2=Change
+        Long mainRecordId = null;
+        
+        // Change logic preprocessing
+        List<Flight> newFlights = new ArrayList<>();
+        List<AircraftCabinConfig> newConfigs = new ArrayList<>();
         if (operType == 2) {
-            // 改签逻辑
-            Flight newFlight = flightMapper.selectOne(new QueryWrapper<Flight>()
-                    .eq("flight_no", req.getNewFlightNo())
-                    .orderByDesc("flight_id")
-                    .last("LIMIT 1"));
-            if (newFlight == null) return Result.fail(404, "new flight not found");
-            
-            // 查新配置
-            AircraftCabinConfig newConfig = configMapper.selectOne(Wrappers.<AircraftCabinConfig>lambdaQuery()
-                .eq(AircraftCabinConfig::getModelId, newFlight.getModelId())
-                .eq(AircraftCabinConfig::getCabinType, req.getNewCabinType())
-                .last("LIMIT 1"));
-                
-            if (newConfig == null) return Result.fail(404, "new cabin config not found");
-            
-            // 动态查库存 (使用 SeatService)
-            Integer available = seatService.getAvailableCount(newFlight.getFlightId(), newConfig.getCabinType());
-            
-            if (available < o.getTicketNum()) {
-                return Result.fail(409, "insufficient seats in new flight");
-            }
-
-            r.setNewFlightId(newFlight.getFlightId());
-            r.setNewCabinId(newConfig.getConfigId());
+             // Parse new flight numbers (handle interline +)
+             List<String> newFlightNos = new ArrayList<>();
+             if (req.getNewFlightNo() != null && req.getNewFlightNo().contains("+")) {
+                  for(String s : req.getNewFlightNo().split("\\+")) {
+                       if(!s.isBlank()) newFlightNos.add(s.trim());
+                  }
+             } else if (req.getNewFlightNo() != null) {
+                  newFlightNos.add(req.getNewFlightNo());
+             }
+             
+             // Validation
+             if (newFlightNos.size() != targetOrders.size()) {
+                 return Result.fail(400, "改签必须完全匹配原订单航段数量 (Interline change requires matching segments)");
+             }
+             
+             // Look up flights and configs
+             for (int i=0; i<newFlightNos.size(); i++) {
+                 String fNo = newFlightNos.get(i);
+                 Flight nf = flightMapper.selectOne(new QueryWrapper<Flight>().eq("flight_no", fNo).orderByDesc("flight_id").last("LIMIT 1"));
+                 if (nf == null) return Result.fail(404, "New flight not found: " + fNo);
+                 
+                 AircraftCabinConfig nc = configMapper.selectOne(Wrappers.<AircraftCabinConfig>lambdaQuery()
+                        .eq(AircraftCabinConfig::getModelId, nf.getModelId())
+                        .eq(AircraftCabinConfig::getCabinType, req.getNewCabinType())
+                        .last("LIMIT 1"));
+                 if (nc == null) return Result.fail(404, "New cabin config not found for: " + fNo);
+                 
+                 // Check inventory
+                 Integer avail = seatService.getAvailableCount(nf.getFlightId(), nc.getCabinType());
+                 if (avail < targetOrders.get(i).getTicketNum()) {
+                      return Result.fail(409, "Insufficient seats in new flight: " + fNo);
+                 }
+                 newFlights.add(nf);
+                 newConfigs.add(nc);
+             }
         }
 
-        refundChangeRecordMapper.insert(r);
-        
-        LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(Orders::getOrderId, o.getOrderId())
-                .set(Orders::getOrderStatus, 4); // 4=处理中/改签中/退票中
-        orderMapper.update(null, updateWrapper);
+        // 2. Create Records for ALL targets
+        for (int i=0; i<targetOrders.size(); i++) {
+            Orders order = targetOrders.get(i);
+            
+            // Fee Calculation
+            BigDecimal feeRate = (operType == 2) ? new BigDecimal("0.10") : new BigDecimal("0.20");
+            BigDecimal fee = order.getTotalAmount().multiply(feeRate);
+            String feeRemark = String.format(" | 手续费(Fee): %s", fee.setScale(2, java.math.RoundingMode.HALF_UP));
 
-        return Result.ok(r.getRecordId());
+            RefundChangeRecord r = new RefundChangeRecord();
+            r.setOrderId(order.getOrderId());
+            r.setOperType(operType);
+            r.setOldFlightId(order.getFlightId());
+            r.setOldCabinId(order.getCabinId());
+            r.setOperUserId(order.getUserId());
+            r.setOperUserType(1);
+            r.setAuditStatus(0);
+            r.setOperTime(now);
+            r.setRemark((req.getRemark() != null ? req.getRemark() : "") + feeRemark);
+            
+            if (operType == 2) {
+                 r.setNewFlightId(newFlights.get(i).getFlightId());
+                 r.setNewCabinId(newConfigs.get(i).getConfigId());
+            }
+            
+            refundChangeRecordMapper.insert(r);
+            if (order.getOrderId().equals(o.getOrderId())) {
+                mainRecordId = r.getRecordId();
+            }
+            
+            // Update Order Status to 4 (Processing)
+            order.setOrderStatus(4);
+            orderMapper.updateById(order);
+        }
+        
+        return Result.ok(mainRecordId != null ? mainRecordId : -1L);
     }
 
     @Override
@@ -187,61 +228,62 @@ public class RefundChangeServiceImpl implements RefundChangeService {
 
         Orders o = orderMapper.selectById(r.getOrderId());
         if (o == null) return Result.fail(404, "order not found");
-
+        
+        // Find ALL sibling records if bundled
+        List<RefundChangeRecord> allRecords = new ArrayList<>();
+        if (o.getParentOrderId() != null) {
+            // Find sibling orders
+            List<Orders> siblings = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
+                    .eq(Orders::getParentOrderId, o.getParentOrderId()));
+            List<Long> orderIds = new ArrayList<>();
+            for(Orders s : siblings) orderIds.add(s.getOrderId());
+            
+            // Find pending records for these orders
+            allRecords = refundChangeRecordMapper.selectList(Wrappers.<RefundChangeRecord>lambdaQuery()
+                    .in(RefundChangeRecord::getOrderId, orderIds)
+                    .eq(RefundChangeRecord::getAuditStatus, 0));
+        } else {
+            allRecords.add(r);
+        }
+        
         LocalDateTime now = LocalDateTime.now();
         
-        if (r.getOperType() == 1) { 
-            // === 退票 ===
-            // 释放座位
-            seatService.releaseSeats(o.getOrderId());
-            
-            LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
-            updateWrapper.eq(Orders::getOrderId, o.getOrderId())
-                    .set(Orders::getOrderStatus, 5) // 5=已退票
-                    .set(Orders::getRefundTime, now);
-            orderMapper.update(null, updateWrapper);
-
-        } else {
-            // === 改签 ===
-            AircraftCabinConfig newConfig = configMapper.selectById(r.getNewCabinId());
-            
-            // 1. 释放原座位
-            seatService.releaseSeats(o.getOrderId());
-            
-            // 2. 锁定并确认新座位 (若失败会回滚)
-            try {
-                seatService.lockSeats(r.getNewFlightId(), newConfig.getCabinType(), o.getTicketNum(), o.getOrderId());
-                seatService.confirmSeats(o.getOrderId());
-            } catch (Exception e) {
-                return Result.fail(409, "insufficient seats now or locking failed");
-            }
-
-            Flight newFlight = flightMapper.selectById(r.getNewFlightId());
-            
-            // 计算差价或新总价
-            Route route = routeMapper.selectById(newFlight.getRouteId());
-            if (route == null) return Result.fail(404, "route not found");
-            BigDecimal newPrice = route.getBasePrice().multiply(newConfig.getCabinCoefficient());
-            BigDecimal newTotal = newPrice.multiply(BigDecimal.valueOf(o.getTicketNum()));
-
-            LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
-            updateWrapper.eq(Orders::getOrderId, o.getOrderId())
-                    .set(Orders::getFlightId, r.getNewFlightId())
-                    .set(Orders::getCabinId, r.getNewCabinId())
-                    .set(Orders::getTotalAmount, newTotal)
-                    .set(Orders::getOrderStatus, 2) // 改签成功 -> 变回已确认
-                    .set(Orders::getChangeTime, now);
-            orderMapper.update(null, updateWrapper);
+        for (RefundChangeRecord rec : allRecords) {
+             Orders order = orderMapper.selectById(rec.getOrderId());
+             
+             // Approve logic
+             rec.setAuditStatus(1); // Approved
+             refundChangeRecordMapper.updateById(rec);
+             
+             if (rec.getOperType() == 1) { // Refund
+                 seatService.releaseSeats(order.getOrderId());
+                 order.setOrderStatus(5); // Refunded
+                 order.setRefundTime(now);
+             } else { // Change
+                 // 1. Release old
+                 seatService.releaseSeats(order.getOrderId());
+                 
+                 // 2. Lock new
+                 try {
+                     Long newSeatId = seatService.lockRandomSeat(rec.getNewFlightId(), rec.getNewCabinId(), order.getUserId());
+                     // Associate
+                     seatService.associateOrder(order.getUserId(), java.util.Collections.singletonList(newSeatId), order.getOrderId());
+                     
+                     order.setFlightId(rec.getNewFlightId());
+                     order.setCabinId(rec.getNewCabinId());
+                     order.setSeatId(newSeatId);
+                     order.setOrderStatus(1); // Back to Paid
+                     order.setChangeTime(now);
+                 } catch (Exception e) {
+                     throw new RuntimeException("Change failed for order " + order.getOrderId() + ": " + e.getMessage());
+                 }
+             }
+             orderMapper.updateById(order);
         }
-
-        LambdaUpdateWrapper<RefundChangeRecord> recordUpdateWrapper = new LambdaUpdateWrapper<>();
-        recordUpdateWrapper.eq(RefundChangeRecord::getRecordId, r.getRecordId())
-                .set(RefundChangeRecord::getAuditStatus, 1)
-                .set(RefundChangeRecord::getAuditTime, now);
-        refundChangeRecordMapper.update(null, recordUpdateWrapper);
         
         return Result.ok(true);
     }
+
     
     // ... reject, revoke, updatePending 逻辑类似，主要是去掉库存操作 ...
     @Override
