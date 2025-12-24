@@ -198,8 +198,25 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean changeSeat(Long orderId, Long newSeatId) {
-        // ... (保持你原有的逻辑，或者如果这里也需要并发控制，参考 lockSeats 加重试)
-        // 简单起见，这里假设换座不涉及高并发抢票，维持原逻辑即可
+        var order = orderMapper.selectById(orderId);
+        if (order == null) return false;
+        var seat = baseMapper.selectById(newSeatId);
+        if (seat == null) return false;
+        if (!Objects.equals(seat.getFlightId(), order.getFlightId())) return false;
+        var cfg = configMapper.selectById(order.getCabinId());
+        if (cfg == null) return false;
+        if (!Objects.equals(cfg.getCabinType(), seat.getCabinType())) return false;
+        boolean ok = update(null, Wrappers.<Seat>lambdaUpdate()
+                .eq(Seat::getSeatId, newSeatId)
+                .eq(Seat::getStatus, 1)
+                .set(Seat::getStatus, 3)
+                .set(Seat::getOrderId, orderId));
+        if (!ok) return false;
+        if (order.getSeatId() != null && !Objects.equals(order.getSeatId(), newSeatId)) {
+            releaseSeat(order.getSeatId());
+        }
+        order.setSeatId(newSeatId);
+        orderMapper.updateById(order);
         return true; 
     }
 

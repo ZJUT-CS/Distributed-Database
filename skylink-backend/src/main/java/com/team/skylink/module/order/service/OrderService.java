@@ -28,5 +28,7 @@ public interface OrderService {
     Result<Boolean> audit(Long orderId, boolean approved);
 
     Result<List<OrderSearchResponse>> listMyOrders(Long userId);
+
+    Result<OrderSearchResponse> selectSeat(Long orderId, Long seatId);
 }
 

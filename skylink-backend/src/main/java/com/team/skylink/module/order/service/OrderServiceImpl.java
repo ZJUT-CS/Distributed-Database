@@ -366,6 +366,47 @@ public class OrderServiceImpl implements OrderService {
         return Result.ok(resp);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<OrderSearchResponse> selectSeat(Long orderId, Long seatId) {
+        if (orderId == null || seatId == null) {
+            return Result.fail(400, "参数无效");
+        }
+        Orders o = orderMapper.selectById(orderId);
+        if (o == null) {
+            return Result.fail(404, "订单不存在");
+        }
+        boolean ok = seatService.changeSeat(orderId, seatId);
+        if (!ok) {
+            log.warn("座位选择失败 orderId={} seatId={}", orderId, seatId);
+            return Result.fail(409, "座位不可选或已被占用");
+        }
+        log.info("座位选择成功 orderId={} seatId={}", orderId, seatId);
+        Orders updated = orderMapper.selectById(orderId);
+        Flight f = flightMapper.selectById(updated.getFlightId());
+        User u = userMapper.selectById(updated.getUserId());
+        OrderSearchResponse r = new OrderSearchResponse();
+        r.setOrderNo(String.valueOf(updated.getOrderId()));
+        r.setFlightNo(f != null ? f.getFlightNo() : null);
+        r.setPassengerName(updated.getPassengerName() != null && !updated.getPassengerName().isBlank() ? updated.getPassengerName() : (u != null ? u.getRealName() : null));
+        r.setContactEmail(updated.getContactEmail());
+        r.setContactPhone(updated.getContactPhone());
+        r.setPassengersJson(updated.getPassengersJson());
+        r.setOrderStatus(updated.getOrderStatus());
+        r.setTotalAmount(updated.getTotalAmount());
+        r.setOrderTime(updated.getOrderTime());
+        r.setPayTime(updated.getPayTime());
+        r.setRefundTime(updated.getRefundTime());
+        r.setChangeTime(updated.getChangeTime());
+        if (f != null) {
+            r.setOrigin(f.getDeparturePlace());
+            r.setDestination(f.getDestination());
+            r.setDepartureTime(f.getDepartureTime());
+            r.setArrivalTime(f.getArrivalTime());
+        }
+        return Result.ok(r);
+    }
+
     private void releaseSeatsForOrder(Orders o) {
         if (o == null) return;
         if (o.getSeatId() != null) {

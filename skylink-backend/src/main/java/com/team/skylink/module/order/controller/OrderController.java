@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 
 import org.springframework.web.bind.annotation.RequestBody;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/orders")
@@ -60,6 +62,13 @@ public class OrderController {
         return orderService.cancel(orderId);
     }
 
+    @PutMapping("/{orderId}/seat")
+    public Result<OrderSearchResponse> selectSeat(@PathVariable("orderId") Long orderId, @RequestBody Map<String, Object> body) {
+        Object sid = body != null ? body.get("seatId") : null;
+        Long seatId = sid instanceof Number ? ((Number) sid).longValue() : sid != null ? Long.valueOf(String.valueOf(sid)) : null;
+        return orderService.selectSeat(orderId, seatId);
+    }
+
     @PostMapping("/{orderId}/audit")
     public Result<Boolean> audit(HttpServletRequest request, @PathVariable("orderId") Long orderId, @RequestParam boolean approved) {
         Result<?> guard = ensureAdmin(request);
@@ -70,7 +79,7 @@ public class OrderController {
     private static Result<?> ensureAdmin(HttpServletRequest request) {
         String t = request.getHeader("X-User-Type");
         if (t == null || (!"2".equals(t.trim()))) {
-            return Result.fail(403, "admin required");
+            return Result.fail(403, "需要管理员权限");
         }
         return null;
     }
@@ -78,7 +87,7 @@ public class OrderController {
     private static Result<?> ensureNonAdmin(HttpServletRequest request) {
         String t = request.getHeader("X-User-Type");
         if (t != null && "2".equals(t.trim())) {
-            return Result.fail(403, "user required");
+            return Result.fail(403, "需要用户权限");
         }
         return null;
     }

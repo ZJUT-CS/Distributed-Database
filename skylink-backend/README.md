@@ -25,6 +25,7 @@ SkyLink 是一个基于 **Spring Boot 4** 和 **MyBatis-Plus** 构建的高性�
 - [API 接口文档 (API Documentation)](#-api-接口文档-api-documentation)
   - [公共/用户接口](#1-公共用户接口-publicuser-apis)
   - [管理后台接口](#2-管理后台接口-admin-apis)
+  - [选座接口](#3-选座接口-seat-apis)
 - [快速开始 (Getting Started)](#-快速开始-getting-started)
 - [异常处理与状态码](#-异常处理与状态码)
 
@@ -215,6 +216,11 @@ stateDiagram-v2
   - Params: `departurePlace`, `destination`, `departureDate`
   - 分页: `page` (默认1), `size` (默认20)
   - Response: 包含直飞 (`directFlights`) 和联程 (`interlineFlights`) 列表。
+- **座位列表**: `GET /api/v1/flights/{flightId}/seats`
+  - Path: `flightId`
+  - Response: `200` 返回数组元素包含 `seatId`, `seatNumber`, `status`, `classType`, `price`
+  - 状态映射: `AVAILABLE`(1), `OCCUPIED`(2), `RESERVED`(3), `MAINTENANCE`
+  - 价格计算: 航线基础价 × 舱位系数
 
 #### 📦 订单 (Orders)
 - **创建订单 (支持单程/联程)**: `POST /api/v1/orders`
@@ -232,6 +238,17 @@ stateDiagram-v2
 - **查询订单**: `GET /api/v1/orders`
   - Params: `userId`, `orderNo`, `orderStatus`, `createTimeStart`, `createTimeEnd`, `flightNo`, `cabinType`, `page`(默认1), `size`(默认20)
   - Response: `PageResult<OrderSearchResponse>`
+- **订单选座**: `PUT /api/v1/orders/{orderId}/seat`
+  - Path: `orderId`
+  - Body:
+    ```json
+    { "seatId": 12345 }
+    ```
+  - Response: `200` 返回更新后的 `OrderSearchResponse`
+  - 规则:
+    - 仅可选择 `AVAILABLE` 座位
+    - 必须与订单舱位类型一致
+    - 并发控制：原子条件更新保证一次只成功一个选择
 - **我的订单**: `GET /api/v1/orders/my`
   - Params: `userId` (固定用户ID，例如 `${user_id}`)
   - 规则：仅返回有效订单（状态不为 0，且未被自动清理），按 `orderTime` 降序
@@ -312,6 +329,54 @@ Authorization: Bearer <token>
     ]
   }
 }
+```
+
+### 4. 选座对接示例
+
+#### 4.1 查询航班座位
+请求：
+```http
+GET /api/v1/flights/1001/seats
+Authorization: Bearer <token>
+```
+响应：
+```json
+[
+  {
+    "seatId": 5001,
+    "seatNumber": "12A",
+    "status": "AVAILABLE",
+    "classType": "ECONOMY",
+    "price": 999.00
+  }
+]
+```
+
+#### 4.2 订单选座
+请求：
+```http
+PUT /api/v1/orders/888888/seat
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "seatId": 5001 }
+```
+成功响应：
+```json
+{
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "orderNo": "888888",
+    "flightNo": "MU5588",
+    "orderStatus": 1,
+    "payTime": null
+  }
+}
+```
+失败示例（座位已被占用）：
+```json
+{ "code": 409, "msg": "座位不可选或已被占用", "data": null }
 ```
 
 #### 3.3 前端分页伪代码
