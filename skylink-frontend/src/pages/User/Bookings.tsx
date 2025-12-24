@@ -3,11 +3,12 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { UserBookings as UserBookingsComponent } from '@/features/user';
 import { useAuth } from '@/features/auth';
 import { type ConfirmedBooking, type PassengerInfo } from '@/features/booking';
-import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, RefreshCw, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, RefreshCw, Clock, Armchair } from 'lucide-react';
 import { searchOrders, type OrderSearchResult, cancelOrder } from '@/features/booking/api/order';
 import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '@/features/booking/api/payment';
 import { loadOrderPassengers } from '@/utils/storage';
 import { ORDER_STATUS } from '@/features/admin/constants';
+import { API_CONFIG } from '@/config/constants';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -104,7 +105,7 @@ const formatLocalYmd = (d: Date) => {
 };
 
 const getPaymentDeadlineMs = (bookingDate: string) => {
-  return new Date(bookingDate).getTime() + 30 * 60 * 1000;
+  return new Date(bookingDate).getTime() + API_CONFIG.PAYMENT_TIMEOUT_MS;
 };
 
 const BookingsPage: React.FC = () => {
@@ -397,6 +398,17 @@ export const BookingDetailsPage: React.FC = () => {
         <div className="flex gap-3">
           {booking.status === 'confirmed' && (
             <>
+              <button
+                onClick={() => {
+                  const flightId = booking.flight?.id || booking.flights?.[0]?.id || '';
+                  const cabinType = booking.flight?.cabinType || booking.flights?.[0]?.cabinType || '';
+                  navigate(`/booking/seat-selection?orderNo=${encodeURIComponent(booking.id)}&flightId=${encodeURIComponent(flightId)}&cabinType=${encodeURIComponent(cabinType)}`);
+                }}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
+              >
+                <Armchair className="w-4 h-4" />
+                在线选座
+              </button>
               <button
                 onClick={openChangePage}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-50 text-sky-700 border border-sky-100 text-sm font-bold hover:bg-sky-100 transition-all shadow-sm"

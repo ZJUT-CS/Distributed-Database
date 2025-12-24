@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { Search, Eye, Download, XCircle, ShoppingCart } from 'lucide-react';
-import { cancelAdminOrder, listAdminOrders, type AdminOrderItem } from '../../features/admin/api/orders';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Search, Eye, Download, XCircle, ShoppingCart, CheckSquare, Square, X } from 'lucide-react';
+import { type AdminOrderItem } from '../../features/admin/api/orders';
 import {
   Pagination,
   TableActionMenu,
@@ -11,7 +11,6 @@ import {
   ErrorBanner,
   AdminDrawer,
   SensitiveField,
-  useAdminList,
   useConfirm,
   useToast,
   useSensitiveAudit,
@@ -20,6 +19,7 @@ import {
 } from '@/features/admin';
 import EntityCell from '@/components/common/EntityCell';
 import { exportToCSV } from '@/utils/export';
+import { useAdminBookings, useCancelAdminBooking, useAuditAdminBooking } from '@/features/admin/hooks/useAdminBookings';
 
 const BookingsMgmt: React.FC = () => {
   const { confirm } = useConfirm();
@@ -29,47 +29,13 @@ const BookingsMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
 
   // Drawer 状态
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderItem | null>(null);
-
-  type BookingFilters = {
-    orderNo?: number;
-    orderStatus?: number;
-  };
-
-  const fetchOrders = useCallback(
-    async (params: { page: number; size: number } & BookingFilters) => {
-      const res = await listAdminOrders({
-        page: params.page,
-        size: params.size,
-        orderNo: params.orderNo,
-        orderStatus: params.orderStatus,
-      });
-      return { data: res.data ?? [], total: res.total ?? 0 };
-    },
-    []
-  );
-
-  const {
-    items,
-    total,
-    page,
-    totalPages,
-    loading,
-    error,
-    filters,
-    setPage,
-    setFilters,
-    refresh,
-    retry,
-  } = useAdminList<AdminOrderItem, BookingFilters>({
-    pageSize: ITEMS_PER_PAGE,
-    initialFilters: {},
-    fetchFn: fetchOrders,
-  });
 
   const parsedOrderNo = useMemo(() => {
     const s = String(searchTerm ?? '').trim();
@@ -90,20 +56,17 @@ const BookingsMgmt: React.FC = () => {
     return statusMapping[statusFilter];
   }, [statusFilter]);
 
-  // 搜索输入：300ms debounce
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      if (filters.orderNo === parsedOrderNo) return;
-      setFilters({ orderNo: parsedOrderNo });
-    }, 300);
-    return () => window.clearTimeout(t);
-  }, [filters.orderNo, parsedOrderNo, setFilters]);
+  const { data: bookingsData, isLoading, error, refetch } = useAdminBookings(
+    { page, size: ITEMS_PER_PAGE, orderNo: parsedOrderNo, orderStatus: mappedOrderStatus },
+    true
+  );
 
-  // 状态筛选：点击即生效（去重，避免重复请求）
-  useEffect(() => {
-    if (filters.orderStatus === mappedOrderStatus) return;
-    setFilters({ orderStatus: mappedOrderStatus });
-  }, [filters.orderStatus, mappedOrderStatus, setFilters]);
+  const items = bookingsData?.data ?? [];
+  const total = bookingsData?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+
+  const cancelBookingMutation = useCancelAdminBooking();
+  const auditBookingMutation = useAuditAdminBooking();
 
   const loadError = useMemo(() => {
     const msg = String(error ?? '').trim();
@@ -131,8 +94,7 @@ const BookingsMgmt: React.FC = () => {
     });
     if (!confirmed) return;
     try {
-      await cancelAdminOrder(orderNo);
-      refresh(false);
+      await cancelBookingMutation.mutateAsync(orderNo);
       toast.success('订单已取消');
     } catch (e: any) {
       toast.error(e?.message || '取消失败');
@@ -145,11 +107,91 @@ const BookingsMgmt: React.FC = () => {
     setActiveActionId(null);
   };
 
+  const handleDownloadReceipt = (b: AdminOrderItem) => {
+    setActiveActionId(null);
+    toast.info('票据下载功能开发中，敬请期待');
+  };
+
+  const handleBatchCancel = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要取消的订单');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量取消订单',
+      message: `确定要取消选中的 ${ids.length} 个订单吗？`,
+      variant: 'warning',
+      confirmText: '确认取消',
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all(ids.map(id => cancelBookingMutation.mutateAsync(id)));
+      toast.success('订单已取消');
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      toast.error(e?.message || '取消失败');
+    }
+  };
+
+  const handleBatchExport = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要导出的订单');
+      return;
+    }
+    try {
+      toast.info('正在导出数据...');
+      const { listAdminOrders } = await import('../../features/admin/api/orders');
+      const res = await listAdminOrders({ page: 1, size: 1000, orderNo: parsedOrderNo, orderStatus: mappedOrderStatus });
+      const data = res.data?.filter(item => ids.includes(String(item.orderNo))) ?? [];
+      if (!data.length) {
+        toast.warning('暂无数据可导出');
+        return;
+      }
+      exportToCSV(data, '订单列表', [
+        { key: 'orderNo', label: '订单号' },
+        { key: 'userId', label: '用户ID' },
+        { key: 'passengerName', label: '乘客姓名', formatter: (item) => item.passengerName || '' },
+        { key: 'flightNo', label: '航班号', formatter: (item) => item.flightNo || '' },
+        { key: 'totalAmount', label: '订单金额', formatter: (item) => String(item.totalAmount || 0) },
+        { key: 'orderStatus', label: '状态', formatter: (item) => ORDER_STATUS_MAP[item.orderStatus ?? -1]?.label || '' },
+        { key: 'orderTime', label: '下单时间', formatter: (item) => item.orderTime?.replace('T', ' ').slice(0, 19) || '' },
+      ]);
+      toast.success('导出成功');
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map(b => String(b.orderNo))));
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const allSelected = items.length > 0 && selectedIds.size === items.length;
+  const someSelected = selectedIds.size > 0;
+
   // 导出数据
   const handleExport = async () => {
     try {
       toast.info('正在导出数据...');
-      const res = await listAdminOrders({ page: 1, size: 1000, orderNo: filters.orderNo, orderStatus: filters.orderStatus });
+      const { listAdminOrders } = await import('../../features/admin/api/orders');
+      const res = await listAdminOrders({ page: 1, size: 1000, orderNo: parsedOrderNo, orderStatus: mappedOrderStatus });
       const data = res.data ?? [];
       if (!data.length) {
         toast.warning('暂无数据可导出');
@@ -188,7 +230,7 @@ const BookingsMgmt: React.FC = () => {
         }
       />
 
-      {loadError && <ErrorBanner message={loadError} onRetry={retry} />}
+      {loadError && <ErrorBanner message={loadError} onRetry={() => refetch()} />}
 
       {/* Search & Filter Bar */}
       <FilterBar
@@ -205,8 +247,7 @@ const BookingsMgmt: React.FC = () => {
               }}
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return;
-                if (filters.orderNo === parsedOrderNo) return;
-                setFilters({ orderNo: parsedOrderNo });
+                setPage(1);
               }}
             />
           </div>
@@ -238,11 +279,36 @@ const BookingsMgmt: React.FC = () => {
 
       {/* Bookings Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+        {someSelected && (
+          <div className="px-6 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+            <span className="text-sm font-medium text-indigo-700">已选择 {selectedIds.size} 项</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBatchCancel}
+                className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-white border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors flex items-center gap-1"
+              >
+                <XCircle className="w-3.5 h-3.5" /> 批量取消
+              </button>
+              <button
+                onClick={handleBatchExport}
+                className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1"
+              >
+                <Download className="w-3.5 h-3.5" /> 批量导出
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
         <AdminTableState
-          loading={loading}
+          loading={isLoading}
           error={loadError}
           isEmpty={items.length === 0}
-          onRetry={retry}
+          onRetry={() => refetch()}
           emptyTitle={searchTerm ? '未找到匹配订单' : '暂无订单数据'}
           emptyDescription={searchTerm ? '请尝试调整搜索条件' : '当前没有符合条件的订单记录'}
           skeletonRows={5}
@@ -251,6 +317,14 @@ const BookingsMgmt: React.FC = () => {
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50/80">
               <tr>
+                <th className="px-6 py-4 w-10">
+                  <button
+                    onClick={handleSelectAll}
+                    className="text-gray-400 hover:text-indigo-600 transition-colors"
+                  >
+                    {allSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                  </button>
+                </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">订单号</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">客户</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">航班</th>
@@ -266,6 +340,14 @@ const BookingsMgmt: React.FC = () => {
                 const customerName = b.passengerName || (b.userId != null ? `用户#${b.userId}` : '-');
                 return (
                   <tr key={String(b.orderNo)} className="hover:bg-indigo-50/30 transition-colors group">
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleSelectOne(String(b.orderNo))}
+                        className="text-gray-400 hover:text-indigo-600 transition-colors"
+                      >
+                        {selectedIds.has(String(b.orderNo)) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                      </button>
+                    </td>
                     <td className="px-6 py-4">
                       <EntityCell
                         leading={
@@ -314,7 +396,10 @@ const BookingsMgmt: React.FC = () => {
                         >
                           <Eye className="w-3.5 h-3.5 text-indigo-500" /> 查看详情
                         </button>
-                        <button className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                        <button
+                          onClick={() => handleDownloadReceipt(b)}
+                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        >
                           <Download className="w-3.5 h-3.5 text-gray-500" /> 下载票据
                         </button>
                         <div className="h-px bg-gray-100 my-0"></div>

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { SearchForm, FilterSidebar, FlightList, TripSummary, type Flight, type SearchParams, type FilterState, type MapPoint } from '@/features/flight';
+import { SearchForm, FilterSidebar, FlightList, FlightListSkeleton, TripSummary, type Flight, type SearchParams, type FilterState, type MapPoint } from '@/features/flight';
 import { WorldMap } from '@/components';
 import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '@/constants';
 import { Plane, Filter, MoveRight } from 'lucide-react';
@@ -323,9 +323,7 @@ const FlightResultPage: React.FC = () => {
               </div>
 
               {loadingFlights && (
-                <div className="mb-4 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600">
-                  正在加载航班...
-                </div>
+                <FlightListSkeleton count={4} />
               )}
 
               {!loadingFlights && flightError && (

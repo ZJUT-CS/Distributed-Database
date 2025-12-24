@@ -423,102 +423,68 @@ async function fetchOrders({ page = 1, size = 20, filters }) {
 
 ### 环境要求
 - JDK 21+
-- Maven 3.8+
-- MySQL 8.0+ (推荐 9.3)
+- Docker & Docker Compose（用于 MySQL + ShardingSphere Proxy）
 
-### 安装步骤
+> 数据库与代理推荐按仓库根目录 README 的方式启动：[../README.md](../README.md)
 
-1. **克隆项目**
-   ```bash
-   git clone https://github.com/your-repo/skylink-backend.git
-   cd skylink-backend
-   ```
+### 启动
 
-2. **数据库初始化**
-   - 执行 `Shardingsphere-proxy/mysql-init/01-init.sql` 初始化表结构。
-   - 确保 `application.yml` 中的数据库连接配置正确。
-
-3. **编译与运行**
-   ```bash
-   # 编译
-   mvn clean package -DskipTests
-
-   # 运行
-   java -jar target/skylink-backend-0.0.1-SNAPSHOT.jar
-   ```
-
-4. **验证**
-   访问 `http://localhost:9999/api/v1/system/health`，应返回 `Hello, SkyLink`。
-
----
-
-## ⚠️ 异常处理与状态码
-
-| 异常类型 | 错误码 | 触发场景 | 前端处理建议 |
-| :--- | :--- | :--- | :--- |
-| `InventoryShortageException` | **4001** | 库存不足 | 提示"余票不足"，引导重新搜索 |
-| `InterlineTimeConflictException` | **4002** | 中转时间冲突 | 提示"中转时间不足"，禁止下单 |
-| `SeatOccupiedException` | **4003** | 座位已被占用 | 刷新选座图，提示重选 |
-| `PriceChangedException` | **4004** | 价格变动 | 弹窗提示最新价格，需用户确认 |
-| `PartialBookingException` | **5001** | 部分航段失败 | 系统自动回滚，提示"系统繁忙" |
-
----
-
-## 📂 项目结构说明
-
-```text
-skylink-backend/
-├── src/main/java/com/team/skylink/
-│   ├── common/          # 通用模块 (Result, Exception, Enums)
-│   ├── config/          # 全局配置 (Swagger, Security, MyBatis)
-│   ├── module/
-│   │   ├── admin/       # 管理员模块 (Controller, Service)
-│   │   ├── flight/      # 航班模块 (Search, Seat, Route)
-│   │   ├── order/       # 订单模块 (Booking, Audit, Transaction)
-│   │   ├── payment/     # 支付模块
-│   │   ├── user/        # 用户模块 (Auth, Profile)
-│   │   └── system/      # 系统级服务 (Metrics, Logs)
-│   └── SkyLinkApplication.java
-└── pom.xml
+```bash
+./mvnw spring-boot:run
 ```
 
-> **前端开发注意**: 请重点关注 `module/*/controller` 下的接口定义以及 `module/*/dto` 下的数据传输对象结构。
+默认地址：`http://localhost:9999`
 
----
+验证：
 
-## 🧹 订单状态自动治理
-### 超时未支付自动取消
-- 策略：当订单状态为 `1`（待支付）且 `orderTime` 超过 **2 分钟**，系统自动取消并释放座位
-- 触发：定时任务每分钟扫描并取消
-- 位置：`module/order/task/OrderTimeoutTask`
-- 释放策略：优先按 `seat_id` 释放；兼容旧逻辑按 `order_id` 释放
-
-> 注：已停用“待审核(0)超时物理删除”任务
-
-## 💺 Mode B 选座机制
-- 下单阶段：系统随机锁定一个可用座位（`status=3`），写入订单 `seat_id`
-- 支付成功：将锁定座位确认为已售（`status=2`）
-- 支付后换座：提供接口将旧座位释放为可用（`status=1`），并将新座位原子更新为已售（若被抢占会失败）
-- 并发控制：使用数据库行级悲观锁（`FOR UPDATE`）和条件更新（`WHERE status=1`）保障一致性
-
-## 🧾 订单记录范式：一客一单
-- 规则：一次购买多张票将拆分为多条 `orders` 记录入库，每条 `ticket_num = 1`
-- 关联：使用同一 `parent_order_id` 进行打包关联（联程或多票）
-- 数据：`passengers_json` 仅包含对应这一张票的乘客信息
-- 影响：支付、改签、退票按单操作；聚合展示使用 `parent_order_id` 聚合
-
-## 🗄 SQL 变更
-```sql
-ALTER TABLE `orders` ADD COLUMN `seat_id` BIGINT NULL AFTER `passengers_json`;
+```bash
+curl http://localhost:9999/api/v1/system/health
 ```
 
-## 🔎 用户订单查询接口说明
-- 接口：`GET /api/v1/orders/my`
-- 参数：`userId`（固定用户ID）
-- 过滤：仅返回状态不为 `0` 的有效订单，且未被清理
-- 排序：按 `orderTime` 降序
-- 返回：完整订单详情（同 `OrderSearchResponse`）
+## 详细使用说明
 
-## 🗄 数据库表结构更新记录
-- 本次修改 **未涉及表结构变更**
-- 说明：功能通过应用层定时任务与查询过滤实现，无需迁移
+### API 文档与约定
+
+- Swagger UI：`http://localhost:9999/swagger-ui/index.html`
+- 接口清单/枚举/错误码（建议作为联调权威来源）：[../API_AUDIT_REPORT.md](../API_AUDIT_REPORT.md)
+
+### 统一响应结构
+
+后端接口统一返回 `code/msg/data` 结构，且前端需要同时兼容：
+
+- JSON `code`（优先）
+- HTTP status（部分场景会同步设置为 400/401/403/409/500 等）
+
+### 鉴权与权限（Header）
+
+- 用户端：建议使用 `Authorization: Bearer <token>`（登录接口返回）；也兼容 `X-User-Id` 回退方案（开发/测试用途）。
+- 管理端：通常需要 `X-User-Type: 2`；部分操作还需要 `X-Admin-Role: 2`。
+
+## 核心能力说明
+
+### 联程（Interline）
+
+- 支持 Split-Join 拼接联程方案
+- 约束中转时间：$2h \le \Delta t \le 24h$
+
+### Mode B（下单锁座、支付后可换座）
+
+- 下单阶段可锁定座位并写入订单 `seat_id`
+- 支付成功后确认座位为已售
+- 支付后可换座（原子换座，冲突时失败）
+
+### 订单超时自动取消
+
+- 通过定时任务扫描待支付订单并取消，同时释放座位
+- 具体超时窗口与扫描频率以代码与系统配置为准（任务实现位置：`module/order/task/OrderTimeoutTask`）
+
+## 贡献指南
+
+1. 新建分支：`git checkout -b feature/<topic>`
+2. 提交前自测：`./mvnw test`
+3. 提交信息包含：模块 + 目的 + 影响范围
+4. PR 描述包含：验证步骤、接口变更（如有）、兼容性说明
+
+## 许可证
+
+本仓库当前未包含 LICENSE 文件，因此不授予任何开源许可。若需要开源发布，请先补充 LICENSE 并在此处更新说明。

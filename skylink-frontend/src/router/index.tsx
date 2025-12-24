@@ -93,6 +93,7 @@ const FlightResult = React.lazy(() => import('@/pages/FlightResult'));
 const Booking = React.lazy(() => import('@/pages/Booking'));
 const Confirmation = React.lazy(() => import('@/pages/Booking/Confirmation'));
 const ChangeFlight = React.lazy(() => import('@/pages/Booking/ChangeFlight'));
+const SeatSelection = React.lazy(() => import('@/pages/Booking/SeatSelection'));
 
 // =====================
 // 懒加载组件 - 用户页面
@@ -152,6 +153,7 @@ export const router = createBrowserRouter([
       { path: 'booking', element: withSuspense(Booking) },
       { path: 'booking/confirmation', element: withSuspense(Confirmation) },
       { path: 'booking/change', element: withSuspense(ChangeFlight) },
+      { path: 'booking/seat-selection', element: withSuspense(SeatSelection) },
       { path: 'profile', element: withSuspense(Profile) },
       { path: 'settings', element: withSuspense(Settings) },
       { path: 'my-bookings', element: withSuspense(UserBookingsModule) },

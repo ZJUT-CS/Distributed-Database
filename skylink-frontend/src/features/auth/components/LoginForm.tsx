@@ -5,7 +5,7 @@ import { adminLoginApi, loginApi, registerApi } from '../api/auth';
 import type { User } from '../types';
 
 interface LoginFormProps {
-  onLogin: (user: User) => void;
+  onLogin: (user: User, token?: string) => void;
   onCancel: () => void;
 }
 
@@ -85,7 +85,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
         role: res.role,
         adminRole: isAdminMode ? (res as any).adminRole : undefined,
         avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedUsername)}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`,
-      });
+      }, res.token);
     } catch (err: any) {
       alert(err?.message || '请求失败，请稍后再试');
     } finally {

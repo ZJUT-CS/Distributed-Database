@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download, Phone, CreditCard, Eye } from 'lucide-react';
-import { createAdminUser, deleteAdminUser, listAdminUsers, resetAdminUserPassword, updateAdminUser, type AdminUserItem } from '../../features/admin/api/users';
+import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download, Phone, CreditCard, Eye, CheckSquare, Square, X } from 'lucide-react';
+import { listAdminUsers, type AdminUserItem } from '../../features/admin/api/users';
 import {
   Pagination,
   TableActionMenu,
@@ -20,6 +20,7 @@ import {
 } from '@/features/admin';
 import EntityCell from '@/components/common/EntityCell';
 import { exportToCSV } from '@/utils/export';
+import { useAdminUsers, useCreateAdminUser, useUpdateAdminUser, useResetAdminUserPassword, useDeleteAdminUser } from '@/features/admin/hooks/useAdminUsers';
 
 const maskPhone = (v?: string | number | null) => {
   const s = String(v ?? '').trim();
@@ -36,17 +37,13 @@ const UsersMgmt: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const ITEMS_PER_PAGE = 8;
 
   // 重置密码弹窗状态
   const [resetPwdOpen, setResetPwdOpen] = useState(false);
   const [resetPwdUser, setResetPwdUser] = useState<AdminUserItem | null>(null);
   const [resetPwdValue, setResetPwdValue] = useState('');
-
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [items, setItems] = useState<AdminUserItem[]>([]);
-  const [total, setTotal] = useState(0);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUserItem | null>(null);
@@ -61,41 +58,23 @@ const UsersMgmt: React.FC = () => {
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUserItem | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
-
   const normalizedSearch = useMemo(() => searchTerm.trim(), [searchTerm]);
 
-  const reload = async (nextPage: number) => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await listAdminUsers({
-        page: nextPage,
-        size: ITEMS_PER_PAGE,
-        keyword: normalizedSearch || undefined,
-      });
-      setItems(res.data || []);
-      setTotal(res.total || 0);
-    } catch (e: any) {
-      const msg = String(e?.message || '加载失败');
-      // 给出可操作的提示：该接口需要管理员请求头（X-User-Type: 2）
-      if (/admin required/i.test(msg) || /403/.test(msg)) {
-        setLoadError('加载失败：当前登录态不是管理员或缺少管理员请求头（X-User-Type: 2）。请使用管理员账号登录后台后重试。');
-      } else if (/401/.test(msg) || /unauthorized/i.test(msg)) {
-        setLoadError('加载失败：登录已过期或未登录（401）。请重新登录后重试。');
-      } else {
-        setLoadError(`加载失败：${msg}`);
-      }
-      setItems([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: usersData, isLoading, error, refetch } = useAdminUsers(
+    { page, size: ITEMS_PER_PAGE, keyword: normalizedSearch || undefined },
+    true
+  );
 
-  useEffect(() => {
-    reload(page);
-  }, [page, normalizedSearch]);
+  const items = usersData?.data || [];
+  const total = usersData?.total || 0;
+  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+
+  const createUserMutation = useCreateAdminUser();
+  const updateUserMutation = useUpdateAdminUser();
+  const resetPasswordMutation = useResetAdminUserPassword();
+  const deleteUserMutation = useDeleteAdminUser();
+
+  const loadError = error ? String(error.message || '加载失败') : null;
 
   const openCreate = () => {
     setEditing(null);
@@ -130,25 +109,21 @@ const UsersMgmt: React.FC = () => {
       return;
     }
 
-    setLoading(true);
     try {
       if (editing?.userId) {
-        await updateAdminUser(editing.userId, { phoneNumber, realName, email, gender, idCard });
+        await updateUserMutation.mutateAsync({ userId: editing.userId, body: { phoneNumber, realName, email, gender, idCard } });
         toast.success('用户信息已更新');
       } else {
         if (!formPassword.trim()) {
           toast.warning('请输入初始密码');
           return;
         }
-        await createAdminUser({ phoneNumber, password: formPassword.trim(), realName, email });
+        await createUserMutation.mutateAsync({ phoneNumber, password: formPassword.trim(), realName, email });
         toast.success('用户创建成功');
       }
       setModalOpen(false);
-      await reload(page);
     } catch (e: any) {
       toast.error(e?.message || '操作失败');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -161,29 +136,21 @@ const UsersMgmt: React.FC = () => {
       confirmText: '确认禁用',
     });
     if (!confirmed) return;
-    setLoading(true);
     try {
-      await updateAdminUser(u.userId, { userStatus: 2 });
-      await reload(page);
+      await updateUserMutation.mutateAsync({ userId: u.userId, body: { userStatus: 2 } });
       toast.success('账号已禁用');
     } catch (e: any) {
       toast.error(e?.message || '操作失败');
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleEnable = async (u: AdminUserItem) => {
     if (!u.userId) return;
-    setLoading(true);
     try {
-      await updateAdminUser(u.userId, { userStatus: 1 });
-      await reload(page);
+      await updateUserMutation.mutateAsync({ userId: u.userId, body: { userStatus: 1 } });
       toast.success('账号已启用');
     } catch (e: any) {
       toast.error(e?.message || '操作失败');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -201,15 +168,12 @@ const UsersMgmt: React.FC = () => {
       toast.warning('请输入新密码');
       return;
     }
-    setLoading(true);
     try {
-      await resetAdminUserPassword(resetPwdUser.userId, pwd);
+      await resetPasswordMutation.mutateAsync({ userId: resetPwdUser.userId, password: pwd });
       toast.success('密码已重置');
       setResetPwdOpen(false);
     } catch (e: any) {
       toast.error(e?.message || '操作失败');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -222,18 +186,95 @@ const UsersMgmt: React.FC = () => {
       confirmText: '确认删除',
     });
     if (!confirmed) return;
-    setLoading(true);
     try {
-      await deleteAdminUser(u.userId);
-      await reload(1);
+      await deleteUserMutation.mutateAsync(u.userId);
       setPage(1);
       toast.success('用户已删除');
     } catch (e: any) {
       toast.error(e?.message || '操作失败');
-    } finally {
-      setLoading(false);
     }
   };
+
+  const handleBatchDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要删除的用户');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量删除用户',
+      message: `确定要删除选中的 ${ids.length} 个用户吗？此操作不可恢复。`,
+      variant: 'danger',
+      confirmText: '确认删除',
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all(ids.map(id => deleteUserMutation.mutateAsync(id)));
+      toast.success('删除成功');
+      setSelectedIds(new Set());
+      setPage(1);
+    } catch (e: any) {
+      toast.error(e?.message || '操作失败');
+    }
+  };
+
+  const handleBatchDisable = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要禁用的用户');
+      return;
+    }
+    const confirmed = await confirm({
+      title: '批量禁用账号',
+      message: `确定要禁用选中的 ${ids.length} 个用户账号吗？`,
+      variant: 'warning',
+      confirmText: '确认禁用',
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all(ids.map(id => updateUserMutation.mutateAsync({ userId: id, body: { userStatus: 2 } })));
+      toast.success('账号已禁用');
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      toast.error(e?.message || '操作失败');
+    }
+  };
+
+  const handleBatchEnable = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要启用的用户');
+      return;
+    }
+    try {
+      await Promise.all(ids.map(id => updateUserMutation.mutateAsync({ userId: id, body: { userStatus: 1 } })));
+      toast.success('账号已启用');
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      toast.error(e?.message || '操作失败');
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map(u => String(u.userId))));
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const allSelected = items.length > 0 && selectedIds.size === items.length;
+  const someSelected = selectedIds.size > 0;
 
   // 导出数据
   const handleExport = async () => {
@@ -298,7 +339,7 @@ const UsersMgmt: React.FC = () => {
                 setPage(1);
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') reload(1);
+                if (e.key === 'Enter') refetch();
               }}
             />
           </div>
@@ -306,25 +347,56 @@ const UsersMgmt: React.FC = () => {
         right={
           <div className="flex items-center gap-3 w-full md:w-auto">
             <button
-              onClick={() => reload(1)}
+              onClick={() => refetch()}
               className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors"
             >
               搜索
             </button>
-            <div className="text-xs text-gray-500">{loading ? '加载中...' : `共 ${total} 条`}</div>
+            <div className="text-xs text-gray-500">{isLoading ? '加载中...' : `共 ${total} 条`}</div>
           </div>
         }
       />
 
       {/* Users Table */}
-      {loadError ? <ErrorBanner message={loadError} onRetry={() => reload(page)} /> : null}
+      {loadError ? <ErrorBanner message={loadError} onRetry={() => refetch()} /> : null}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+        {someSelected && (
+          <div className="px-6 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+            <span className="text-sm font-medium text-indigo-700">已选择 {selectedIds.size} 项</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBatchEnable}
+                className="px-3 py-1.5 text-xs font-medium text-emerald-600 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors flex items-center gap-1"
+              >
+                <Shield className="w-3.5 h-3.5" /> 批量启用
+              </button>
+              <button
+                onClick={handleBatchDisable}
+                className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-white border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors flex items-center gap-1"
+              >
+                <Ban className="w-3.5 h-3.5" /> 批量禁用
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> 批量删除
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
         <AdminTableState
-          loading={loading}
+          loading={isLoading}
           error={loadError}
           isEmpty={items.length === 0}
-          onRetry={() => reload(page)}
+          onRetry={() => refetch()}
           emptyTitle={normalizedSearch ? '未找到匹配用户' : '暂无用户数据'}
           emptyDescription={normalizedSearch ? '请尝试调整搜索条件' : '当前没有符合条件的用户记录'}
           skeletonRows={5}
@@ -333,6 +405,14 @@ const UsersMgmt: React.FC = () => {
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50/80">
               <tr>
+                <th className="px-6 py-4 w-10">
+                  <button
+                    onClick={handleSelectAll}
+                    className="text-gray-400 hover:text-indigo-600 transition-colors"
+                  >
+                    {allSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                  </button>
+                </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">用户</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">角色</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
@@ -343,6 +423,14 @@ const UsersMgmt: React.FC = () => {
             <tbody className="divide-y divide-gray-100">
               {items.map((u) => (
                 <tr key={String(u.userId)} className="hover:bg-indigo-50/30 transition-colors group">
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => handleSelectOne(String(u.userId))}
+                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                    >
+                      {selectedIds.has(String(u.userId)) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                    </button>
+                  </td>
                   <td className="px-6 py-4">
                     <EntityCell
                       leading={
@@ -526,7 +614,7 @@ const UsersMgmt: React.FC = () => {
               onClick={submit}
               className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-500/30 transition-colors"
               type="button"
-              disabled={loading}
+              disabled={createUserMutation.isPending || updateUserMutation.isPending}
             >
               保存
             </button>
@@ -565,7 +653,7 @@ const UsersMgmt: React.FC = () => {
               onClick={handleResetPassword}
               className="flex-1 py-2.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 shadow-md shadow-orange-500/30 transition-colors"
               type="button"
-              disabled={loading}
+              disabled={resetPasswordMutation.isPending}
             >
               确认重置
             </button>

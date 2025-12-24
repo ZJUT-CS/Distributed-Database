@@ -53,18 +53,10 @@
     port: 9999
   ```
 
-#### API端点分组
-| 端点路径 | Controller | 功能描述 |
-|---------|-----------|---------|
-| `/auth/**` | AuthController | 认证相关(登录/注册) |
-| `/flights/**` | FlightController | 航班查询/管理 |
-| `/orders/**` | OrderController | 订单管理 |
-| `/payments/**` | PaymentController | 支付处理 |
-| `/refund-change/**` | RefundChangeController | 退改签处理 |
-| `/admin/**` | AdminController | 管理员功能 |
-| `/trade/**` | TradeController | 交易相关 |
-| `/global/**` | GlobalController | 全局配置 |
-| `/debug/**` | DbTestController | 调试接口 |
+#### API 路径约定
+
+- API 统一前缀：`/api/v1`
+- 接口清单/枚举/错误码以审计报告为准：[API_AUDIT_REPORT.md](API_AUDIT_REPORT.md)
 
 ---
 
@@ -88,9 +80,15 @@
   ```yaml
   spring:
     datasource:
+      # 当前项目 application.yml 默认值（可能是环境相关的远端地址）
       url: jdbc:mysql://26.122.246.196:3307/sharding_db
+
+      # 本机 Docker Compose 场景推荐值（按实际环境替换）
+      # url: jdbc:mysql://localhost:3307/sharding_db
   ```
 - **功能**: 分库分表代理层
+
+> 实际可用地址以你的部署方式为准：同机容器通常用 `localhost`；跨机器/集群用内网 IP 或服务名。
 
 ---
 
@@ -103,7 +101,7 @@
 | 前端 | http://localhost:5173 | 5173 |
 | 后端API | http://localhost:9999 | 9999 |
 | MySQL | localhost | 3306 |
-| ShardingSphere | 26.122.246.196 | 3307 |
+| ShardingSphere | localhost | 3307 |
 
 ### 生产环境 (Production)
 
@@ -223,8 +221,8 @@ SERVER_PORT=8080 java -jar skylink-backend.jar
    - 前端 `VITE_API_URL` 使用 `https://` 协议
 
 4. **数据库地址**:
-   - 当前配置使用外部IP `26.122.246.196:3307`
-   - 生产环境应使用内网地址或容器网络通信
+  - 文档示例使用 `localhost:3307`
+  - 生产环境应使用内网地址或容器网络通信
 
 ---
 
@@ -276,7 +274,8 @@ lsof -i :3307   # ShardingSphere
 ## 📞 故障排查
 
 ### 1. 前端无法连接后端
-- 检查后端是否启动: 访问 `http://localhost:9999/actuator/health`
+- 检查后端是否启动: 访问 `http://localhost:9999/api/v1/system/health`
+- （可选）如启用 Spring Boot Actuator: `http://localhost:9999/actuator/health`
 - 检查 CORS 配置
 - 检查防火墙/安全组设置
 - 验证 `VITE_API_URL` 配置
@@ -293,6 +292,6 @@ lsof -i :3307   # ShardingSphere
 
 ---
 
-**最后更新**: 2025-12-17  
+**最后更新**: 2025-12-24  
 **版本**: 1.0.0  
 **维护者**: Development Team

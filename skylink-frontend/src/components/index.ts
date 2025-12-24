@@ -9,3 +9,4 @@ export { default as Footer } from './layout/Footer';
 // Common 组件
 export { default as AiAssistantModal } from './common/AiAssistantModal';
 export { default as WorldMap } from './common/WorldMap';
+export { default as Countdown } from './common/Countdown';
