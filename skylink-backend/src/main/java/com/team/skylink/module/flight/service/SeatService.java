@@ -3,99 +3,33 @@ package com.team.skylink.module.flight.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.team.skylink.module.flight.entity.Seat;
 import java.util.List;
+import java.util.Map;
 
-/**
- * 座位服务接口
- * 继承 IService 以获得 saveBatch 等批量操作能力
- */
 public interface SeatService extends IService<Seat> {
 
-    /**
-     * 锁定座位 (乐观锁)
-     * @param flightId 航班ID
-     * @param cabinType 舱位类型
-     * @param count 数量
-     * @param orderId 订单ID
-     * @return 锁定的座位列表
-     */
-    List<Seat> lockSeats(Long flightId, String cabinType, int count, Long orderId);
+    // 【修改】参数从 orderId 变成了 userId
+    List<Seat> lockSeats(Long flightId, String cabinType, int count, Long userId);
 
-    /**
-     * 确认座位 (支付成功后)
-     * @param orderId 订单ID
-     * @return 是否成功
-     */
-    boolean confirmSeats(Long orderId);
+    // 【新增】Impl 里加了这个，接口里也得声明
+    void associateOrder(Long userId, List<Long> seatIds, Long orderId);
 
-    /**
-     * 释放座位 (取消订单/退票)
-     * @param orderId 订单ID
-     * @return 是否成功
-     */
-    boolean releaseSeats(Long orderId);
+    // 【修改】参数从 orderId 变成了 userId
+    Long lockRandomSeat(Long flightId, Long cabinId, Long userId);
 
-    /**
-     * 获取可用座位数
-     * @param flightId 航班ID
-     * @param cabinType 舱位类型
-     * @return 可用数
-     */
-    Integer getAvailableCount(Long flightId, String cabinType);
-
-    /**
-     * 批量获取可用座位数
-     * @param flightIds 航班ID列表
-     * @return Map<FlightId, Map<CabinType, Count>>
-     */
-    java.util.Map<Long, java.util.Map<String, Integer>> getAvailableCountBatch(List<Long> flightIds);
-
-    /**
-     * 批量锁定座位 (联程航班专用 - 悲观锁 + 排序防死锁)
-     * @param requests 锁定请求列表
-     */
-    void lockSeatsBatch(List<SeatLockRequest> requests);
-
-    /**
-     * Mode B：随机锁定一个座位（悲观锁）
-     * @param flightId 航班ID
-     * @param cabinId 舱位配置ID
-     * @param orderId 订单ID
-     * @return 锁定的座位ID
-     */
-    Long lockRandomSeat(Long flightId, Long cabinId, Long orderId);
-
-    /**
-     * Mode B：释放单个座位
-     * @param seatId 座位ID
-     * @return 是否成功
-     */
     boolean releaseSeat(Long seatId);
 
-    /**
-     * Mode B：确认单个座位为已售
-     * @param seatId 座位ID
-     * @return 是否成功
-     */
-    boolean confirmSeat(Long seatId);
+    boolean confirmSeat(Long seatId); // 确保这一行存在
 
-    /**
-     * Mode B：支付后换座
-     * @param orderId 订单ID
-     * @param newSeatId 新座位ID
-     * @return 是否成功
-     */
     boolean changeSeat(Long orderId, Long newSeatId);
 
-    @lombok.Data
-    class SeatLockRequest implements Comparable<SeatLockRequest> {
-        private Long flightId;
-        private String cabinType;
-        private int count;
-        private Long orderId;
+    boolean confirmSeats(Long orderId);
 
-        @Override
-        public int compareTo(SeatLockRequest o) {
-            return this.flightId.compareTo(o.flightId);
-        }
-    }
+    boolean releaseSeats(Long orderId);
+
+    Integer getAvailableCount(Long flightId, String cabinType);
+
+    Map<Long, Map<String, Integer>> getAvailableCountBatch(List<Long> flightIds);
+
+    // 以前的批量锁座如果不用了，可以注释掉，或者保留定义
+    // void lockSeatsBatch(List<SeatLockRequest> requests);
 }

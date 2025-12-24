@@ -58,6 +58,8 @@ public class Seat {
      */
     private Long orderId;
 
+    private Long userId;
+
 
     /**
      * 对应订单乘客列表下标 (可选，用于区分同一订单下不同乘客)

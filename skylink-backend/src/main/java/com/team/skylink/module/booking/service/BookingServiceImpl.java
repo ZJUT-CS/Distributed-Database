@@ -10,12 +10,12 @@ import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper;
 import com.team.skylink.module.booking.dto.BookingFlightDto;
 import com.team.skylink.module.booking.dto.BookingRequest;
 import com.team.skylink.module.booking.dto.BookingResponse;
-import com.team.skylink.module.booking.service.BookingService;
 import com.team.skylink.module.flight.entity.Flight;
-import com.team.skylink.module.flight.mapper.FlightMapper;
-import com.team.skylink.module.flight.service.SeatService;
-import com.team.skylink.module.flight.mapper.RouteMapper;
 import com.team.skylink.module.flight.entity.Route;
+import com.team.skylink.module.flight.entity.Seat; // 确保导入 Seat
+import com.team.skylink.module.flight.mapper.FlightMapper;
+import com.team.skylink.module.flight.mapper.RouteMapper;
+import com.team.skylink.module.flight.service.SeatService;
 import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
 import com.team.skylink.module.user.mapper.UserMapper;
@@ -25,12 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -68,7 +63,7 @@ public class BookingServiceImpl implements BookingService {
         boolean isInterline = Boolean.TRUE.equals(req.getIsInterline()) && req.getFlightIds().size() > 1;
 
         try {
-            // 1. 创建订单 (并在内部锁定座位)
+            // 序列化乘客信息
             String passengersJson = objectMapper.writeValueAsString(req.getPassengers());
             Map<String, Object> result;
 
@@ -89,58 +84,80 @@ public class BookingServiceImpl implements BookingService {
         long parentOrderId = IdWorker.getId();
         List<Long> flightIds = req.getFlightIds();
         
-        // 获取舱位类型 (假设所有航段舱位一致)
         AircraftCabinConfig config = configMapper.selectById(req.getCabinId());
         if (config == null) {
             throw new IllegalArgumentException("Invalid Cabin ID");
         }
         String cabinType = config.getCabinType();
+        int passengerCount = req.getPassengers().size();
+        Long userId = req.getUserId();
 
-        // 1. 预生成订单ID并准备锁请求
-        List<SeatService.SeatLockRequest> lockRequests = new ArrayList<>();
-        List<Long> orderIds = new ArrayList<>();
+        List<String> orderIdStrs = new ArrayList<>();
 
-        for (Long flightId : flightIds) {
-            long orderId = IdWorker.getId();
-            orderIds.add(orderId);
-
-            SeatService.SeatLockRequest lockReq = new SeatService.SeatLockRequest();
-            lockReq.setFlightId(flightId);
-            lockReq.setCabinType(cabinType);
-            lockReq.setCount(req.getPassengers().size());
-            lockReq.setOrderId(orderId);
-            lockRequests.add(lockReq);
-        }
-
-        // 2. 批量加锁 (按FlightId排序 + SELECT FOR UPDATE)
-        seatService.lockSeatsBatch(lockRequests);
-
-        // 3. 保存订单 (跳过内部加锁)
+        // 【修改点】 循环处理每一段航班：锁座 -> 建单 -> 关联
         for (int i = 0; i < flightIds.size(); i++) {
-            saveSingleOrder(req.getUserId(), flightIds.get(i), req.getCabinId(), parentOrderId,
-                    i == 0 ? 1 : 2, passengersJson, req.getPassengers().size(), true, orderIds.get(i));
+            Long flightId = flightIds.get(i);
+
+            // 1. 先尝试锁座 (传入 UserId)
+            List<Seat> lockedSeats = seatService.lockSeats(flightId, cabinType, passengerCount, userId);
+
+            // 2. 生成订单 ID
+            long orderId = IdWorker.getId();
+            orderIdStrs.add(String.valueOf(orderId));
+
+            // 3. 关联订单ID到座位
+            List<Long> seatIds = lockedSeats.stream().map(Seat::getSeatId).collect(Collectors.toList());
+            seatService.associateOrder(userId, seatIds, orderId);
+
+            // 4. 保存订单到数据库 (tripType: 1=去程/第一段, 2=返程/第二段)
+            saveSingleOrder(userId, flightId, req.getCabinId(), parentOrderId,
+                    i == 0 ? 1 : 2, passengersJson, passengerCount, orderId);
         }
-        
+
         Map<String, Object> res = new HashMap<>();
         res.put("parentOrderId", String.valueOf(parentOrderId));
-        res.put("orderIds", orderIds.stream().map(String::valueOf).collect(Collectors.toList()));
+        res.put("orderIds", orderIdStrs);
         return res;
     }
 
     private Map<String, Object> createIndependentOrders(BookingRequest req, String passengersJson) {
         List<String> orderIds = new ArrayList<>();
+        
+        AircraftCabinConfig config = configMapper.selectById(req.getCabinId());
+        if (config == null) throw new IllegalArgumentException("Invalid Cabin ID");
+        
+        String cabinType = config.getCabinType();
+        int passengerCount = req.getPassengers().size();
+        Long userId = req.getUserId();
+
+        // 【修改点】 循环处理每个独立航班
         for (Long flightId : req.getFlightIds()) {
-            Long orderId = saveSingleOrder(req.getUserId(), flightId, req.getCabinId(), null, 0, passengersJson, req.getPassengers().size(), false, null);
+            // 1. 先锁座
+            List<Seat> lockedSeats = seatService.lockSeats(flightId, cabinType, passengerCount, userId);
+
+            // 2. 生成 ID
+            long orderId = IdWorker.getId();
             orderIds.add(String.valueOf(orderId));
+
+            // 3. 关联
+            List<Long> seatIds = lockedSeats.stream().map(Seat::getSeatId).collect(Collectors.toList());
+            seatService.associateOrder(userId, seatIds, orderId);
+
+            // 4. 保存 (tripType=0 单程)
+            saveSingleOrder(userId, flightId, req.getCabinId(), null, 0, passengersJson, passengerCount, orderId);
         }
+        
         Map<String, Object> res = new HashMap<>();
         res.put("orderIds", orderIds);
         return res;
     }
 
-    private Long saveSingleOrder(Long userId, Long flightId, Long cabinId, Long parentOrderId, Integer tripType, String passengersJson, int ticketNum, boolean skipLock, Long preGeneratedOrderId) {
+    /**
+     * 【修改点】只负责保存 Orders 对象，不再负责锁座
+     */
+    private void saveSingleOrder(Long userId, Long flightId, Long cabinId, Long parentOrderId, 
+                                 Integer tripType, String passengersJson, int ticketNum, Long orderId) {
         Flight flight = flightMapper.selectById(flightId);
-        // ... (rest same as before)
         AircraftCabinConfig config = configMapper.selectById(cabinId);
         Route route = routeMapper.selectById(flight.getRouteId());
         
@@ -150,9 +167,7 @@ public class BookingServiceImpl implements BookingService {
         }
         
         Orders order = new Orders();
-        if (preGeneratedOrderId != null) {
-            order.setOrderId(preGeneratedOrderId);
-        }
+        order.setOrderId(orderId); // 必填：使用外部生成的ID
         order.setUserId(userId);
         order.setFlightId(flightId);
         order.setCabinId(cabinId);
@@ -181,13 +196,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         orderMapper.insert(order);
-
-        // 锁定座位 (如果不跳过)
-        if (!skipLock) {
-            seatService.lockSeats(flightId, config.getCabinType(), ticketNum, order.getOrderId());
-        }
-        
-        return order.getOrderId();
+        // 注意：这里不再调用 seatService.lockSeats，因为前面已经锁完了
     }
 
     @Override
