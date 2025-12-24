@@ -9,7 +9,7 @@ export type FilterBarProps = {
 const FilterBar: React.FC<FilterBarProps> = ({ left, right, className }) => {
   return (
     <div
-      className={`bg-admin-surface p-4 rounded-admin border border-admin-border shadow-admin flex flex-col md:flex-row gap-4 items-center justify-between ${
+      className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between ${
         className ?? ''
       }`.trim()}
     >

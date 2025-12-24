@@ -23,6 +23,17 @@ public interface PaymentService {
             int size
     );
 
+    Result<PageResult<PaymentSearchResponse>> searchPage(
+        Long orderNo,
+        Long userId,
+        Integer paymentStatus,
+        String paymentMethod,
+        LocalDateTime paymentTimeStart,
+        LocalDateTime paymentTimeEnd,
+        Integer page,
+        Integer size
+    );
+
     Result<CreatePaymentTokenResponse> createConfirmToken(CreatePaymentTokenRequest req);
 
     Result<PaymentSearchResponse> confirmPay(ConfirmPaymentRequest req);

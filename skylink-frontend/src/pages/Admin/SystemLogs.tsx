@@ -1,119 +1,118 @@
-import React, { useState } from 'react';
-import { Search, FileText, Shield, User, Globe, AlertCircle, ScrollText, Download } from 'lucide-react';
-import { Pagination, AdminBadge, AdminPageHeader } from '@/features/admin';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Search, FileText, Shield, User, Globe, AlertCircle, CheckCircle, ScrollText, Download, RefreshCw } from 'lucide-react';
+import { Pagination, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, useAdminList, useToast } from '@/features/admin';
+import { listSystemLogs, type SystemLogItem } from '@/features/admin/api/admins';
 import EntityCell from '@/components/common/EntityCell';
+import { formatDateTimeZhCN } from '@/utils/formatters';
+import { exportToCSV } from '@/utils/export';
 
-type LogLevel = 'info' | 'warning' | 'error';
+// 操作用户类型
+const OPER_USER_TYPE = {
+  USER: 1,
+  ADMIN: 2,
+} as const;
 
-interface SystemLogItem {
-  id: string;
-  time: string;
-  module: string;
-  operator: string;
-  operatorRole: string;
-  ip: string;
-  action: string;
-  level: LogLevel;
-}
-
-const MOCK_LOGS: SystemLogItem[] = [
-  {
-    id: 'LOG-20251216001',
-    time: '2025-12-16 09:10:18',
-    module: '航班管理',
-    operator: 'sys_admin',
-    operatorRole: '超级管理员',
-    ip: '10.0.0.12',
-    action: '修改航班 CA1831 票价：1240 → 1390',
-    level: 'info',
-  },
-  {
-    id: 'LOG-20251216002',
-    time: '2025-12-16 09:20:03',
-    module: '订单中心',
-    operator: 'ops_zhang',
-    operatorRole: '运营',
-    ip: '10.0.0.23',
-    action: '手工关闭超时未支付订单 ORD-992813',
-    level: 'warning',
-  },
-  {
-    id: 'LOG-20251216003',
-    time: '2025-12-16 09:35:47',
-    module: '退改签审核',
-    operator: 'auditor_li',
-    operatorRole: '风控审核',
-    ip: '10.0.0.35',
-    action: '审核通过退票申请 RC-2025001，并触发原路退款',
-    level: 'info',
-  },
-  {
-    id: 'LOG-20251216004',
-    time: '2025-12-16 09:50:12',
-    module: '系统配置',
-    operator: 'sys_admin',
-    operatorRole: '超级管理员',
-    ip: '10.0.0.12',
-    action: '修改参数「订单支付超时时间」：15 分钟 → 30 分钟',
-    level: 'info',
-  },
-  {
-    id: 'LOG-20251216005',
-    time: '2025-12-16 10:02:08',
-    module: '登录安全',
-    operator: '系统',
-    operatorRole: '系统守护',
-    ip: '203.0.113.45',
-    action: '检测到来自非常用地区的连续登录失败 5 次，已锁定账号 ops_wang 10 分钟',
-    level: 'error',
-  },
-];
+// 操作结果
+const OPER_RESULT = {
+  FAIL: 0,
+  SUCCESS: 1,
+} as const;
 
 const SystemLogs: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [moduleFilter, setModuleFilter] = useState<'all' | string>('all');
-  const [levelFilter, setLevelFilter] = useState<'all' | LogLevel>('all');
-  const [page, setPage] = useState(1);
-  const ITEMS_PER_PAGE = 8;
+  const toast = useToast();
+  const ITEMS_PER_PAGE = 10;
 
-  const modules = Array.from(new Set(MOCK_LOGS.map((l) => l.module)));
+  const [keywordInput, setKeywordInput] = useState('');
+  const [moduleInput, setModuleInput] = useState('');
+  const [resultFilter, setResultFilter] = useState<'all' | 'success' | 'fail'>('all');
 
-  const filteredLogs = MOCK_LOGS.filter((l) => {
-    const matchModule = moduleFilter === 'all' || l.module === moduleFilter;
-    const matchLevel = levelFilter === 'all' || l.level === levelFilter;
-    const keyword = searchTerm.toLowerCase();
-    const matchKeyword =
-      !keyword ||
-      l.id.toLowerCase().includes(keyword) ||
-      l.operator.toLowerCase().includes(keyword) ||
-      l.action.toLowerCase().includes(keyword) ||
-      l.ip.toLowerCase().includes(keyword);
-    return matchModule && matchLevel && matchKeyword;
+  const operResultParam = useMemo(() => {
+    if (resultFilter === 'success') return OPER_RESULT.SUCCESS;
+    if (resultFilter === 'fail') return OPER_RESULT.FAIL;
+    return undefined;
+  }, [resultFilter]);
+
+  const {
+    items,
+    total,
+    page,
+    totalPages,
+    loading,
+    error,
+    filters,
+    setPage,
+    setFilters,
+    refresh,
+    retry,
+  } = useAdminList<SystemLogItem, { keyword?: string; module?: string; operResult?: number | undefined }>({
+    pageSize: ITEMS_PER_PAGE,
+    initialFilters: {
+      keyword: undefined,
+      module: undefined,
+      operResult: undefined,
+    },
+    fetchFn: async ({ page: p, size, keyword, module, operResult }) => {
+      const res = await listSystemLogs({
+        page: p,
+        size,
+        keyword: keyword || undefined,
+        module: module || undefined,
+        operResult: operResult ?? undefined,
+      });
+      return { data: res.data ?? [], total: res.total ?? 0 };
+    },
   });
 
-  const totalPages = Math.ceil(filteredLogs.length / ITEMS_PER_PAGE) || 1;
-  const paginatedLogs = filteredLogs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  // 防抖输入 -> filters
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const nextKeyword = keywordInput.trim() || undefined;
+      const nextModule = moduleInput.trim() || undefined;
+      if (filters.keyword === nextKeyword && filters.module === nextModule) return;
+      setFilters({ keyword: nextKeyword, module: nextModule });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [keywordInput, moduleInput, filters.keyword, filters.module, setFilters]);
 
-  const getLevelBadge = (level: LogLevel) => {
-    if (level === 'info') {
-      return (
-        <AdminBadge icon={FileText} variant="info">
-          正常
-        </AdminBadge>
-      );
+  // 结果筛选 -> filters（立即生效）
+  useEffect(() => {
+    if (filters.operResult === operResultParam) return;
+    setFilters({ operResult: operResultParam });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operResultParam, filters.operResult]);
+
+  const handleSearch = () => {
+    setFilters({ keyword: keywordInput.trim() || undefined, module: moduleInput.trim() || undefined, operResult: operResultParam });
+  };
+
+  const getUserTypeLabel = (type?: number) => {
+    if (type === OPER_USER_TYPE.ADMIN) return '管理员';
+    if (type === OPER_USER_TYPE.USER) return '用户';
+    return '系统';
+  };
+
+  // 导出数据
+  const handleExport = async () => {
+    try {
+      toast.info('正在导出数据...');
+      const res = await listSystemLogs({ page: 1, size: 1000, keyword: filters.keyword, module: filters.module, operResult: filters.operResult });
+      const data = res.data ?? [];
+      if (!data.length) { toast.warning('暂无数据可导出'); return; }
+      exportToCSV(data, '操作日志', [
+        { key: 'logId', label: '日志ID' },
+        { key: 'operTime', label: '时间', formatter: (i) => formatDateTimeZhCN(i.operTime) || '' },
+        { key: 'operUserId', label: '操作人', formatter: (i) => String(i.operUserId ?? '系统') },
+        { key: 'operUserType', label: '用户类型', formatter: (i) => getUserTypeLabel(i.operUserType) },
+        { key: 'operModule', label: '模块', formatter: (i) => i.operModule || '' },
+        { key: 'operType', label: '操作类型', formatter: (i) => i.operType || '' },
+        { key: 'operContent', label: '操作内容', formatter: (i) => i.operContent || '' },
+        { key: 'operIp', label: 'IP', formatter: (i) => i.operIp || '' },
+        { key: 'operResult', label: '结果', formatter: (i) => i.operResult === 1 ? '成功' : '失败' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
     }
-    if (level === 'warning') {
-      return (
-        <AdminBadge icon={AlertCircle} variant="warning">
-          注意
-        </AdminBadge>
-      );
-    }
-    return (
-      <AdminBadge icon={AlertCircle} variant="danger">
-        异常
-      </AdminBadge>
-    );
   };
 
   return (
@@ -124,148 +123,146 @@ const SystemLogs: React.FC = () => {
         title="操作日志"
         description="审计管理员关键操作，保障系统安全可追踪"
         actions={
-          <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+          <button onClick={handleExport} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
             <Download className="w-4 h-4" /> 导出数据
           </button>
         }
       />
 
-      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative flex-1 md:max-w-md w-full">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="搜索日志编号、操作人、IP 或关键字..."
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-          <div className="flex bg-gray-100 p-1 rounded-lg">
-            <button
-              onClick={() => {
-                setModuleFilter('all');
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                moduleFilter === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              全部模块
-            </button>
-            {modules.map((m) => (
-              <button
-                key={m}
-                onClick={() => {
-                  setModuleFilter(m);
-                  setPage(1);
-                }}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                  moduleFilter === m ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
+      <FilterBar
+        left={
+          <div className="flex items-center gap-3 flex-1">
+            <div className="relative flex-1 md:max-w-xs w-full">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="搜索 IP 或操作内容..."
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+            <input
+              type="text"
+              placeholder="按模块筛选..."
+              className="w-36 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
+              value={moduleInput}
+              onChange={(e) => setModuleInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+              {[
+                { id: 'all', label: '全部' },
+                { id: 'success', label: '成功' },
+                { id: 'fail', label: '失败' },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    setResultFilter(opt.id as 'all' | 'success' | 'fail');
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${resultFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex bg-gray-100 p-1 rounded-lg">
-            {[
-              { id: 'all', label: '全部级别' },
-              { id: 'info', label: '正常' },
-              { id: 'warning', label: '注意' },
-              { id: 'error', label: '异常' },
-            ].map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => {
-                  setLevelFilter(opt.id as 'all' | LogLevel);
-                  setPage(1);
-                }}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                  levelFilter === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+        }
+        right={
+          <button
+            onClick={() => refresh(true)}
+            disabled={loading}
+            className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+            title="刷新"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        }
+      />
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50/80">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">时间</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">管理员</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">模块</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">操作内容</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">来源 IP</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">结果</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {paginatedLogs.map((log) => (
-              <tr key={log.id} className="hover:bg-indigo-50/30 transition-colors group">
-                <td className="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">{log.time}</td>
-                <td className="px-6 py-4">
-                  <EntityCell
-                    leading={
-                      <div className="w-8 h-8 rounded-full bg-slate-900 text-slate-100 flex items-center justify-center">
-                        <Shield className="w-4 h-4" />
-                      </div>
-                    }
-                    title={
-                      <>
-                        {log.operator}
-                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                          {log.operatorRole}
-                        </span>
-                      </>
-                    }
-                    titleClassName="text-sm font-semibold text-gray-900 flex items-center gap-2 min-w-0"
-                    meta={[{ icon: User, text: log.id }]}
-                    metaClassName="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5"
-                  />
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">{log.module}</td>
-                <td className="px-6 py-4 text-sm text-gray-700">
-                  <div className="flex items-start gap-2">
-                    <FileText className="w-4 h-4 text-gray-400 mt-0.5" />
-                    <span>{log.action}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">
-                  <span className="inline-flex items-center gap-1">
-                    <Globe className="w-3 h-3" />
-                    {log.ip}
-                  </span>
-                </td>
-                <td className="px-6 py-4">{getLevelBadge(log.level)}</td>
-              </tr>
-            ))}
-            {paginatedLogs.length === 0 && (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible min-h-[400px] flex flex-col">
+        <AdminTableState
+          loading={loading}
+          error={error}
+          isEmpty={items.length === 0}
+          onRetry={retry}
+          emptyIcon={ScrollText}
+          emptyTitle={filters.keyword || filters.module ? '未找到匹配日志' : '暂无操作日志'}
+          emptyDescription={filters.keyword || filters.module ? '请尝试调整搜索条件' : '当前无操作日志记录'}
+          skeletonRows={5}
+          skeletonColumns={6}
+        >
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50/80">
               <tr>
-                <td className="px-6 py-12 text-center text-sm text-gray-400" colSpan={6}>
-                  暂无符合条件的操作日志记录
-                </td>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">时间</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">操作人</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">模块</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">操作内容</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">来源 IP</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">结果</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {items.map((log) => (
+                <tr key={log.logId} className="hover:bg-indigo-50/30 transition-colors group">
+                  <td className="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">{formatDateTimeZhCN(log.operTime)}</td>
+                  <td className="px-6 py-4">
+                    <EntityCell
+                      leading={
+                        <div className="w-8 h-8 rounded-full bg-slate-900 text-slate-100 flex items-center justify-center">
+                          {log.operUserType === OPER_USER_TYPE.ADMIN ? <Shield className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                        </div>
+                      }
+                      title={
+                        <>
+                          {log.operUserId || '系统'}
+                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                            {getUserTypeLabel(log.operUserType)}
+                          </span>
+                        </>
+                      }
+                      titleClassName="text-sm font-semibold text-gray-900 flex items-center gap-2 min-w-0"
+                      meta={[{ icon: User, text: `ID: ${log.logId}` }]}
+                      metaClassName="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5"
+                    />
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">{log.operModule || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    <div className="flex items-start gap-2">
+                      <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <span className="line-clamp-2">{log.operType}{log.operContent ? `: ${log.operContent}` : ''}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1">
+                      <Globe className="w-3 h-3" />
+                      {log.operIp || '-'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {log.operResult === OPER_RESULT.SUCCESS ? (
+                      <AdminBadge icon={CheckCircle} variant="success">成功</AdminBadge>
+                    ) : (
+                      <AdminBadge icon={AlertCircle} variant="danger">失败</AdminBadge>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          setPage={setPage}
-          totalItems={filteredLogs.length}
-          itemsPerPage={ITEMS_PER_PAGE}
-        />
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            setPage={setPage}
+            totalItems={total}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </AdminTableState>
       </div>
     </div>
   );

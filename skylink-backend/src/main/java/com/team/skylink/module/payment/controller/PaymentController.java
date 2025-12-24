@@ -43,6 +43,23 @@ public class PaymentController {
         return paymentService.search(orderNo, userId, paymentStatus, paymentMethod, paymentTimeStart, paymentTimeEnd, page, size);
     }
 
+    /**
+     * 分页查询支付记录（管理端使用，避免全量拉取）
+     */
+    @GetMapping("/page")
+    public Result<PageResult<PaymentSearchResponse>> searchPage(
+            @RequestParam(required = false) Long orderNo,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Integer paymentStatus,
+            @RequestParam(required = false) String paymentMethod,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime paymentTimeStart,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime paymentTimeEnd,
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @RequestParam(required = false, defaultValue = "10") Integer size
+    ) {
+        return paymentService.searchPage(orderNo, userId, paymentStatus, paymentMethod, paymentTimeStart, paymentTimeEnd, page, size);
+    }
+
     @PostMapping("/confirmation-tokens")
     public Result<CreatePaymentTokenResponse> createConfirmToken(@Valid @RequestBody CreatePaymentTokenRequest req) {
         return paymentService.createConfirmToken(req);

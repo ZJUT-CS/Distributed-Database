@@ -1,8 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DollarSign, TrendingUp, CalendarCheck, Plane, Users, Globe, ArrowRightLeft, AlertCircle } from 'lucide-react';
 import WorldMap from '../../components/common/WorldMap';
-import { INITIAL_FLIGHTS, INITIAL_BOOKINGS, INITIAL_USERS } from '../../utils/mockData';
 import { getAdminDashboardMetrics, type AdminDashboardMetrics } from '../../features/admin/api/dashboard';
 
 const Dashboard: React.FC = () => {
@@ -34,64 +33,50 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
-  const bookingDates = INITIAL_BOOKINGS.map((b) => b.date).sort();
-  const todayBookingDate = bookingDates[bookingDates.length - 1];
+  const todayOrderCount = metrics?.todayOrderCount ?? 0;
+  const todayGmv = Number(metrics?.todayGmv ?? 0);
+  const totalRev = Number(metrics?.totalGmv ?? 0);
 
-  const todayBookings = INITIAL_BOOKINGS.filter((b) => b.date === todayBookingDate);
-  const mockTodayOrderCount = todayBookings.length;
-  const mockTodayGmv = todayBookings
-    .filter((b) => b.status === 'paid')
-    .reduce((acc, curr) => acc + curr.amount, 0);
+  const totalBookings = metrics?.orderCount ?? 0;
+  const todayNewUsers = metrics?.todayNewUsers ?? 0;
+  const totalUsers = metrics?.userCount ?? 0;
+  const upcomingFlights = metrics?.upcomingFlights ?? 0;
+  const pendingRefundAudits = metrics?.pendingRefundAudits ?? 0;
 
-  const mockTotalRev = INITIAL_BOOKINGS.filter((b) => b.status === 'paid').reduce(
-    (acc, curr) => acc + curr.amount,
-    0
-  );
-  const mockTotalBookings = INITIAL_BOOKINGS.length;
+  const formatMMDD = (d: Date) => {
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${mm}-${dd}`;
+  };
 
-  const userLoginDates = INITIAL_USERS.map((u) => u.lastLogin.split(' ')[0]).sort();
-  const todayUserDate = userLoginDates[userLoginDates.length - 1];
-  const mockTodayNewUsers = INITIAL_USERS.filter((u) => u.lastLogin.startsWith(todayUserDate)).length;
+  const ordersTrendData = useMemo(() => {
+    const base = new Date();
+    const arr: Array<{ date: string; count: number }> = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(base);
+      d.setDate(base.getDate() - i);
+      arr.push({ date: formatMMDD(d), count: 0 });
+    }
+    // 目前后端仅提供今日指标，趋势接口待补齐：仅展示“今日订单”落在最后一天。
+    if (metrics) {
+      arr[arr.length - 1].count = todayOrderCount;
+    }
+    return arr;
+  }, [metrics, todayOrderCount]);
 
-  const mockUpcomingFlights = INITIAL_FLIGHTS.filter(
-    (f) => f.status === 'active' || f.status === 'delayed'
-  ).length;
-
-  const todayOrderCount = metrics?.todayOrderCount ?? mockTodayOrderCount;
-  const todayGmvRaw = metrics?.todayGmv ?? mockTodayGmv;
-  const todayGmv = typeof todayGmvRaw === 'number' ? todayGmvRaw : Number(todayGmvRaw);
-
-  const totalRevRaw = metrics?.totalGmv ?? mockTotalRev;
-  const totalRev = typeof totalRevRaw === 'number' ? totalRevRaw : Number(totalRevRaw);
-
-  const totalBookings = metrics?.orderCount ?? mockTotalBookings;
-  const todayNewUsers = metrics?.todayNewUsers ?? mockTodayNewUsers;
-  const totalUsers = metrics?.userCount ?? INITIAL_USERS.length;
-  const upcomingFlights = metrics?.upcomingFlights ?? mockUpcomingFlights;
-  const pendingRefundAudits = metrics?.pendingRefundAudits ?? 3;
-
-  const orderedDates = Array.from(new Set(bookingDates));
-  const ordersTrendData = orderedDates.map((d) => ({
-    date: d,
-    count: INITIAL_BOOKINGS.filter((b) => b.date === d).length,
-  }));
-  const maxOrders = Math.max(...ordersTrendData.map((d) => d.count));
+  const maxOrders = Math.max(1, ...ordersTrendData.map((d) => d.count));
   
-  const flightStatusCounts = metrics
-    ? {
-        active: metrics.flightStatusNormalCount,
-        delayed: metrics.flightStatusDelayedCount,
-        cancelled: metrics.flightStatusCancelledCount,
-        full: 0,
-      }
-    : {
-        active: INITIAL_FLIGHTS.filter((f) => f.status === 'active').length,
-        delayed: INITIAL_FLIGHTS.filter((f) => f.status === 'delayed').length,
-        cancelled: INITIAL_FLIGHTS.filter((f) => f.status === 'cancelled').length,
-        full: INITIAL_FLIGHTS.filter((f) => f.status === 'full').length,
-      };
-  const totalFlights = metrics?.flightCount ?? INITIAL_FLIGHTS.length;
-  const flightPieTotal = totalFlights || 1;
+  const flightStatusCounts = {
+    active: metrics?.flightStatusNormalCount ?? 0,
+    delayed: metrics?.flightStatusDelayedCount ?? 0,
+    cancelled: metrics?.flightStatusCancelledCount ?? 0,
+    full: 0,
+  };
+  const totalFlights = metrics?.flightCount ?? 0;
+  const flightPieTotal = Math.max(
+    1,
+    flightStatusCounts.active + flightStatusCounts.delayed + flightStatusCounts.cancelled + flightStatusCounts.full,
+  );
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -231,7 +216,7 @@ const Dashboard: React.FC = () => {
                     <div className="text-3xl font-bold text-white">{upcomingFlights}</div>
                     <div className="text-right">
                       <div className="text-[11px] text-slate-400">计划航班总数</div>
-                      <div className="text-sm font-semibold text-slate-200">{INITIAL_FLIGHTS.length}</div>
+                      <div className="text-sm font-semibold text-slate-200">{totalFlights}</div>
                     </div>
                   </div>
                 </div>
