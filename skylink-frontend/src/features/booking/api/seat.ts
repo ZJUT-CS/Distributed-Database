@@ -66,6 +66,19 @@ export async function getFlightSeats(
         seatIdNum = 0;
       }
 
+      // 解析 status：支持数字或字符串
+      let statusVal: 1 | 2 | 3 = 2; // 默认不可用
+      const st = s.status;
+      if (st === 1 || st === 2 || st === 3) {
+        statusVal = st as 1 | 2 | 3;
+      } else if (typeof st === 'string') {
+        const upper = st.toUpperCase();
+        if (upper === 'AVAILABLE') statusVal = 1;
+        else if (upper === 'OCCUPIED') statusVal = 2;
+        else if (upper === 'RESERVED') statusVal = 3; // 锁定/保留
+        // MAINTENANCE -> 2
+      }
+
       return {
         seatId: seatIdNum,
         flightId: typeof s.flightId === 'number' ? s.flightId : parseInt(String(s.flightId || '0'), 10),
@@ -73,7 +86,7 @@ export async function getFlightSeats(
         seatNumber: String(s.seatNumber || ''),
         rowNumber: typeof s.rowNumber === 'number' ? s.rowNumber : parseInt(String(s.rowNumber || '0'), 10),
         columnLetter: String(s.columnLetter || ''),
-        status: (s.status === 1 || s.status === 2 || s.status === 3 ? s.status : 2) as 1 | 2 | 3,
+        status: statusVal,
         orderId: s.orderId ?? null,
         version: s.version ?? undefined,
       };

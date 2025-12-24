@@ -223,9 +223,15 @@ stateDiagram-v2
   - Response: `200` 返回数组元素包含（核心字段）：
     - `seatId`, `flightId`, `cabinType`, `seatNumber`
     - `rowNumber`, `columnLetter`（由 `seatNumber` 解析得到）
-    - `status`：`1=可用, 2=已售, 3=锁定`
+    - `status`：`1=AVAILABLE, 2=OCCUPIED, 3=RESERVED`
+      > 注意：后端实际返回的是字符串枚举值（AVAILABLE/OCCUPIED/RESERVED），前端已适配自动映射为数字状态。
     - 兼容字段：`statusText`（AVAILABLE/OCCUPIED/RESERVED/MAINTENANCE）、`classType`
   - 价格计算: 航线基础价 × 舱位系数
+  - **前端交互规范**：
+    - **可选 (Available)**: 绿色标识，点击可选中。
+    - **不可选 (Occupied/Reserved)**: 红色标识，禁用点击。
+    - **当前选中 (Selected)**: 黄色标识，表示当前用户正在操作的座位。
+    - **并发处理**: 提交选座时若发生冲突，系统会自动刷新座位图以显示最新状态。
 
 #### 📦 订单 (Orders)
 - **创建订单 (支持单程/联程)**: `POST /api/v1/orders`

@@ -20,8 +20,8 @@ export interface SeatMapProps {
 
 const STATUS_STYLES: Record<number, { bg: string; border: string; text: string; cursor: string }> = {
     1: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', cursor: 'cursor-pointer hover:bg-emerald-100 hover:border-emerald-400' },
-    2: { bg: 'bg-gray-100', border: 'border-gray-200', text: 'text-gray-400', cursor: 'cursor-not-allowed' },
-    3: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', cursor: 'cursor-not-allowed' },
+    2: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-400', cursor: 'cursor-not-allowed' }, // 已售：红色
+    3: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', cursor: 'cursor-not-allowed' }, // 锁定：橙色
 };
 
 const SeatMap: React.FC<SeatMapProps> = ({
@@ -56,20 +56,16 @@ const SeatMap: React.FC<SeatMapProps> = ({
                     <span className="text-gray-600">可选</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-gray-100 border-2 border-gray-200" />
-                    <span className="text-gray-600">已售</span>
+                    <div className="w-6 h-6 rounded-lg bg-red-50 border-2 border-red-200" />
+                    <span className="text-gray-600">不可选</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-orange-50 border-2 border-orange-200" />
-                    <span className="text-gray-600">锁定</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-blue-500 border-2 border-blue-600" />
+                    <div className="w-6 h-6 rounded-lg bg-yellow-400 border-2 border-yellow-500" />
                     <span className="text-gray-600">已选</span>
                 </div>
                 {currentSeatId && (
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-lg bg-purple-100 border-2 border-purple-400 ring-2 ring-purple-300" />
+                        <div className="w-6 h-6 rounded-lg bg-emerald-600 border-2 border-emerald-600 ring-2 ring-emerald-300" />
                         <span className="text-gray-600">当前座位</span>
                     </div>
                 )}
@@ -140,15 +136,15 @@ const SeatMap: React.FC<SeatMapProps> = ({
                         w-10 h-10 rounded-lg border-2 text-xs font-bold transition-all duration-150
                         flex items-center justify-center
                         ${isSelected
-                                                    ? 'bg-blue-500 border-blue-600 text-white shadow-lg shadow-blue-500/30'
+                                                    ? 'bg-yellow-400 border-yellow-500 text-white shadow-lg shadow-yellow-500/30'
                                                     : isCurrent
-                                                        ? 'bg-purple-100 border-purple-400 text-purple-700 ring-2 ring-purple-300'
+                                                        ? 'bg-emerald-600 border-emerald-600 text-white ring-2 ring-emerald-300'
                                                         : `${style.bg} ${style.border} ${style.text}`
                                                 }
                         ${!disabled && seat.status === 1 && !isSelected ? style.cursor : ''}
                         ${disabled ? 'opacity-60 cursor-not-allowed' : ''}
                       `}
-                                            title={`${seat.seatNumber} - ${seat.status === 1 ? '可选' : seat.status === 2 ? '已售' : '锁定'}`}
+                                            title={`${seat.seatNumber} - ${seat.status === 1 ? '可选' : '不可选'}`}
                                         >
                                             {seat.columnLetter}
                                         </button>
@@ -160,6 +156,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
                     );
                 })}
             </div>
+
 
             {/* 机尾 */}
             <div className="flex justify-center mt-4">

@@ -76,7 +76,7 @@ export async function searchOrders(params: {
   flightNo?: string;
   cabinType?: string;
 }): Promise<OrderSearchResult[]> {
-  return request<OrderSearchResult[]>({
+  const res = await request<OrderSearchResult[] | { total: number; data: OrderSearchResult[] }>({
     method: 'GET',
     url: '/api/v1/orders',
     params: {
@@ -85,5 +85,13 @@ export async function searchOrders(params: {
       orderNo: params.orderNo ? String(params.orderNo) : undefined,
     },
   });
+
+  // 兼容分页结构：如果返回的是分页对象 { total, data: [] }，则提取 data
+  if (res && !Array.isArray(res) && typeof res === 'object' && 'data' in res && Array.isArray((res as any).data)) {
+    return (res as any).data;
+  }
+
+  // 已经是数组，或者是其他情况（返回空数组兜底）
+  return Array.isArray(res) ? res : [];
 }
 

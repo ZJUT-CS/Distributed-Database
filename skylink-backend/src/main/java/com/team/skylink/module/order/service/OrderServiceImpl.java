@@ -14,6 +14,7 @@ import com.team.skylink.module.user.entity.User;
 import com.team.skylink.module.user.mapper.UserMapper;
 import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.entity.Route;
+import com.team.skylink.module.flight.entity.Seat;
 import com.team.skylink.module.flight.mapper.FlightMapper;
 import com.team.skylink.module.flight.mapper.RouteMapper;
 import com.team.skylink.module.order.dto.CreateOrderRequest;
@@ -91,6 +92,8 @@ public class OrderServiceImpl implements OrderService {
             User u = userMapper.selectById(o.getUserId());
             OrderSearchResponse r = new OrderSearchResponse();
             r.setOrderNo(String.valueOf(o.getOrderId()));
+            r.setFlightId(o.getFlightId());
+            r.setSeatId(o.getSeatId());
             r.setFlightNo(f != null ? f.getFlightNo() : null);
             r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName() : (u != null ? u.getRealName() : null));
             r.setContactEmail(o.getContactEmail());
@@ -178,7 +181,8 @@ public class OrderServiceImpl implements OrderService {
                 Long oid = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
                 Long seatId;
                 try {
-                    seatId = seatService.lockRandomSeat(f.getFlightId(), config.getConfigId(), oid);
+                    // 修复：传入 userId 而不是 orderId
+                    seatId = seatService.lockRandomSeat(f.getFlightId(), config.getConfigId(), req.getUserId());
                 } catch (Exception e) {
                     if (e.getMessage() != null && e.getMessage().contains("InventoryShortage")) {
                         throw new RuntimeException("抱歉，该航班座位已售罄");
@@ -344,6 +348,8 @@ public class OrderServiceImpl implements OrderService {
             User u = userMapper.selectById(o.getUserId());
             OrderSearchResponse r = new OrderSearchResponse();
             r.setOrderNo(String.valueOf(o.getOrderId()));
+            r.setFlightId(o.getFlightId());
+            r.setSeatId(o.getSeatId());
             r.setFlightNo(f != null ? f.getFlightNo() : null);
             r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName() : (u != null ? u.getRealName() : null));
             r.setContactEmail(o.getContactEmail());
@@ -369,24 +375,87 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<OrderSearchResponse> selectSeat(Long orderId, Long seatId) {
+        // 1. 基础参数校验
         if (orderId == null || seatId == null) {
-            return Result.fail(400, "参数无效");
+            return Result.fail(400, "参数无效：订单ID或座位ID不能为空");
         }
+
+        // 2. 获取订单信息
         Orders o = orderMapper.selectById(orderId);
         if (o == null) {
             return Result.fail(404, "订单不存在");
         }
-        boolean ok = seatService.changeSeat(orderId, seatId);
-        if (!ok) {
-            log.warn("座位选择失败 orderId={} seatId={}", orderId, seatId);
-            return Result.fail(409, "座位不可选或已被占用");
+        
+        // 3. 获取座位信息进行预检查
+        Seat seat = seatService.getById(seatId);
+        if (seat == null) {
+            return Result.fail(404, "座位不存在");
         }
+
+        // 4. 执行座位状态检查 (独立方法)
+        Result<Void> checkResult = checkSeatStatus(seat, o);
+        if (checkResult.getCode() != 0) {
+            log.warn("选座预检查失败: orderId={}, seatId={}, userId={}, reason={}, seatStatus={}", 
+                     orderId, seatId, o.getUserId(), checkResult.getMsg(), seat.getStatus());
+            return Result.fail(checkResult.getCode(), checkResult.getMsg());
+        }
+
+        // 5. 详细日志记录 (改进点1)
+        log.info("尝试选座: orderId={}, seatId={}, userId={}, currentSeatStatus={}, requestTime={}",
+                 orderId, seatId, o.getUserId(), seat.getStatus(), LocalDateTime.now());
+
+        // 6. 执行选座 (含重试逻辑 - 改进点3)
+        boolean ok = false;
+        int maxRetries = 3;
+        String failReason = "系统繁忙，请稍后重试";
+
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                // 缓存检查 (模拟，此处可接入Redis缓存检查)
+                // checkSeatCache(seatId); 
+                
+                // 尝试更新 (乐观锁机制)
+                ok = seatService.changeSeat(orderId, seatId);
+                if (ok) {
+                    break;
+                }
+                
+                // 如果失败，检查是否是因为刚刚被占用
+                Seat currentSeat = seatService.getById(seatId);
+                if (currentSeat != null && currentSeat.getStatus() != 1) {
+                    failReason = "很抱歉，该座位刚刚已被其他用户锁定";
+                    log.warn("选座并发冲突: seatId={} status={}", seatId, currentSeat.getStatus());
+                    break; // 状态已变，无需重试
+                }
+                
+                // 短暂休眠后重试
+                Thread.sleep(50 * (i + 1));
+            } catch (Exception e) {
+                log.error("选座异常重试 {}/{}: {}", i + 1, maxRetries, e.getMessage());
+            }
+        }
+
+        if (!ok) {
+            log.warn("座位选择最终失败: orderId={} seatId={} reason={}", orderId, seatId, failReason);
+            return Result.fail(409, failReason);
+        }
+
         log.info("座位选择成功 orderId={} seatId={}", orderId, seatId);
+        
+        // 7. 构建返回结果
         Orders updated = orderMapper.selectById(orderId);
+        // 双重检查：确保更新后的订单确实关联了该座位
+        if (updated.getSeatId() == null || !updated.getSeatId().equals(seatId)) {
+             log.error("数据不一致：选座返回成功但订单未更新 seatId. orderId={}", orderId);
+             // 可能是事务隔离级别问题，但在此处作为防御性编程
+        }
+        
         Flight f = flightMapper.selectById(updated.getFlightId());
         User u = userMapper.selectById(updated.getUserId());
         OrderSearchResponse r = new OrderSearchResponse();
         r.setOrderNo(String.valueOf(updated.getOrderId()));
+        r.setFlightId(updated.getFlightId());
+        r.setSeatId(updated.getSeatId());
         r.setFlightNo(f != null ? f.getFlightNo() : null);
         r.setPassengerName(updated.getPassengerName() != null && !updated.getPassengerName().isBlank() ? updated.getPassengerName() : (u != null ? u.getRealName() : null));
         r.setContactEmail(updated.getContactEmail());
@@ -405,6 +474,29 @@ public class OrderServiceImpl implements OrderService {
             r.setArrivalTime(f.getArrivalTime());
         }
         return Result.ok(r);
+    }
+
+    /**
+     * 检查座位状态 (改进点4: 独立方法)
+     */
+    private Result<Void> checkSeatStatus(Seat seat, Orders order) {
+        if (!seat.getFlightId().equals(order.getFlightId())) {
+            return Result.fail(400, "座位所属航班与订单不匹配");
+        }
+        
+        // 状态判断 (改进点2: 增强错误处理)
+        switch (seat.getStatus()) {
+            case 1: // AVAILABLE
+                return Result.ok(null);
+            case 2: // OCCUPIED
+                return Result.fail(409, "该座位已售出");
+            case 3: // LOCKED
+                // 检查是否是当前用户锁定的（如果是换座场景，可能允许）
+                // 但根据 changeSeat 逻辑，它只允许 status=1 -> 3
+                return Result.fail(409, "该座位已被锁定，请稍后再试");
+            default:
+                return Result.fail(409, "座位处于不可选状态 (Code: " + seat.getStatus() + ")");
+        }
     }
 
     private void releaseSeatsForOrder(Orders o) {

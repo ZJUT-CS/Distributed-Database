@@ -10,6 +10,7 @@ import com.team.skylink.module.flight.mapper.SeatMapper;
 import com.team.skylink.module.order.mapper.OrderMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -18,6 +19,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * 座位服务实现类
  */
+@Slf4j
 @Service
 public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements SeatService {
 
@@ -199,13 +201,28 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
     @Transactional(rollbackFor = Exception.class)
     public boolean changeSeat(Long orderId, Long newSeatId) {
         var order = orderMapper.selectById(orderId);
-        if (order == null) return false;
+        if (order == null) {
+            log.warn("changeSeat: Order not found id={}", orderId);
+            return false;
+        }
         var seat = baseMapper.selectById(newSeatId);
-        if (seat == null) return false;
-        if (!Objects.equals(seat.getFlightId(), order.getFlightId())) return false;
+        if (seat == null) {
+            log.warn("changeSeat: Seat not found id={}", newSeatId);
+            return false;
+        }
+        if (!Objects.equals(seat.getFlightId(), order.getFlightId())) {
+            log.warn("changeSeat: Flight mismatch. Order flight={}, Seat flight={}", order.getFlightId(), seat.getFlightId());
+            return false;
+        }
         var cfg = configMapper.selectById(order.getCabinId());
-        if (cfg == null) return false;
-        if (!Objects.equals(cfg.getCabinType(), seat.getCabinType())) return false;
+        if (cfg == null) {
+            log.warn("changeSeat: Cabin config not found for cabinId={}", order.getCabinId());
+            return false;
+        }
+        if (cfg.getCabinType() != null && !cfg.getCabinType().equalsIgnoreCase(seat.getCabinType())) {
+            log.warn("changeSeat: Cabin type mismatch. Config={}, Seat={}", cfg.getCabinType(), seat.getCabinType());
+            return false;
+        }
         boolean ok = update(null, Wrappers.<Seat>lambdaUpdate()
                 .eq(Seat::getSeatId, newSeatId)
                 .eq(Seat::getStatus, 1)

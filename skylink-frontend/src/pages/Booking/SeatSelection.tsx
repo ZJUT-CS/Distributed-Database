@@ -83,23 +83,32 @@ const SeatSelectionPage: React.FC = () => {
         setError(null);
         setSuccessMsg(null);
 
+        // 定义刷新逻辑
+        const refreshSeats = async () => {
+            try {
+                const seatRes = await getFlightSeats(flightId, cabinType || undefined);
+                const seatData: SeatData[] = seatRes.seats.map((s) => ({
+                    seatId: s.seatId,
+                    seatNumber: s.seatNumber,
+                    rowNumber: s.rowNumber,
+                    columnLetter: s.columnLetter,
+                    status: s.status,
+                }));
+                setSeats(seatData);
+            } catch (err) {
+                console.error("刷新座位失败", err);
+            }
+        };
+
         try {
             await changeSeat(orderNo, selectedSeat.seatId);
             setSuccessMsg(`座位已更换为 ${selectedSeat.seatNumber}`);
             setCurrentSeatId(selectedSeat.seatId);
             setSelectedSeat(null);
-            // 刷新座位状态
-            const seatRes = await getFlightSeats(flightId, cabinType || undefined);
-            const seatData: SeatData[] = seatRes.seats.map((s) => ({
-                seatId: s.seatId,
-                seatNumber: s.seatNumber,
-                rowNumber: s.rowNumber,
-                columnLetter: s.columnLetter,
-                status: s.status,
-            }));
-            setSeats(seatData);
+            await refreshSeats();
         } catch (e: any) {
             setError(e?.message || '换座失败，请重试');
+            await refreshSeats(); // 失败后刷新，解决并发冲突导致的视图过时
         } finally {
             setSubmitting(false);
         }
@@ -174,7 +183,7 @@ const SeatSelectionPage: React.FC = () => {
                                         )}
                                         {selectedSeat && (
                                             <p className="text-sm text-gray-600 mt-1">
-                                                已选座位：<span className="font-bold text-blue-600">{selectedSeat.seatNumber}</span>
+                                                已选座位：<span className="font-bold text-yellow-600">{selectedSeat.seatNumber}</span>
                                             </p>
                                         )}
                                         {!currentSeatId && !selectedSeat && (
