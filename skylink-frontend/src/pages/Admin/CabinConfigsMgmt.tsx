@@ -95,6 +95,7 @@ const CabinConfigsMgmt: React.FC = () => {
       seatColLayout: String(fd.get('seatColLayout') ?? '').trim().toUpperCase(),
       defaultCarryOn: String(fd.get('defaultCarryOn') ?? '').trim() || undefined,
       defaultChecked: String(fd.get('defaultChecked') ?? '').trim() || undefined,
+      defaultServices: String(fd.get('defaultServices') ?? '').trim() || undefined,
     };
 
     try {
@@ -304,6 +305,15 @@ const CabinConfigsMgmt: React.FC = () => {
                         <Briefcase className="w-4 h-4 text-amber-500" />
                         <span className="text-gray-700">托运 {c.defaultChecked || '-'}</span>
                       </div>
+                      {c.defaultServices && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {c.defaultServices.split(/[,，、]/).map((s, i) => (
+                            <span key={i} className="px-1.5 py-0.5 text-[10px] bg-blue-50 text-blue-600 rounded">
+                              {s.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -404,6 +414,18 @@ const CabinConfigsMgmt: React.FC = () => {
               <label className="text-xs font-semibold text-gray-600">默认托运行李</label>
               <input name="defaultChecked" defaultValue={editingItem?.defaultChecked ?? '20KG'} placeholder="如: 20KG" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none" />
             </div>
+          </div>
+
+          {/* 服务配置 */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600">机上服务配置</label>
+            <input
+              name="defaultServices"
+              defaultValue={editingItem?.defaultServices ?? ''}
+              placeholder="如: 餐食,WiFi,电源,娱乐系统"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none"
+            />
+            <p className="text-xs text-gray-500">用逗号分隔多项服务，如：餐食,WiFi,电源,娱乐系统</p>
           </div>
 
           <div className="pt-4 flex gap-3 border-t border-gray-100">

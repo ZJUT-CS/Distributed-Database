@@ -33,6 +33,9 @@ export async function searchFlights(params: {
         remainingSeats?: number;
         airlineCompany?: string;
         cabinType?: string;
+        aircraftModel?: string;
+        baggageAllowance?: string;
+        services?: string;
       }>;
     };
     interlineFlights?: Array<{
@@ -47,6 +50,9 @@ export async function searchFlights(params: {
         remainingSeats?: number;
         airlineCompany?: string;
         cabinType?: string;
+        aircraftModel?: string;
+        baggageAllowance?: string;
+        services?: string;
       }>;
       totalPrice?: number;
       transferCity?: string;
@@ -64,6 +70,24 @@ export async function searchFlights(params: {
     },
   });
 
+  // ✅ 解析行李重量 (如 "23kg" -> 23)
+  const parseBaggageWeight = (allowance?: string): number => {
+    if (!allowance) return 23; // 默认值
+    const match = allowance.match(/(\d+)/);
+    return match ? parseInt(match[1]) : 23;
+  };
+
+  // ✅ 解析服务项目
+  const parseAmenities = (services?: string) => {
+    const s = (services || '').toLowerCase();
+    return {
+      hasPower: s.includes('电源') || s.includes('power') || s.includes('usb'),
+      hasMeal: s.includes('餐') || s.includes('meal') || s.includes('食'),
+      hasWifi: s.includes('wifi') || s.includes('无线'),
+      hasEntertainment: s.includes('娱乐') || s.includes('entertainment') || s.includes('影音'),
+    };
+  };
+
   const toFlight = (r: {
     flightNo: string;
     departurePlace: string;
@@ -75,6 +99,9 @@ export async function searchFlights(params: {
     remainingSeats?: number;
     airlineCompany?: string;
     cabinType?: string;
+    aircraftModel?: string;
+    baggageAllowance?: string;
+    services?: string;
   }): Flight => ({
     id: r.flightNo || `${r.departurePlace}-${r.destination}-${r.departureTime}`,
     airline: r.airlineCompany || '',
@@ -89,9 +116,11 @@ export async function searchFlights(params: {
     remainingSeats: typeof r.remainingSeats === 'number' ? r.remainingSeats : undefined,
     duration: r.duration || '',
     stops: 0,
-    baggageWeight: 23,
-    amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
-    aircraft: undefined,
+    baggageWeight: parseBaggageWeight(r.baggageAllowance),
+    amenities: parseAmenities(r.services),
+    aircraft: r.aircraftModel,
+    baggageAllowance: r.baggageAllowance,
+    services: r.services,
   });
 
   const direct = (data.directFlights?.data ?? []).map((r) => toFlight(r));
@@ -122,6 +151,10 @@ export async function searchFlights(params: {
       return Math.min(min, seats);
     }, Infinity);
 
+    // 从第一个 segment 获取行李和服务信息
+    const firstBaggageAllowance = first?.baggageAllowance;
+    const firstServices = first?.services;
+
     return {
       id,
       airline,
@@ -136,9 +169,11 @@ export async function searchFlights(params: {
       remainingSeats: minSeats === Infinity ? undefined : minSeats,
       duration: it.transferDuration || '',
       stops: Math.max(0, segs.length - 1),
-      baggageWeight: 23,
-      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
-      aircraft: undefined,
+      baggageWeight: parseBaggageWeight(firstBaggageAllowance),
+      amenities: parseAmenities(firstServices),
+      aircraft: first?.aircraftModel,
+      baggageAllowance: firstBaggageAllowance,
+      services: firstServices,
       // ✅ 联程专用字段
       isInterline: true,
       transferCity: it.transferCity,
