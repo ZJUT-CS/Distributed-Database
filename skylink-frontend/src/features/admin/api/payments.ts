@@ -1,4 +1,4 @@
-import axios from '@/lib/axios';
+import { request } from '@/lib/axios';
 import type { PageResult } from './types';
 
 /**
@@ -33,7 +33,9 @@ export interface PaymentSearchPageParams extends PaymentSearchParams {
  * 查询支付记录列表
  */
 export async function listPayments(params: PaymentSearchParams = {}): Promise<PaymentItem[]> {
-  const res = await axios.get<{ code: number; data: PaymentItem[]; message?: string }>('/api/v1/payments', {
+  return request<PaymentItem[]>({
+    method: 'GET',
+    url: '/api/v1/payments',
     params: {
       orderNo: params.orderNo || undefined,
       userId: params.userId || undefined,
@@ -43,31 +45,27 @@ export async function listPayments(params: PaymentSearchParams = {}): Promise<Pa
       paymentTimeEnd: params.paymentTimeEnd || undefined,
     },
   });
-  if (res.data.code !== 0) throw new Error(res.data.message || '查询失败');
-  return res.data.data ?? [];
 }
 
 /**
  * 查询支付记录分页（给管理端使用，不影响原有 listPayments 调用方）
  */
 export async function listPaymentsPage(params: PaymentSearchPageParams): Promise<PageResult<PaymentItem>> {
-  const res = await axios.get<{ code: number; data: PageResult<PaymentItem>; message?: string }>(
-    '/api/v1/payments/page',
-    {
-      params: {
-        page: params.page,
-        size: params.size,
-        orderNo: params.orderNo || undefined,
-        userId: params.userId || undefined,
-        paymentStatus: params.paymentStatus !== undefined ? params.paymentStatus : undefined,
-        paymentMethod: params.paymentMethod || undefined,
-        paymentTimeStart: params.paymentTimeStart || undefined,
-        paymentTimeEnd: params.paymentTimeEnd || undefined,
-      },
-    }
-  );
-  if (res.data.code !== 0) throw new Error(res.data.message || '查询失败');
-  return res.data.data ?? { total: 0, data: [] };
+  const res = await request<PageResult<PaymentItem>>({
+    method: 'GET',
+    url: '/api/v1/payments/page',
+    params: {
+      page: params.page,
+      size: params.size,
+      orderNo: params.orderNo || undefined,
+      userId: params.userId || undefined,
+      paymentStatus: params.paymentStatus !== undefined ? params.paymentStatus : undefined,
+      paymentMethod: params.paymentMethod || undefined,
+      paymentTimeStart: params.paymentTimeStart || undefined,
+      paymentTimeEnd: params.paymentTimeEnd || undefined,
+    },
+  });
+  return res ?? { total: 0, data: [] };
 }
 
 /**
@@ -79,9 +77,7 @@ export interface CreatePaymentRequest {
 }
 
 export async function createPayment(req: CreatePaymentRequest): Promise<PaymentItem> {
-  const res = await axios.post<{ code: number; data: PaymentItem; message?: string }>('/api/v1/payments', req);
-  if (res.data.code !== 0) throw new Error(res.data.message || '支付失败');
-  return res.data.data;
+  return request<PaymentItem>({ method: 'POST', url: '/api/v1/payments', data: req });
 }
 
 /**
@@ -93,7 +89,5 @@ export interface ConfirmPaymentRequest {
 }
 
 export async function confirmPayment(req: ConfirmPaymentRequest): Promise<PaymentItem> {
-  const res = await axios.post<{ code: number; data: PaymentItem; message?: string }>('/api/v1/payments/confirmations', req);
-  if (res.data.code !== 0) throw new Error(res.data.message || '确认支付失败');
-  return res.data.data;
+  return request<PaymentItem>({ method: 'POST', url: '/api/v1/payments/confirmations', data: req });
 }

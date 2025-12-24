@@ -4,10 +4,12 @@ import { useAuth } from '@/features/auth';
 import { type RefundChangeRecord, type AuditStatus } from '@/features/user';
 import { listRefundChanges, revokeRefundChange, updateRefundChange } from '@/features/user/api/refund';
 import { ArrowLeft, CheckCircle2, Filter, RefreshCw, Search, Ticket, XCircle, AlertCircle, Trash2, Edit } from 'lucide-react';
+import { useToast } from '@/features/admin/components/Toast';
 
 const RefundsHelpPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AuditStatus | 'all'>('all');
   const [audits, setAudits] = useState<RefundChangeRecord[]>([]);
@@ -80,11 +82,11 @@ const RefundsHelpPage: React.FC = () => {
       setActionLoading(record.id);
       setError(null);
       await revokeRefundChange(record.id);
-      alert('申请已撤销');
+      toast.success('申请已撤销');
       await refreshData();
     } catch (e: any) {
       setError(e?.message || '撤销失败');
-      alert(e?.message || '撤销失败');
+      toast.error(e?.message || '撤销失败');
     } finally {
       setActionLoading(null);
     }
@@ -100,7 +102,7 @@ const RefundsHelpPage: React.FC = () => {
   const submitReApply = async () => {
     if (!editingRecord) return;
     if (!editReason.trim()) {
-      alert('请填写申请原因');
+      toast.error('请填写申请原因');
       return;
     }
 
@@ -114,11 +116,11 @@ const RefundsHelpPage: React.FC = () => {
 
       setIsModalOpen(false);
       setEditingRecord(null);
-      alert('重新申请已提交');
+      toast.success('重新申请已提交');
       await refreshData();
     } catch (e: any) {
       setError(e?.message || '重新申请失败');
-      alert(e?.message || '重新申请失败');
+      toast.error(e?.message || '重新申请失败');
     } finally {
       setActionLoading(null);
     }
@@ -296,7 +298,7 @@ const RefundsHelpPage: React.FC = () => {
                   )}
                   {a.status === 'approved' && (
                     <button
-                      onClick={() => alert('钱款已原路退回至您的支付账户（模拟）')}
+                      onClick={() => toast.info('钱款已原路退回至您的支付账户（模拟）')}
                       className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors px-2 py-1 rounded-lg hover:bg-emerald-50"
                     >
                       查看去向

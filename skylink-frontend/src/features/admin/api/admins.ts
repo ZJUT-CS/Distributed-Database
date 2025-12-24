@@ -1,4 +1,4 @@
-import axios from '@/lib/axios';
+import { request } from '@/lib/axios';
 import type { PageResult } from './types';
 
 /**
@@ -16,11 +16,11 @@ export interface AdminItem {
  * 获取管理员列表
  */
 export async function listAdmins(keyword?: string): Promise<AdminItem[]> {
-  const res = await axios.get<{ code: number; data: AdminItem[]; message?: string }>('/api/v1/admins', {
+  return request<AdminItem[]>({
+    method: 'GET',
+    url: '/api/v1/admins',
     params: { keyword: keyword || undefined },
   });
-  if (res.data.code !== 0) throw new Error(res.data.message || '查询失败');
-  return res.data.data ?? [];
 }
 
 export async function listAdminsPage(params: {
@@ -28,15 +28,16 @@ export async function listAdminsPage(params: {
   page: number;
   size: number;
 }): Promise<PageResult<AdminItem>> {
-  const res = await axios.get<{ code: number; data: PageResult<AdminItem>; message?: string }>('/api/v1/admins/page', {
+  const res = await request<PageResult<AdminItem>>({
+    method: 'GET',
+    url: '/api/v1/admins/page',
     params: {
       keyword: params.keyword || undefined,
       page: params.page ?? 1,
       size: params.size ?? 10,
     },
   });
-  if (res.data.code !== 0) throw new Error(res.data.message || '查询失败');
-  return res.data.data ?? { total: 0, data: [] };
+  return res ?? { total: 0, data: [] };
 }
 
 /**
@@ -49,27 +50,28 @@ export interface CreateAdminRequest {
 }
 
 export async function createAdmin(req: CreateAdminRequest): Promise<AdminItem> {
-  const res = await axios.post<{ code: number; data: AdminItem; message?: string }>('/api/v1/admins', req);
-  if (res.data.code !== 0) throw new Error(res.data.message || '创建失败');
-  return res.data.data;
+  return request<AdminItem>({ method: 'POST', url: '/api/v1/admins', data: req });
 }
 
 /**
  * 删除管理员
  */
 export async function deleteAdmin(adminId: string): Promise<void> {
-  const res = await axios.delete<{ code: number; message?: string }>(`/api/v1/admins/${adminId}`);
-  if (res.data.code !== 0) throw new Error(res.data.message || '删除失败');
+  await request<void>({
+    method: 'DELETE',
+    url: `/api/v1/admins/${encodeURIComponent(String(adminId))}`,
+  });
 }
 
 /**
  * 重置管理员密码
  */
 export async function resetAdminPassword(adminId: string, newPassword: string): Promise<void> {
-  const res = await axios.post<{ code: number; message?: string }>(`/api/v1/admins/${adminId}/reset-password`, {
-    newPassword,
+  await request<void>({
+    method: 'POST',
+    url: `/api/v1/admins/${encodeURIComponent(String(adminId))}/reset-password`,
+    data: { newPassword },
   });
-  if (res.data.code !== 0) throw new Error(res.data.message || '重置密码失败');
 }
 
 // ==================== 系统日志 ====================
@@ -100,7 +102,9 @@ export async function listSystemLogs(params: {
   page?: number;
   size?: number;
 } = {}): Promise<PageResult<SystemLogItem>> {
-  const res = await axios.get<{ code: number; data: PageResult<SystemLogItem>; message?: string }>('/api/v1/admins/system-logs', {
+  const res = await request<PageResult<SystemLogItem>>({
+    method: 'GET',
+    url: '/api/v1/admins/system-logs',
     params: {
       keyword: params.keyword || undefined,
       module: params.module || undefined,
@@ -109,6 +113,5 @@ export async function listSystemLogs(params: {
       size: params.size ?? 20,
     },
   });
-  if (res.data.code !== 0) throw new Error(res.data.message || '查询失败');
-  return res.data.data ?? { total: 0, data: [] };
+  return res ?? { total: 0, data: [] };
 }

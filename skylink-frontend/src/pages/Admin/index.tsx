@@ -3,7 +3,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from '../../features/admin/components/Sidebar';
 import TopHeader from '../../features/admin/components/TopHeader';
 import { useAuth } from '../../features/auth/hooks/useAuth';
-import { ConfirmProvider, ToastProvider } from '../../features/admin';
+import { ConfirmProvider } from '../../features/admin';
 
 const AdminLayout: React.FC = () => {
   const { user } = useAuth();
@@ -36,19 +36,17 @@ const AdminLayout: React.FC = () => {
 
   return (
     <ConfirmProvider>
-      <ToastProvider>
-        <div className="min-h-screen bg-slate-50 flex overflow-hidden">
-          <Sidebar />
-          <TopHeader isVisible={showTopHeader} />
-          <div
-            ref={scrollRef}
-            className="flex-1 ml-64 p-8 overflow-y-auto h-screen scroll-smooth custom-scrollbar"
-            style={{ paddingTop: '6rem' }}
-          >
-            <Outlet />
-          </div>
+      <div className="min-h-screen bg-slate-50 flex overflow-hidden">
+        <Sidebar />
+        <TopHeader isVisible={showTopHeader} />
+        <div
+          ref={scrollRef}
+          className="flex-1 ml-64 p-8 overflow-y-auto h-screen scroll-smooth custom-scrollbar"
+          style={{ paddingTop: '6rem' }}
+        >
+          <Outlet />
         </div>
-      </ToastProvider>
+      </div>
     </ConfirmProvider>
   );
 };

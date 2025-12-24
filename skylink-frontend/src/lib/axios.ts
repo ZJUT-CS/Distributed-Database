@@ -1,5 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import JSONBig from 'json-bigint';
+import { clearStoredToken, readStoredUserHeaderInfo, readStoredToken } from './authStorage';
 
 const JSONbig = JSONBig({ storeAsString: true });
 
@@ -122,32 +123,6 @@ const api = axios.create({
   ],
 });
 
-const normalizeUserRole = (role: unknown): 'user' | 'admin' => {
-  if (role === 2 || role === '2') return 'admin';
-  const r = String(role ?? '').trim().toLowerCase();
-  return r.includes('admin') ? 'admin' : 'user';
-};
-
-const TOKEN_KEY = 'skylink_token';
-const USER_KEY = 'skylink_user';
-
-const parseStoredUser = (): { id?: number | string; role?: 'user' | 'admin'; adminRole?: string } | null => {
-  const raw = localStorage.getItem(USER_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as any;
-    if (!parsed || typeof parsed !== 'object') return null;
-
-    const id = parsed.id ?? parsed.userId;
-    const role = normalizeUserRole(parsed.role);
-    const adminRoleRaw = parsed.adminRole ?? parsed.admin_role ?? parsed.roleId ?? parsed.role_id;
-    const adminRole = adminRoleRaw == null ? undefined : String(adminRoleRaw).trim();
-
-    return { id, role, adminRole };
-  } catch {
-    return null;
-  }
-};
 
 const genRequestId = () => {
   const c = (globalThis as any).crypto;
@@ -165,12 +140,12 @@ api.interceptors.request.use(
     const headers: any = (config.headers ??= {} as any);
     headers.Accept ??= 'application/json';
 
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = readStoredToken();
     if (token) {
       headers.Authorization ??= `Bearer ${token}`;
     }
 
-    const user = parseStoredUser();
+    const user = readStoredUserHeaderInfo();
     if (user) {
       const userType = user.role === 'admin' ? '2' : '1';
       headers['X-User-Type'] ??= userType;
@@ -209,7 +184,7 @@ api.interceptors.response.use(
       if (body.code !== 0) {
         const requestId = getHeader(response.headers, 'x-request-id');
         if (body.code === 401) {
-          localStorage.removeItem(TOKEN_KEY);
+          clearStoredToken();
         }
         return Promise.reject(
           new ApiError(body.msg || '请求失败', {
@@ -230,7 +205,7 @@ api.interceptors.response.use(
 
     if (data && typeof data === 'object' && typeof data.code === 'number' && 'msg' in data) {
       if (data.code === 401) {
-        localStorage.removeItem(TOKEN_KEY);
+        clearStoredToken();
       }
       return Promise.reject(
         new ApiError(data.msg || '请求失败', {
@@ -251,7 +226,7 @@ api.interceptors.response.use(
     }
 
     if (status === 401) {
-      localStorage.removeItem(TOKEN_KEY);
+      clearStoredToken();
     }
 
     return Promise.reject(new ApiError(`请求失败（HTTP ${status ?? 'unknown'}）`, { status, requestId, raw: error }));

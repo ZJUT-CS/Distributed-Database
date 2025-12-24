@@ -3,14 +3,17 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/features/auth';
 import SeatMap, { type SeatData } from '@/components/booking/SeatMap';
-import { getFlightSeats, changeSeat, type Seat } from '@/features/booking/api/seat';
-import { searchOrders } from '@/features/booking/api/order';
+import { getFlightSeats, changeSeat } from '@/features/booking/api/seat';
+import { request } from '@/lib/axios';
+import type { OrderSearchResult } from '@/features/booking/api/order';
 
 const SeatSelectionPage: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const orderNo = searchParams.get('orderNo') || '';
+    // 语义纠正：这里需要的是可操作的订单 ID（后端路径参数）
+    // 为兼容旧链接，仍支持从 orderNo 读取。
+    const orderId = searchParams.get('orderId') || searchParams.get('orderNo') || '';
     const flightId = searchParams.get('flightId') || '';
     const cabinType = searchParams.get('cabinType') || '';
 
@@ -28,7 +31,7 @@ const SeatSelectionPage: React.FC = () => {
             navigate('/login');
             return;
         }
-        if (!orderNo || !flightId) {
+        if (!orderId || !flightId) {
             setError('缺少订单号或航班信息');
             setLoading(false);
             return;
@@ -50,13 +53,13 @@ const SeatSelectionPage: React.FC = () => {
                 setSeats(seatData);
                 setLayout(seatRes.layout);
 
-                // 获取当前订单座位信息
-                const orders = await searchOrders({ orderNo, userId: user.id });
-                if (orders.length > 0) {
-                    const order = orders[0] as any;
-                    if (order.seatId) {
-                        setCurrentSeatId(String(order.seatId));
-                    }
+                // 获取当前订单座位信息：直查订单详情，避免 searchOrders 取第一个的不确定性
+                const order = await request<OrderSearchResult>({
+                    method: 'GET',
+                    url: `/api/v1/orders/${encodeURIComponent(orderId)}`,
+                });
+                if (order?.seatId) {
+                    setCurrentSeatId(String(order.seatId));
                 }
             } catch (e: any) {
                 setError(e?.message || '加载座位信息失败');
@@ -66,7 +69,7 @@ const SeatSelectionPage: React.FC = () => {
         };
 
         fetchData();
-    }, [user, navigate, orderNo, flightId, cabinType]);
+    }, [user, navigate, orderId, flightId, cabinType]);
 
     const handleSelect = (seat: SeatData) => {
         if (seat.seatId === currentSeatId) {
@@ -102,7 +105,7 @@ const SeatSelectionPage: React.FC = () => {
 
         try {
             // 直接传递字符串 ID，避免 Number 转换导致精度丢失
-            await changeSeat(orderNo, selectedSeat.seatId);
+            await changeSeat(orderId, selectedSeat.seatId);
             setSuccessMsg(`座位已更换为 ${selectedSeat.seatNumber}`);
             setCurrentSeatId(selectedSeat.seatId);
             setSelectedSeat(null);
@@ -130,7 +133,7 @@ const SeatSelectionPage: React.FC = () => {
                 </button>
                 <div>
                     <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">在线选座</h2>
-                    <p className="text-gray-500 text-sm mt-1">订单号：{orderNo}</p>
+                    <p className="text-gray-500 text-sm mt-1">订单号：{orderId}</p>
                 </div>
             </div>
 

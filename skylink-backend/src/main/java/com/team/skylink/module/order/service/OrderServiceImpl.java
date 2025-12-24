@@ -42,7 +42,8 @@ public class OrderServiceImpl implements OrderService {
     private final RouteMapper routeMapper;
     private final SeatService seatService;
 
-    public OrderServiceImpl(OrderMapper orderMapper, FlightMapper flightMapper, UserMapper userMapper, AircraftCabinConfigMapper configMapper, RouteMapper routeMapper, SeatService seatService) {
+    public OrderServiceImpl(OrderMapper orderMapper, FlightMapper flightMapper, UserMapper userMapper,
+            AircraftCabinConfigMapper configMapper, RouteMapper routeMapper, SeatService seatService) {
         this.orderMapper = orderMapper;
         this.flightMapper = flightMapper;
         this.userMapper = userMapper;
@@ -52,12 +53,19 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Result<PageResult<OrderSearchResponse>> search(Long userId, Long orderNo, Integer orderStatus, LocalDateTime createTimeStart, LocalDateTime createTimeEnd, String flightNo, String cabinType, int page, int size) {
+    public Result<PageResult<OrderSearchResponse>> search(Long userId, Long orderNo, Integer orderStatus,
+            LocalDateTime createTimeStart, LocalDateTime createTimeEnd, String flightNo, String cabinType, int page,
+            int size) {
         QueryWrapper<Orders> qw = new QueryWrapper<>();
-        if (userId != null) qw.eq("user_id", userId);
-        if (orderNo != null) qw.eq("order_id", orderNo);
-        if (orderStatus != null) qw.eq("order_status", orderStatus);
-        
+        if (userId != null)
+            qw.eq("user_id", userId);
+        // 🔧 修复：orderNo 可能是单个订单ID或父订单ID（联程订单）
+        if (orderNo != null) {
+            qw.and(w -> w.eq("order_id", orderNo).or().eq("parent_order_id", orderNo));
+        }
+        if (orderStatus != null)
+            qw.eq("order_status", orderStatus);
+
         if (createTimeStart != null && createTimeEnd != null) {
             qw.between("order_time", createTimeStart, createTimeEnd);
         } else if (createTimeStart != null) {
@@ -65,7 +73,7 @@ public class OrderServiceImpl implements OrderService {
         } else if (createTimeEnd != null) {
             qw.le("order_time", createTimeEnd);
         }
-        
+
         if (flightNo != null && !flightNo.isEmpty()) {
             // flight_no 可能在脏数据/测试数据下出现重复，selectOne 会抛 TooManyResultsException
             Flight f = flightMapper.selectOne(new QueryWrapper<Flight>()
@@ -78,13 +86,13 @@ public class OrderServiceImpl implements OrderService {
                 return Result.ok(new PageResult<>(0, new ArrayList<>()));
             }
         }
-        
+
         Long total = orderMapper.selectCount(qw);
-        
+
         qw.orderByDesc("order_time");
         int offset = (page - 1) * size;
         qw.last("limit " + offset + "," + size);
-        
+
         List<Orders> orders = orderMapper.selectList(qw);
         List<OrderSearchResponse> resp = new ArrayList<>();
         for (Orders o : orders) {
@@ -95,7 +103,8 @@ public class OrderServiceImpl implements OrderService {
             r.setFlightId(o.getFlightId());
             r.setSeatId(o.getSeatId());
             r.setFlightNo(f != null ? f.getFlightNo() : null);
-            r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName() : (u != null ? u.getRealName() : null));
+            r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName()
+                    : (u != null ? u.getRealName() : null));
             r.setContactEmail(o.getContactEmail());
             r.setContactPhone(o.getContactPhone());
             r.setPassengersJson(o.getPassengersJson());
@@ -105,7 +114,7 @@ public class OrderServiceImpl implements OrderService {
             r.setPayTime(o.getPayTime());
             r.setRefundTime(o.getRefundTime());
             r.setChangeTime(o.getChangeTime());
-            
+
             if (f != null) {
                 r.setOrigin(f.getDeparturePlace());
                 r.setDestination(f.getDestination());
@@ -127,7 +136,7 @@ public class OrderServiceImpl implements OrderService {
                 flightNos.add(req.getFlightNo());
             }
         }
-        
+
         if (flightNos.isEmpty()) {
             return Result.fail(400, "flightNo is required");
         }
@@ -140,7 +149,9 @@ public class OrderServiceImpl implements OrderService {
         java.util.List<java.util.Map<String, Object>> passengers = null;
         try {
             if (req.getPassengersJson() != null && !req.getPassengersJson().isBlank()) {
-                passengers = objectMapper.readValue(req.getPassengersJson(), new TypeReference<java.util.List<java.util.Map<String, Object>>>() {});
+                passengers = objectMapper.readValue(req.getPassengersJson(),
+                        new TypeReference<java.util.List<java.util.Map<String, Object>>>() {
+                        });
             }
         } catch (Exception e) {
             passengers = null;
@@ -157,26 +168,29 @@ public class OrderServiceImpl implements OrderService {
             if (f == null) {
                 return Result.fail(404, "找不到航班: " + fNo);
             }
-            if (i == 0) firstFlight = f;
+            if (i == 0)
+                firstFlight = f;
 
             // 2. 查配置
             AircraftCabinConfig config = configMapper.selectOne(Wrappers.<AircraftCabinConfig>lambdaQuery()
                     .eq(AircraftCabinConfig::getModelId, f.getModelId())
                     .eq(AircraftCabinConfig::getCabinType, req.getCabinType())
                     .eq(AircraftCabinConfig::getCabinLayoutNo, 1) // 默认布局1
-                    .last("LIMIT 1")); 
+                    .last("LIMIT 1"));
 
             if (config == null) {
                 return Result.fail(404, "找不到舱位配置: " + fNo);
             }
 
-            int ticketCount = req.getTicketNum() != null ? req.getTicketNum() : (passengers != null ? passengers.size() : 1);
+            int ticketCount = req.getTicketNum() != null ? req.getTicketNum()
+                    : (passengers != null ? passengers.size() : 1);
 
             // 4. 计算总价
             Route route = routeMapper.selectById(f.getRouteId());
-            if (route == null) return Result.fail(404, "找不到航线信息: " + fNo);
+            if (route == null)
+                return Result.fail(404, "找不到航线信息: " + fNo);
             BigDecimal unitPrice = route.getBasePrice().multiply(config.getCabinCoefficient());
-            
+
             for (int pIdx = 0; pIdx < ticketCount; pIdx++) {
                 Long oid = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
                 Long seatId;
@@ -188,11 +202,11 @@ public class OrderServiceImpl implements OrderService {
                         throw new RuntimeException("抱歉，该航班座位已售罄");
                     }
                     if (e.getMessage() != null && e.getMessage().contains("no available seat")) {
-                         throw new RuntimeException("抱歉，该航班座位已售罄");
+                        throw new RuntimeException("抱歉，该航班座位已售罄");
                     }
                     throw new RuntimeException("您选择的座位刚刚被抢走了，请重新选择");
                 }
-                
+
                 BigDecimal totalAmount = unitPrice.multiply(BigDecimal.ONE);
                 totalAmountAll = totalAmountAll.add(totalAmount);
 
@@ -204,12 +218,12 @@ public class OrderServiceImpl implements OrderService {
                 o.setOrderStatus(1); // 1=Pending Payment (无需审核)
                 o.setTicketNum(1);
                 o.setTotalAmount(totalAmount);
-                
+
                 String singleName = req.getPassengerName();
                 String singlePhone = req.getContactPhone();
                 String singleEmail = req.getContactEmail();
                 String singlePassengerJson = req.getPassengersJson();
-                
+
                 if (passengers != null && pIdx < passengers.size()) {
                     java.util.Map<String, Object> pi = passengers.get(pIdx);
                     // --- 【修复重点】增加 try-catch 处理 JsonProcessingException ---
@@ -218,11 +232,13 @@ public class OrderServiceImpl implements OrderService {
                     } catch (JsonProcessingException e) {
                         throw new RuntimeException("乘客信息格式错误，请检查", e);
                     }
-                    
+
                     Object n = pi.get("name");
                     Object ph = pi.get("phone");
-                    if (n != null) singleName = String.valueOf(n);
-                    if (ph != null) singlePhone = String.valueOf(ph);
+                    if (n != null)
+                        singleName = String.valueOf(n);
+                    if (ph != null)
+                        singlePhone = String.valueOf(ph);
                 }
                 o.setPassengerName(singleName);
                 o.setContactEmail(singleEmail);
@@ -233,7 +249,7 @@ public class OrderServiceImpl implements OrderService {
                 o.setParentOrderId(parentOrderId);
                 o.setTripType(i + 1);
                 ordersToInsert.add(o);
-                
+
                 // 【修复】关联座位与订单ID
                 try {
                     seatService.associateOrder(req.getUserId(), java.util.Collections.singletonList(seatId), oid);
@@ -243,7 +259,7 @@ public class OrderServiceImpl implements OrderService {
                 }
             }
         }
-        
+
         for (Orders o : ordersToInsert) {
             orderMapper.insert(o);
         }
@@ -256,18 +272,20 @@ public class OrderServiceImpl implements OrderService {
         r.setOrderStatus(1); // Pending Payment
         r.setTotalAmount(totalAmountAll);
         r.setOrderTime(ordersToInsert.get(0).getOrderTime());
-        
+
         return Result.ok(r);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Boolean> cancel(Long orderId) {
-        if (orderId == null) return Result.fail(400, "orderId is required");
-        
+        if (orderId == null)
+            return Result.fail(400, "orderId is required");
+
         Orders o = orderMapper.selectById(orderId);
-        if (o == null) return Result.fail(404, "订单不存在");
-        
+        if (o == null)
+            return Result.fail(404, "订单不存在");
+
         if (o.getOrderStatus() != 0 && o.getOrderStatus() != 1) {
             return Result.fail(409, "订单状态不正确，无法取消");
         }
@@ -288,10 +306,10 @@ public class OrderServiceImpl implements OrderService {
         if (o.getParentOrderId() != null) {
             LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(Orders::getParentOrderId, o.getParentOrderId())
-                         .set(Orders::getOrderStatus, 6); // 6=已取消
+                    .set(Orders::getOrderStatus, 6); // 6=已取消
             orderMapper.update(null, updateWrapper);
         } else {
-            o.setOrderStatus(6); 
+            o.setOrderStatus(6);
             orderMapper.updateById(o);
         }
 
@@ -307,13 +325,13 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 移除针对状态0(待审核)的逻辑，仅处理售后申请(如状态4)
-        if (order.getOrderStatus() != 4) { 
+        if (order.getOrderStatus() != 4) {
             return Result.fail(400, "当前订单状态不需要审核");
         }
 
         LocalDateTime now = LocalDateTime.now();
         // 4=退票申请中 -> 5=已退款(Pass) OR 2=已确认/拒绝退票(Reject)
-        int newStatus = pass ? 5 : 2; 
+        int newStatus = pass ? 5 : 2;
 
         if (order.getParentOrderId() != null) {
             if (pass) {
@@ -326,7 +344,7 @@ public class OrderServiceImpl implements OrderService {
             }
             LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(Orders::getParentOrderId, order.getParentOrderId())
-                         .set(Orders::getOrderStatus, newStatus);
+                    .set(Orders::getOrderStatus, newStatus);
             if (pass) {
                 updateWrapper.set(Orders::getRefundTime, now);
             }
@@ -339,7 +357,7 @@ public class OrderServiceImpl implements OrderService {
             order.setOrderStatus(newStatus);
             orderMapper.updateById(order);
         }
-        
+
         return Result.ok(true);
     }
 
@@ -347,8 +365,8 @@ public class OrderServiceImpl implements OrderService {
     public Result<List<OrderSearchResponse>> listMyOrders(Long userId) {
         QueryWrapper<Orders> qw = new QueryWrapper<>();
         qw.eq("user_id", userId)
-          .ne("order_status", 0)
-          .orderByDesc("order_time");
+                .ne("order_status", 0)
+                .orderByDesc("order_time");
         List<Orders> orders = orderMapper.selectList(qw);
         List<OrderSearchResponse> resp = new ArrayList<>();
         for (Orders o : orders) {
@@ -359,7 +377,8 @@ public class OrderServiceImpl implements OrderService {
             r.setFlightId(o.getFlightId());
             r.setSeatId(o.getSeatId());
             r.setFlightNo(f != null ? f.getFlightNo() : null);
-            r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName() : (u != null ? u.getRealName() : null));
+            r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName()
+                    : (u != null ? u.getRealName() : null));
             r.setContactEmail(o.getContactEmail());
             r.setContactPhone(o.getContactPhone());
             r.setPassengersJson(o.getPassengersJson());
@@ -390,16 +409,17 @@ public class OrderServiceImpl implements OrderService {
             log.warn("选座参数无效: orderId={} seatId={}", orderId, seatId);
             return Result.fail(400, "参数无效：订单ID或座位ID不能为空");
         }
-        
+
         // DEBUG LOG
-        // log.info("Processing selectSeat request: orderId={} seatId={}", orderId, seatId);
+        // log.info("Processing selectSeat request: orderId={} seatId={}", orderId,
+        // seatId);
 
         // 2. 获取订单信息
         Orders o = orderMapper.selectById(orderId);
         if (o == null) {
             return Result.fail(404, "订单不存在");
         }
-        
+
         // 3. 获取座位信息进行预检查
         Seat seat = seatService.getById(seatId);
         if (seat == null) {
@@ -410,14 +430,14 @@ public class OrderServiceImpl implements OrderService {
         // 4. 执行座位状态检查 (独立方法)
         Result<Void> checkResult = checkSeatStatus(seat, o);
         if (checkResult.getCode() != 0) {
-            log.warn("选座预检查失败: orderId={}, seatId={}, userId={}, reason={}, seatStatus={}", 
-                     orderId, seatId, o.getUserId(), checkResult.getMsg(), seat.getStatus());
+            log.warn("选座预检查失败: orderId={}, seatId={}, userId={}, reason={}, seatStatus={}",
+                    orderId, seatId, o.getUserId(), checkResult.getMsg(), seat.getStatus());
             return Result.fail(checkResult.getCode(), checkResult.getMsg());
         }
 
         // 5. 详细日志记录 (改进点1)
         log.info("尝试选座: orderId={}, seatId={}, userId={}, currentSeatStatus={}, requestTime={}",
-                 orderId, seatId, o.getUserId(), seat.getStatus(), LocalDateTime.now());
+                orderId, seatId, o.getUserId(), seat.getStatus(), LocalDateTime.now());
 
         // 6. 执行选座 (含重试逻辑 - 改进点3)
         boolean ok = false;
@@ -427,14 +447,14 @@ public class OrderServiceImpl implements OrderService {
         for (int i = 0; i < maxRetries; i++) {
             try {
                 // 缓存检查 (模拟，此处可接入Redis缓存检查)
-                // checkSeatCache(seatId); 
-                
+                // checkSeatCache(seatId);
+
                 // 尝试更新 (乐观锁机制)
                 ok = seatService.changeSeat(orderId, seatId);
                 if (ok) {
                     break;
                 }
-                
+
                 // 如果失败，检查是否是因为刚刚被占用
                 Seat currentSeat = seatService.getById(seatId);
                 if (currentSeat != null && currentSeat.getStatus() != 1) {
@@ -442,7 +462,7 @@ public class OrderServiceImpl implements OrderService {
                     log.warn("选座并发冲突: seatId={} status={}", seatId, currentSeat.getStatus());
                     break; // 状态已变，无需重试
                 }
-                
+
                 // 短暂休眠后重试
                 Thread.sleep(50 * (i + 1));
             } catch (Exception e) {
@@ -456,15 +476,15 @@ public class OrderServiceImpl implements OrderService {
         }
 
         log.info("座位选择成功 orderId={} seatId={}", orderId, seatId);
-        
+
         // 7. 构建返回结果
         Orders updated = orderMapper.selectById(orderId);
         // 双重检查：确保更新后的订单确实关联了该座位
         if (updated.getSeatId() == null || !updated.getSeatId().equals(seatId)) {
-             log.error("数据不一致：选座返回成功但订单未更新 seatId. orderId={}", orderId);
-             // 可能是事务隔离级别问题，但在此处作为防御性编程
+            log.error("数据不一致：选座返回成功但订单未更新 seatId. orderId={}", orderId);
+            // 可能是事务隔离级别问题，但在此处作为防御性编程
         }
-        
+
         Flight f = flightMapper.selectById(updated.getFlightId());
         User u = userMapper.selectById(updated.getUserId());
         OrderSearchResponse r = new OrderSearchResponse();
@@ -472,7 +492,9 @@ public class OrderServiceImpl implements OrderService {
         r.setFlightId(updated.getFlightId());
         r.setSeatId(updated.getSeatId());
         r.setFlightNo(f != null ? f.getFlightNo() : null);
-        r.setPassengerName(updated.getPassengerName() != null && !updated.getPassengerName().isBlank() ? updated.getPassengerName() : (u != null ? u.getRealName() : null));
+        r.setPassengerName(
+                updated.getPassengerName() != null && !updated.getPassengerName().isBlank() ? updated.getPassengerName()
+                        : (u != null ? u.getRealName() : null));
         r.setContactEmail(updated.getContactEmail());
         r.setContactPhone(updated.getContactPhone());
         r.setPassengersJson(updated.getPassengersJson());
@@ -496,18 +518,18 @@ public class OrderServiceImpl implements OrderService {
      */
     private Result<Void> checkSeatStatus(Seat seat, Orders order) {
         if (seat.getFlightId() == null || order.getFlightId() == null) {
-            log.error("座位或订单缺少航班ID: seatId={} seatFlightId={} orderId={} orderFlightId={}", 
-                      seat.getSeatId(), seat.getFlightId(), order.getOrderId(), order.getFlightId());
+            log.error("座位或订单缺少航班ID: seatId={} seatFlightId={} orderId={} orderFlightId={}",
+                    seat.getSeatId(), seat.getFlightId(), order.getOrderId(), order.getFlightId());
             return Result.fail(500, "数据异常：航班信息缺失");
         }
-        
+
         // 增加日志：打印两者的航班ID，排查是否真的不匹配
         if (!seat.getFlightId().equals(order.getFlightId())) {
-            log.warn("航班ID不匹配: seatId={} seatFlightId={} orderId={} orderFlightId={}", 
-                     seat.getSeatId(), seat.getFlightId(), order.getOrderId(), order.getFlightId());
+            log.warn("航班ID不匹配: seatId={} seatFlightId={} orderId={} orderFlightId={}",
+                    seat.getSeatId(), seat.getFlightId(), order.getOrderId(), order.getFlightId());
             return Result.fail(400, "座位所属航班与订单不匹配");
         }
-        
+
         // 状态判断 (改进点2: 增强错误处理)
         switch (seat.getStatus()) {
             case 1: // AVAILABLE
@@ -524,7 +546,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void releaseSeatsForOrder(Orders o) {
-        if (o == null) return;
+        if (o == null)
+            return;
         if (o.getSeatId() != null) {
             seatService.releaseSeat(o.getSeatId());
         } else if (o.getOrderId() != null) {

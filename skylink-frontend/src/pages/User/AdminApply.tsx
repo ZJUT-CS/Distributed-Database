@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Lock, ArrowRight, ShieldAlert } from 'lucide-react';
 import { adminRegisterApi } from '../../features/auth/api/auth';
+import { useToast } from '@/features/admin/components/Toast';
 
 const AdminApplyPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -16,15 +18,15 @@ const AdminApplyPage: React.FC = () => {
     const p = password;
     if (!u || !p) return;
     if (u.length < 3) {
-      alert('账号长度至少 3 位');
+      toast.error('账号长度至少 3 位');
       return;
     }
     if (p.length < 6) {
-      alert('密码长度至少 6 位');
+      toast.error('密码长度至少 6 位');
       return;
     }
     if (password !== confirmPassword) {
-      alert('两次输入的密码不一致');
+      toast.error('两次输入的密码不一致');
       return;
     }
 
@@ -33,10 +35,10 @@ const AdminApplyPage: React.FC = () => {
       const ok = await adminRegisterApi({ adminAccount: u, password: p });
       if (!ok) throw new Error('提交失败');
 
-      alert('入驻申请已提交（管理员账号已创建），请使用该账号在管理员登录入口登录');
+      toast.success('入驻申请已提交（管理员账号已创建），请使用该账号在管理员登录入口登录');
       navigate('/login');
     } catch (err: any) {
-      alert(err?.message || '请求失败，请稍后再试');
+      toast.error(err?.message || '请求失败，请稍后再试');
     } finally {
       setLoading(false);
     }
