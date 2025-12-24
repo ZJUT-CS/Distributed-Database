@@ -1,6 +1,7 @@
 package com.team.skylink.module.refund.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.aircraft.entity.AircraftCabinConfig;
@@ -168,8 +169,11 @@ public class RefundChangeServiceImpl implements RefundChangeService {
         }
 
         refundChangeRecordMapper.insert(r);
-        o.setOrderStatus(4); // 4=处理中/改签中/退票中
-        orderMapper.updateById(o);
+        
+        LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Orders::getOrderId, o.getOrderId())
+                .set(Orders::getOrderStatus, 4); // 4=处理中/改签中/退票中
+        orderMapper.update(null, updateWrapper);
 
         return Result.ok(r.getRecordId());
     }
@@ -191,9 +195,11 @@ public class RefundChangeServiceImpl implements RefundChangeService {
             // 释放座位
             seatService.releaseSeats(o.getOrderId());
             
-            o.setOrderStatus(5); // 5=已退票
-            o.setRefundTime(now);
-            orderMapper.updateById(o);
+            LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(Orders::getOrderId, o.getOrderId())
+                    .set(Orders::getOrderStatus, 5) // 5=已退票
+                    .set(Orders::getRefundTime, now);
+            orderMapper.update(null, updateWrapper);
 
         } else {
             // === 改签 ===
@@ -218,17 +224,21 @@ public class RefundChangeServiceImpl implements RefundChangeService {
             BigDecimal newPrice = route.getBasePrice().multiply(newConfig.getCabinCoefficient());
             BigDecimal newTotal = newPrice.multiply(BigDecimal.valueOf(o.getTicketNum()));
 
-            o.setFlightId(r.getNewFlightId());
-            o.setCabinId(r.getNewCabinId());
-            o.setTotalAmount(newTotal);
-            o.setOrderStatus(2); // 改签成功 -> 变回已确认
-            o.setChangeTime(now);
-            orderMapper.updateById(o);
+            LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(Orders::getOrderId, o.getOrderId())
+                    .set(Orders::getFlightId, r.getNewFlightId())
+                    .set(Orders::getCabinId, r.getNewCabinId())
+                    .set(Orders::getTotalAmount, newTotal)
+                    .set(Orders::getOrderStatus, 2) // 改签成功 -> 变回已确认
+                    .set(Orders::getChangeTime, now);
+            orderMapper.update(null, updateWrapper);
         }
 
-        r.setAuditStatus(1);
-        r.setAuditTime(now);
-        refundChangeRecordMapper.updateById(r);
+        LambdaUpdateWrapper<RefundChangeRecord> recordUpdateWrapper = new LambdaUpdateWrapper<>();
+        recordUpdateWrapper.eq(RefundChangeRecord::getRecordId, r.getRecordId())
+                .set(RefundChangeRecord::getAuditStatus, 1)
+                .set(RefundChangeRecord::getAuditTime, now);
+        refundChangeRecordMapper.update(null, recordUpdateWrapper);
         
         return Result.ok(true);
     }
@@ -244,13 +254,18 @@ public class RefundChangeServiceImpl implements RefundChangeService {
            if (o == null) return Result.fail(404, "order not found");
 
            LocalDateTime now = LocalDateTime.now();
-           r.setAuditStatus(2);
-           r.setAuditTime(now);
-           refundChangeRecordMapper.updateById(r);
+           
+           LambdaUpdateWrapper<RefundChangeRecord> recordUpdateWrapper = new LambdaUpdateWrapper<>();
+           recordUpdateWrapper.eq(RefundChangeRecord::getRecordId, r.getRecordId())
+                   .set(RefundChangeRecord::getAuditStatus, 2)
+                   .set(RefundChangeRecord::getAuditTime, now);
+           refundChangeRecordMapper.update(null, recordUpdateWrapper);
 
            // 退改签被拒绝：订单回到已确认(2)
-           o.setOrderStatus(2);
-           orderMapper.updateById(o);
+           LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+           updateWrapper.eq(Orders::getOrderId, o.getOrderId())
+                   .set(Orders::getOrderStatus, 2);
+           orderMapper.update(null, updateWrapper);
 
            return Result.ok(true);
     }
@@ -266,8 +281,11 @@ public class RefundChangeServiceImpl implements RefundChangeService {
 
            // 撤销申请：删除记录，订单回到已确认(2)
            refundChangeRecordMapper.deleteById(recordId);
-           o.setOrderStatus(2);
-           orderMapper.updateById(o);
+           
+           LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+           updateWrapper.eq(Orders::getOrderId, o.getOrderId())
+                   .set(Orders::getOrderStatus, 2);
+           orderMapper.update(null, updateWrapper);
 
            return Result.ok(true);
     }
@@ -279,11 +297,12 @@ public class RefundChangeServiceImpl implements RefundChangeService {
         if (r == null) return Result.fail(404, "record not found");
         if (r.getAuditStatus() != 0) return Result.fail(409, "record not pending");
 
-        r.setRemark(req.getRemark());
-        r.setOperTime(LocalDateTime.now());
-        // 如果有其他字段需要更新，可以在这里添加
+        LambdaUpdateWrapper<RefundChangeRecord> recordUpdateWrapper = new LambdaUpdateWrapper<>();
+        recordUpdateWrapper.eq(RefundChangeRecord::getRecordId, r.getRecordId())
+                .set(RefundChangeRecord::getRemark, req.getRemark())
+                .set(RefundChangeRecord::getOperTime, LocalDateTime.now());
+        refundChangeRecordMapper.update(null, recordUpdateWrapper);
 
-        refundChangeRecordMapper.updateById(r);
         return Result.ok(true);
     }
 
