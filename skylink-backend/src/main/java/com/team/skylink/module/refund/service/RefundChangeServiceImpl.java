@@ -135,6 +135,7 @@ public class RefundChangeServiceImpl implements RefundChangeService {
         r.setOldFlightId(o.getFlightId());
         r.setOldCabinId(o.getCabinId());
         r.setOperUserId(o.getUserId());
+        r.setOperUserType( 1);
         r.setAuditStatus(0);
         r.setOperTime(now);
         r.setRemark(req.getRemark());
