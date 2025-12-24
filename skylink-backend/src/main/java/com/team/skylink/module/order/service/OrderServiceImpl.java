@@ -400,6 +400,43 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public Result<OrderSearchResponse> getDetail(Long orderId) {
+        Orders o = orderMapper.selectById(orderId);
+        if (o == null) {
+            return Result.fail(404, "订单不存在");
+        }
+        
+        Flight f = flightMapper.selectById(o.getFlightId());
+        User u = userMapper.selectById(o.getUserId());
+        
+        OrderSearchResponse r = new OrderSearchResponse();
+        r.setOrderNo(String.valueOf(o.getOrderId()));
+        r.setFlightId(o.getFlightId());
+        r.setSeatId(o.getSeatId());
+        r.setFlightNo(f != null ? f.getFlightNo() : null);
+        r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName()
+                : (u != null ? u.getRealName() : null));
+        r.setContactEmail(o.getContactEmail());
+        r.setContactPhone(o.getContactPhone());
+        r.setPassengersJson(o.getPassengersJson());
+        r.setOrderStatus(o.getOrderStatus());
+        r.setTotalAmount(o.getTotalAmount());
+        r.setOrderTime(o.getOrderTime());
+        r.setPayTime(o.getPayTime());
+        r.setRefundTime(o.getRefundTime());
+        r.setChangeTime(o.getChangeTime());
+
+        if (f != null) {
+            r.setOrigin(f.getDeparturePlace());
+            r.setDestination(f.getDestination());
+            r.setDepartureTime(f.getDepartureTime());
+            r.setArrivalTime(f.getArrivalTime());
+        }
+        
+        return Result.ok(r);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<OrderSearchResponse> selectSeat(Long orderId, Long seatId) {
         log.info("=== 收到选座请求 === orderId={} seatId={}", orderId, seatId);

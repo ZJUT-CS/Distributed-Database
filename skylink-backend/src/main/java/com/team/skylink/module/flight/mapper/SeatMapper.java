@@ -2,6 +2,7 @@ package com.team.skylink.module.flight.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.team.skylink.module.flight.entity.Seat;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -28,5 +29,13 @@ public interface SeatMapper extends BaseMapper<Seat> {
             "GROUP BY flight_id, cabin_type" +
             "</script>")
     List<java.util.Map<String, Object>> countAvailableSeatsBatch(@Param("flightIds") List<Long> flightIds);
+
+    @Insert("<script>" +
+            "INSERT INTO seat (flight_id, seat_number, cabin_type, status, update_time) VALUES " +
+            "<foreach collection='seats' item='seat' separator=','>" +
+            "(#{seat.flightId}, #{seat.seatNumber}, #{seat.cabinType}, #{seat.status}, #{seat.updateTime})" +
+            "</foreach>" +
+            "</script>")
+    void insertBatch(@Param("seats") List<Seat> seats);
 }
 

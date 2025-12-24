@@ -15,6 +15,7 @@ import com.team.skylink.module.flight.entity.Route;
 import com.team.skylink.module.flight.entity.Seat;
 import com.team.skylink.module.flight.mapper.FlightMapper;
 import com.team.skylink.module.flight.mapper.RouteMapper;
+import com.team.skylink.module.flight.mapper.SeatMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
@@ -50,6 +51,7 @@ public class FlightServiceImpl implements FlightService {
     private final RouteMapper routeMapper;
     private final AircraftCabinConfigMapper cabinConfigMapper;
     private final SeatService seatService;
+    private final SeatMapper seatMapper;
     private final OrderMapper orderMapper;
 
     public FlightServiceImpl(FlightMapper flightMapper,
@@ -57,12 +59,14 @@ public class FlightServiceImpl implements FlightService {
             RouteMapper routeMapper,
             AircraftCabinConfigMapper cabinConfigMapper,
             SeatService seatService,
+            SeatMapper seatMapper,
             OrderMapper orderMapper) {
         this.flightMapper = flightMapper;
         this.aircraftModelMapper = aircraftModelMapper;
         this.routeMapper = routeMapper;
         this.cabinConfigMapper = cabinConfigMapper;
         this.seatService = seatService;
+        this.seatMapper = seatMapper;
         this.orderMapper = orderMapper;
     }
 
@@ -453,7 +457,12 @@ public class FlightServiceImpl implements FlightService {
         generateSeats(f, configs, allSeats);
 
         if (!allSeats.isEmpty()) {
-            seatService.saveBatch(allSeats, 100);
+            // 优化：使用原生 JDBC 批量插入，大幅提升性能
+            int batchSize = 1000;
+            for (int i = 0; i < allSeats.size(); i += batchSize) {
+                int end = Math.min(i + batchSize, allSeats.size());
+                seatMapper.insertBatch(allSeats.subList(i, end));
+            }
         }
 
         return Result.ok(true);
@@ -526,7 +535,12 @@ public class FlightServiceImpl implements FlightService {
                 generateSeats(f, configs, allSeats); // 调用提取出来的公共方法
 
                 if (!allSeats.isEmpty()) {
-                    seatService.saveBatch(allSeats, 100);
+                    // 优化：使用原生 JDBC 批量插入
+                    int batchSize = 1000;
+                    for (int i = 0; i < allSeats.size(); i += batchSize) {
+                        int end = Math.min(i + batchSize, allSeats.size());
+                        seatMapper.insertBatch(allSeats.subList(i, end));
+                    }
                 }
             }
         }

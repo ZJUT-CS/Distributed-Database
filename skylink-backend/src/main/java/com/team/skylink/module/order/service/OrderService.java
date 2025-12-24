@@ -29,6 +29,8 @@ public interface OrderService {
 
     Result<List<OrderSearchResponse>> listMyOrders(Long userId);
 
+    Result<OrderSearchResponse> getDetail(Long orderId);
+
     Result<OrderSearchResponse> selectSeat(Long orderId, Long seatId);
 }
 

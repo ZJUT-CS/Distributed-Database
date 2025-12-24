@@ -50,6 +50,11 @@ public class OrderController {
         return orderService.listMyOrders(userId);
     }
 
+    @GetMapping("/{orderId}")
+    public Result<OrderSearchResponse> getDetail(@PathVariable("orderId") Long orderId) {
+        return orderService.getDetail(orderId);
+    }
+
     @PostMapping("")
     public Result<OrderSearchResponse> create(HttpServletRequest request, @Valid @RequestBody CreateOrderRequest req) {
         Result<?> guard = ensureNonAdmin(request);

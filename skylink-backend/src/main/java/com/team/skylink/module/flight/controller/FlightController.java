@@ -103,12 +103,20 @@ public class FlightController {
             seatQ.eq(Seat::getCabinType, cabinType);
         }
         var seats = seatMapper.selectList(seatQ);
+        
+        // 优化：批量查询配置，避免 N+1 查询
+        List<AircraftCabinConfig> allConfigs = configMapper.selectList(new QueryWrapper<AircraftCabinConfig>()
+                .eq("model_id", flight.getModelId()));
+        Map<String, AircraftCabinConfig> configMap = new HashMap<>();
+        if (allConfigs != null) {
+            for (AircraftCabinConfig c : allConfigs) {
+                configMap.putIfAbsent(c.getCabinType(), c);
+            }
+        }
+
         List<Map<String, Object>> data = new ArrayList<>();
         for (Seat s : seats) {
-            AircraftCabinConfig cfg = configMapper.selectOne(new QueryWrapper<AircraftCabinConfig>()
-                    .eq("model_id", flight.getModelId())
-                    .eq("cabin_type", s.getCabinType())
-                    .last("LIMIT 1"));
+            AircraftCabinConfig cfg = configMap.get(s.getCabinType());
             BigDecimal price = null;
             if (base != null && cfg != null && cfg.getCabinCoefficient() != null) {
                 price = base.multiply(cfg.getCabinCoefficient());
