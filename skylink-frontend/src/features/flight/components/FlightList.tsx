@@ -91,9 +91,32 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
               <p className="text-xs text-gray-400 mb-1">{flight.duration}</p>
               <div className="w-full h-[2px] bg-gray-200 relative">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2">
-                  {flight.stops === 0 ? <Plane className="w-4 h-4 text-gray-300 rotate-90" /> : <span className="text-xs text-gray-400">1 转机</span>}
+                  {flight.stops === 0 ? (
+                    <Plane className="w-4 h-4 text-gray-300 rotate-90" />
+                  ) : (
+                    <span className="text-xs text-orange-500 font-medium">{flight.stops} 转机</span>
+                  )}
                 </div>
               </div>
+
+              {/* 联程航班中转信息 */}
+              {flight.stops > 0 && flight.transferCity && (
+                <div className="mt-2 flex flex-col items-center gap-1">
+                  <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100">
+                    经 {flight.transferCity}
+                  </span>
+                  {flight.transferDuration != null && (
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${flight.transferDuration < 150
+                        ? 'bg-orange-50 text-orange-600 border border-orange-200'
+                        : flight.transferDuration >= 360
+                          ? 'bg-blue-50 text-blue-500 border border-blue-200'
+                          : 'bg-gray-50 text-gray-500 border border-gray-200'
+                      }`}>
+                      ⏱ 中转 {Math.floor(flight.transferDuration / 60)}h {flight.transferDuration % 60}m
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="text-center">

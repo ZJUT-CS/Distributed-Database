@@ -6,8 +6,8 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = (user: User) => {
-    login(user);
+  const handleLogin = (user: User, token?: string) => {
+    login(user, token ?? '');
     if (user.role === 'admin') {
       navigate('/admin');
     } else {

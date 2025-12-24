@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Eye, Download, XCircle, ShoppingCart, CheckSquare, Square, X } from 'lucide-react';
-import { cancelAdminOrder, listAdminOrders, type AdminOrderItem } from '../../features/admin/api/orders';
+import { type AdminOrderItem } from '../../features/admin/api/orders';
 import {
   Pagination,
   TableActionMenu,
@@ -11,7 +11,6 @@ import {
   ErrorBanner,
   AdminDrawer,
   SensitiveField,
-  useAdminList,
   useConfirm,
   useToast,
   useSensitiveAudit,
@@ -20,6 +19,7 @@ import {
 } from '@/features/admin';
 import EntityCell from '@/components/common/EntityCell';
 import { exportToCSV } from '@/utils/export';
+import { useAdminBookings, useCancelAdminBooking, useAuditAdminBooking } from '@/features/admin/hooks/useAdminBookings';
 
 const BookingsMgmt: React.FC = () => {
   const { confirm } = useConfirm();
@@ -30,47 +30,12 @@ const BookingsMgmt: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
 
   // Drawer 状态
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderItem | null>(null);
-
-  type BookingFilters = {
-    orderNo?: number;
-    orderStatus?: number;
-  };
-
-  const fetchOrders = useCallback(
-    async (params: { page: number; size: number } & BookingFilters) => {
-      const res = await listAdminOrders({
-        page: params.page,
-        size: params.size,
-        orderNo: params.orderNo,
-        orderStatus: params.orderStatus,
-      });
-      return { data: res.data ?? [], total: res.total ?? 0 };
-    },
-    []
-  );
-
-  const {
-    items,
-    total,
-    page,
-    totalPages,
-    loading,
-    error,
-    filters,
-    setPage,
-    setFilters,
-    refresh,
-    retry,
-  } = useAdminList<AdminOrderItem, BookingFilters>({
-    pageSize: ITEMS_PER_PAGE,
-    initialFilters: {},
-    fetchFn: fetchOrders,
-  });
 
   const parsedOrderNo = useMemo(() => {
     const s = String(searchTerm ?? '').trim();
@@ -91,20 +56,17 @@ const BookingsMgmt: React.FC = () => {
     return statusMapping[statusFilter];
   }, [statusFilter]);
 
-  // 搜索输入：300ms debounce
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      if (filters.orderNo === parsedOrderNo) return;
-      setFilters({ orderNo: parsedOrderNo });
-    }, 300);
-    return () => window.clearTimeout(t);
-  }, [filters.orderNo, parsedOrderNo, setFilters]);
+  const { data: bookingsData, isLoading, error, refetch } = useAdminBookings(
+    { page, size: ITEMS_PER_PAGE, orderNo: parsedOrderNo, orderStatus: mappedOrderStatus },
+    true
+  );
 
-  // 状态筛选：点击即生效（去重，避免重复请求）
-  useEffect(() => {
-    if (filters.orderStatus === mappedOrderStatus) return;
-    setFilters({ orderStatus: mappedOrderStatus });
-  }, [filters.orderStatus, mappedOrderStatus, setFilters]);
+  const items = bookingsData?.data ?? [];
+  const total = bookingsData?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+
+  const cancelBookingMutation = useCancelAdminBooking();
+  const auditBookingMutation = useAuditAdminBooking();
 
   const loadError = useMemo(() => {
     const msg = String(error ?? '').trim();
@@ -132,8 +94,7 @@ const BookingsMgmt: React.FC = () => {
     });
     if (!confirmed) return;
     try {
-      await cancelAdminOrder(orderNo);
-      refresh(false);
+      await cancelBookingMutation.mutateAsync(orderNo);
       toast.success('订单已取消');
     } catch (e: any) {
       toast.error(e?.message || '取消失败');
@@ -165,10 +126,9 @@ const BookingsMgmt: React.FC = () => {
     });
     if (!confirmed) return;
     try {
-      await Promise.all(ids.map(id => cancelAdminOrder(id)));
+      await Promise.all(ids.map(id => cancelBookingMutation.mutateAsync(id)));
       toast.success('订单已取消');
       setSelectedIds(new Set());
-      refresh(false);
     } catch (e: any) {
       toast.error(e?.message || '取消失败');
     }
@@ -182,7 +142,8 @@ const BookingsMgmt: React.FC = () => {
     }
     try {
       toast.info('正在导出数据...');
-      const res = await listAdminOrders({ page: 1, size: 1000, orderNo: filters.orderNo, orderStatus: filters.orderStatus });
+      const { listAdminOrders } = await import('../../features/admin/api/orders');
+      const res = await listAdminOrders({ page: 1, size: 1000, orderNo: parsedOrderNo, orderStatus: mappedOrderStatus });
       const data = res.data?.filter(item => ids.includes(String(item.orderNo))) ?? [];
       if (!data.length) {
         toast.warning('暂无数据可导出');
@@ -229,7 +190,8 @@ const BookingsMgmt: React.FC = () => {
   const handleExport = async () => {
     try {
       toast.info('正在导出数据...');
-      const res = await listAdminOrders({ page: 1, size: 1000, orderNo: filters.orderNo, orderStatus: filters.orderStatus });
+      const { listAdminOrders } = await import('../../features/admin/api/orders');
+      const res = await listAdminOrders({ page: 1, size: 1000, orderNo: parsedOrderNo, orderStatus: mappedOrderStatus });
       const data = res.data ?? [];
       if (!data.length) {
         toast.warning('暂无数据可导出');
@@ -268,7 +230,7 @@ const BookingsMgmt: React.FC = () => {
         }
       />
 
-      {loadError && <ErrorBanner message={loadError} onRetry={retry} />}
+      {loadError && <ErrorBanner message={loadError} onRetry={() => refetch()} />}
 
       {/* Search & Filter Bar */}
       <FilterBar
@@ -285,8 +247,7 @@ const BookingsMgmt: React.FC = () => {
               }}
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return;
-                if (filters.orderNo === parsedOrderNo) return;
-                setFilters({ orderNo: parsedOrderNo });
+                setPage(1);
               }}
             />
           </div>
@@ -344,10 +305,10 @@ const BookingsMgmt: React.FC = () => {
           </div>
         )}
         <AdminTableState
-          loading={loading}
+          loading={isLoading}
           error={loadError}
           isEmpty={items.length === 0}
-          onRetry={retry}
+          onRetry={() => refetch()}
           emptyTitle={searchTerm ? '未找到匹配订单' : '暂无订单数据'}
           emptyDescription={searchTerm ? '请尝试调整搜索条件' : '当前没有符合条件的订单记录'}
           skeletonRows={5}

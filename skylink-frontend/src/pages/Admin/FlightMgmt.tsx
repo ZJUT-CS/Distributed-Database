@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Download, Plus, Search, Users, Edit2, Ban, Trash2, Save, Plane as PlaneIcon, RefreshCw, CheckSquare, Square, X } from 'lucide-react';
 import { type FlightStatus } from '@/features/flight';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, createAdminFlight, deleteAdminFlight, listAdminFlights, updateAdminFlight, type AdminFlightItem, FLIGHT_STATUS_STR_META, useAdminList, AdminTableState, useAdminOptions } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, type AdminFlightItem, FLIGHT_STATUS_STR_META, AdminTableState, useAdminOptions } from '@/features/admin';
 import { formatApiError } from '@/utils/apiError';
 import EntityCell from '@/components/common/EntityCell';
 import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
 import { exportToCSV } from '@/utils/export';
+import { useAdminFlights, useCreateAdminFlight, useUpdateAdminFlight, useDeleteAdminFlight } from '@/features/admin/hooks/useAdminFlights';
 
 type UiFlight = {
   rowId: string; // 唯一标识（用于 key / 选中态 / 菜单展开态）
@@ -113,43 +114,22 @@ const FlightMgmt: React.FC = () => {
 
   const FLIGHTS_PER_PAGE = 8;
 
-  // 使用 useAdminList 统一管理列表状态
-  const fetchFlights = useCallback(
-    async (params: { page: number; size: number; keyword: string;[key: string]: unknown }) => {
-      const res = await listAdminFlights({
-        page: params.page,
-        size: params.size,
-        keyword: params.keyword || undefined,
-      });
-      return {
-        data: (res.data ?? []).map(mapAdminFlight),
-        total: res.total ?? 0,
-      };
-    },
-    []
+  const [page, setPage] = useState(1);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [flightStatusFilter, setFlightStatusFilter] = useState('all');
+
+  const { data: flightsData, isLoading, error: flightsError, refetch } = useAdminFlights(
+    { page, size: FLIGHTS_PER_PAGE, keyword: searchKeyword || undefined },
+    true
   );
 
-  const {
-    items: flights,
-    total: totalFlights,
-    page: flightPage,
-    totalPages: totalFlightPages,
-    loading: loadingFlights,
-    error: flightsError,
-    filters,
-    setPage: setFlightPage,
-    setFilters,
-    refresh: refreshFlights,
-    retry,
-  } = useAdminList<UiFlight, { keyword: string; status: string;[key: string]: unknown }>({
-    fetchFn: fetchFlights,
-    pageSize: FLIGHTS_PER_PAGE,
-    initialFilters: { keyword: '', status: 'all' },
-  });
+  const flights = useMemo(() => (flightsData?.data ?? []).map(mapAdminFlight), [flightsData]);
+  const totalFlights = flightsData?.total ?? 0;
+  const totalFlightPages = Math.max(1, Math.ceil(totalFlights / FLIGHTS_PER_PAGE));
 
-  // 筛选状态统一从 filters 读取
-  const searchKeyword = filters.keyword;
-  const flightStatusFilter = filters.status;
+  const createFlightMutation = useCreateAdminFlight();
+  const updateFlightMutation = useUpdateAdminFlight();
+  const deleteFlightMutation = useDeleteAdminFlight();
 
   const [isFlightModalOpen, setIsFlightModalOpen] = useState(false);
   const [editingFlight, setEditingFlight] = useState<UiFlight | null>(null);
@@ -229,19 +209,21 @@ const FlightMgmt: React.FC = () => {
 
     try {
       if (editingFlight?.flightId) {
-        const ok = await updateAdminFlight(editingFlight.flightId, {
-          flightNo,
-          modelId,
-          routeId,
-          departureTime,
-          arrivalTime: arrivalTime || undefined,
-          airlineCompany,
-          totalSeats: totalSeats ? Number(totalSeats) : undefined,
-          status,
+        await updateFlightMutation.mutateAsync({
+          flightId: editingFlight.flightId,
+          body: {
+            flightNo,
+            modelId,
+            routeId,
+            departureTime,
+            arrivalTime: arrivalTime || undefined,
+            airlineCompany,
+            totalSeats: totalSeats ? Number(totalSeats) : undefined,
+            status,
+          },
         });
-        if (!ok) throw new Error('保存失败');
       } else {
-        const ok = await createAdminFlight({
+        await createFlightMutation.mutateAsync({
           flightNo,
           modelId,
           routeId,
@@ -251,10 +233,8 @@ const FlightMgmt: React.FC = () => {
           totalSeats: totalSeats ? Number(totalSeats) : undefined,
           status,
         });
-        if (!ok) throw new Error('创建失败');
       }
 
-      await refreshFlights();
       setIsFlightModalOpen(false);
       toast.success(editingFlight ? '航班信息已更新' : '航班创建成功');
     } catch (err: any) {
@@ -271,9 +251,7 @@ const FlightMgmt: React.FC = () => {
     });
     if (!confirmed) return;
     try {
-      const ok = await deleteAdminFlight(flightId);
-      if (!ok) throw new Error('删除失败');
-      await refreshFlights();
+      await deleteFlightMutation.mutateAsync(flightId);
       toast.success('航班已删除');
     } catch (err: any) {
       toast.error(formatApiError(err));
@@ -291,18 +269,19 @@ const FlightMgmt: React.FC = () => {
     });
     if (!confirmed) return;
     try {
-      const ok = await updateAdminFlight(flight.flightId, {
-        flightNo: flight.flightNo,
-        modelId: flight.modelId,
-        routeId: flight.routeId,
-        departureTime: flight.departureTime,
-        arrivalTime: flight.arrivalTime,
-        airlineCompany: flight.airlineCompany,
-        totalSeats: flight.totalSeats,
-        status: 2,
+      await updateFlightMutation.mutateAsync({
+        flightId: flight.flightId,
+        body: {
+          flightNo: flight.flightNo,
+          modelId: flight.modelId,
+          routeId: flight.routeId,
+          departureTime: flight.departureTime,
+          arrivalTime: flight.arrivalTime,
+          airlineCompany: flight.airlineCompany,
+          totalSeats: flight.totalSeats,
+          status: 2,
+        },
       });
-      if (!ok) throw new Error('取消失败');
-      await refreshFlights();
       toast.success('航班已取消');
     } catch (err: any) {
       toast.error(formatApiError(err));
@@ -328,20 +307,22 @@ const FlightMgmt: React.FC = () => {
       await Promise.all(ids.map(id => {
         const flight = flights.find(f => f.flightId === id);
         if (!flight) return Promise.resolve();
-        return updateAdminFlight(id, {
-          flightNo: flight.flightNo,
-          modelId: flight.modelId,
-          routeId: flight.routeId,
-          departureTime: flight.departureTime,
-          arrivalTime: flight.arrivalTime,
-          airlineCompany: flight.airlineCompany,
-          totalSeats: flight.totalSeats,
-          status: 2,
+        return updateFlightMutation.mutateAsync({
+          flightId: id,
+          body: {
+            flightNo: flight.flightNo,
+            modelId: flight.modelId,
+            routeId: flight.routeId,
+            departureTime: flight.departureTime,
+            arrivalTime: flight.arrivalTime,
+            airlineCompany: flight.airlineCompany,
+            totalSeats: flight.totalSeats,
+            status: 2,
+          },
         });
       }));
       toast.success('航班已取消');
       setSelectedIds(new Set());
-      await refreshFlights();
     } catch (err: any) {
       toast.error(formatApiError(err));
     }
@@ -361,10 +342,9 @@ const FlightMgmt: React.FC = () => {
     });
     if (!confirmed) return;
     try {
-      await Promise.all(ids.map(id => deleteAdminFlight(id)));
+      await Promise.all(ids.map(id => deleteFlightMutation.mutateAsync(id)));
       toast.success('航班已删除');
       setSelectedIds(new Set());
-      await refreshFlights();
     } catch (err: any) {
       toast.error(formatApiError(err));
     }
@@ -414,6 +394,7 @@ const FlightMgmt: React.FC = () => {
   const handleExport = async () => {
     try {
       toast.info('正在导出数据...');
+      const { listAdminFlights } = await import('@/features/admin/api/flights');
       const res = await listAdminFlights({ page: 1, size: 1000, keyword: searchKeyword || undefined });
       const data = (res.data ?? []).map(mapAdminFlight);
       if (!data.length) {
@@ -462,25 +443,25 @@ const FlightMgmt: React.FC = () => {
             type="text"
             placeholder="搜索航班号、航线、航空公司..."
             value={searchKeyword}
-            onChange={(e) => setFilters({ keyword: e.target.value })}
+            onChange={(e) => { setSearchKeyword(e.target.value); setPage(1); }}
             className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm"
           />
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
           <button
-            onClick={() => refreshFlights()}
-            disabled={loadingFlights}
+            onClick={() => refetch()}
+            disabled={isLoading}
             className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
             title="刷新"
           >
-            <RefreshCw className={`w-4 h-4 ${loadingFlights ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
           <div className="flex bg-gray-100 p-1 rounded-lg">
             {['all', 'active', 'delayed', 'cancelled'].map(status => (
               <button
                 key={status}
-                onClick={() => setFilters({ status })}
+                onClick={() => setFlightStatusFilter(status)}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all whitespace-nowrap ${flightStatusFilter === status ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 {status === 'all' ? '全部状态' : status === 'active' ? '计划中' : status === 'delayed' ? '延误' : '已取消'}
@@ -517,10 +498,10 @@ const FlightMgmt: React.FC = () => {
           </div>
         )}
         <AdminTableState
-          loading={loadingFlights}
-          error={flightsError}
+          loading={isLoading}
+          error={flightsError?.message ?? null}
           isEmpty={paginatedFlights.length === 0}
-          onRetry={retry}
+          onRetry={() => refetch()}
           skeletonRows={5}
           skeletonColumns={6}
           emptyIcon={PlaneIcon}
@@ -656,7 +637,7 @@ const FlightMgmt: React.FC = () => {
                 })}
               </tbody>
             </table>
-            <Pagination currentPage={flightPage} totalPages={totalFlightPages} setPage={setFlightPage} totalItems={totalFlights} itemsPerPage={FLIGHTS_PER_PAGE} />
+            <Pagination currentPage={page} totalPages={totalFlightPages} setPage={setPage} totalItems={totalFlights} itemsPerPage={FLIGHTS_PER_PAGE} />
           </>
         </AdminTableState>
       </div>

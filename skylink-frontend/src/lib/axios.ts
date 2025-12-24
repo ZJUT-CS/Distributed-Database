@@ -58,8 +58,11 @@ const normalizeUserRole = (role: unknown): 'user' | 'admin' => {
   return r.includes('admin') ? 'admin' : 'user';
 };
 
+const TOKEN_KEY = 'skylink_token';
+const USER_KEY = 'skylink_user';
+
 const parseStoredUser = (): { id?: number | string; role?: 'user' | 'admin'; adminRole?: string } | null => {
-  const raw = localStorage.getItem('user');
+  const raw = localStorage.getItem(USER_KEY);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as any;
@@ -92,7 +95,7 @@ api.interceptors.request.use(
     const headers: any = (config.headers ??= {} as any);
     headers.Accept ??= 'application/json';
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
       headers.Authorization ??= `Bearer ${token}`;
     }
@@ -136,7 +139,7 @@ api.interceptors.response.use(
       if (body.code !== 0) {
         const requestId = getHeader(response.headers, 'x-request-id');
         if (body.code === 401) {
-          localStorage.removeItem('token');
+          localStorage.removeItem(TOKEN_KEY);
         }
         return Promise.reject(
           new ApiError(body.msg || '请求失败', {
@@ -157,7 +160,7 @@ api.interceptors.response.use(
 
     if (data && typeof data === 'object' && typeof data.code === 'number' && 'msg' in data) {
       if (data.code === 401) {
-        localStorage.removeItem('token');
+        localStorage.removeItem(TOKEN_KEY);
       }
       return Promise.reject(
         new ApiError(data.msg || '请求失败', {
@@ -178,7 +181,7 @@ api.interceptors.response.use(
     }
 
     if (status === 401) {
-      localStorage.removeItem('token');
+      localStorage.removeItem(TOKEN_KEY);
     }
 
     return Promise.reject(new ApiError(`请求失败（HTTP ${status ?? 'unknown'}）`, { status, requestId, raw: error }));
