@@ -29,23 +29,3 @@ export interface ConfirmedBooking extends BookingDetails {
   totalPrice?: number;
 }
 
-export interface Order {
-  orderNo: string | number;
-  userId?: string | number;
-  orderStatus?: number;
-  ticketNum?: number;
-  totalAmount?: number;
-  orderTime?: string;
-  payTime?: string;
-  refundTime?: string;
-  changeTime?: string;
-  flightNo?: string;
-  origin?: string;
-  destination?: string;
-  departureTime?: string;
-  arrivalTime?: string;
-  passengerName?: string;
-  email?: string;
-  phoneNumber?: string;
-}
-

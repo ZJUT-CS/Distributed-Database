@@ -1,16 +1,5 @@
 export type FlightStatus = 'active' | 'delayed' | 'cancelled' | 'full';
 
-export interface FlightSegment {
-  flightNumber: string;
-  airline: string;
-  airlineCode: string;
-  origin: string;
-  destination: string;
-  departureTime: string;
-  arrivalTime: string;
-  duration: string;
-}
-
 export interface Flight {
   id: string;
   airline: string;
@@ -33,12 +22,6 @@ export interface Flight {
     hasEntertainment: boolean;
   };
   aircraft?: string;
-  /** 联程航班分段信息 */
-  segments?: FlightSegment[];
-  /** 中转城市 */
-  transferCity?: string;
-  /** 中转时长（分钟） */
-  transferDuration?: number;
 }
 
 export interface Airport {

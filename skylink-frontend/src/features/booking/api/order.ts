@@ -1,9 +1,7 @@
-import { request, type PageResult } from '../../../lib/axios';
+import { request } from '../../../lib/axios';
 
 export interface OrderSearchResult {
   orderNo: string;
-  /** 数据库航班 ID (Long) - 用于座位查询等需要主键的操作 */
-  flightId?: string | null;
   flightNo?: string | null;
   passengerName?: string | null;
   contactEmail?: string | null;
@@ -19,10 +17,6 @@ export interface OrderSearchResult {
   destination?: string | null;
   departureTime?: string | null;
   arrivalTime?: string | null;
-  /** 座位 ID */
-  seatId?: string | null;
-  /** 父订单 ID (联程) */
-  parentOrderId?: string | null;
 }
 
 export type CreateOrderResult = OrderSearchResult;
@@ -82,7 +76,7 @@ export async function searchOrders(params: {
   flightNo?: string;
   cabinType?: string;
 }): Promise<OrderSearchResult[]> {
-  const result = await request<PageResult<OrderSearchResult>>({
+  return request<OrderSearchResult[]>({
     method: 'GET',
     url: '/api/v1/orders',
     params: {
@@ -91,7 +85,5 @@ export async function searchOrders(params: {
       orderNo: params.orderNo ? String(params.orderNo) : undefined,
     },
   });
-
-  return Array.isArray(result?.data) ? result.data : [];
 }
 

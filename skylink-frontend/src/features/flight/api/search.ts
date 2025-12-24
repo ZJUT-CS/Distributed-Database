@@ -104,36 +104,6 @@ export async function searchFlights(params: {
     const airline = first?.airlineCompany || '';
     const airlineCode = (first?.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2);
 
-    // 解析中转时长字符串为分钟数
-    const parseTransferDuration = (duration?: string): number | undefined => {
-      if (!duration) return undefined;
-      const match = duration.match(/(\d+)h\s*(\d+)m/);
-      if (match) {
-        return parseInt(match[1]) * 60 + parseInt(match[2]);
-      }
-      const hourMatch = duration.match(/(\d+)h/);
-      if (hourMatch) {
-        return parseInt(hourMatch[1]) * 60;
-      }
-      const minMatch = duration.match(/(\d+)m/);
-      if (minMatch) {
-        return parseInt(minMatch[1]);
-      }
-      return undefined;
-    };
-
-    // 构建航段信息
-    const flightSegments = segs.map(seg => ({
-      flightNumber: seg.flightNo || '',
-      airline: seg.airlineCompany || '',
-      airlineCode: (seg.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
-      origin: seg.departurePlace || '',
-      destination: seg.destination || '',
-      departureTime: seg.departureTime || '',
-      arrivalTime: seg.arrivalTime || '',
-      duration: seg.duration || '',
-    }));
-
     return {
       id,
       airline,
@@ -151,10 +121,6 @@ export async function searchFlights(params: {
       baggageWeight: 23,
       amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
       aircraft: undefined,
-      // 增强联程信息
-      segments: flightSegments,
-      transferCity: it.transferCity,
-      transferDuration: parseTransferDuration(it.transferDuration),
     } satisfies Flight;
   });
 

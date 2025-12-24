@@ -91,9 +91,6 @@ public class OrderServiceImpl implements OrderService {
             User u = userMapper.selectById(o.getUserId());
             OrderSearchResponse r = new OrderSearchResponse();
             r.setOrderNo(String.valueOf(o.getOrderId()));
-            r.setParentOrderId(o.getParentOrderId());
-            r.setFlightId(o.getFlightId());
-            r.setSeatId(o.getSeatId());
             r.setFlightNo(f != null ? f.getFlightNo() : null);
             r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName() : (u != null ? u.getRealName() : null));
             r.setContactEmail(o.getContactEmail());
@@ -241,10 +238,7 @@ public class OrderServiceImpl implements OrderService {
 
         // 6. 返回结果
         OrderSearchResponse r = new OrderSearchResponse();
-        r.setOrderNo(String.valueOf(ordersToInsert.get(0).getOrderId()));
-        r.setParentOrderId(parentOrderId);
-        r.setFlightId(ordersToInsert.get(0).getFlightId());
-        r.setSeatId(ordersToInsert.get(0).getSeatId());
+        r.setOrderNo(String.valueOf(parentOrderId));
         r.setFlightNo(firstFlight.getFlightNo());
         r.setPassengerName(ordersToInsert.get(0).getPassengerName());
         r.setOrderStatus(1); // Pending Payment
@@ -350,9 +344,6 @@ public class OrderServiceImpl implements OrderService {
             User u = userMapper.selectById(o.getUserId());
             OrderSearchResponse r = new OrderSearchResponse();
             r.setOrderNo(String.valueOf(o.getOrderId()));
-            r.setParentOrderId(o.getParentOrderId());
-            r.setFlightId(o.getFlightId());
-            r.setSeatId(o.getSeatId());
             r.setFlightNo(f != null ? f.getFlightNo() : null);
             r.setPassengerName(o.getPassengerName() != null && !o.getPassengerName().isBlank() ? o.getPassengerName() : (u != null ? u.getRealName() : null));
             r.setContactEmail(o.getContactEmail());
@@ -396,9 +387,6 @@ public class OrderServiceImpl implements OrderService {
         User u = userMapper.selectById(updated.getUserId());
         OrderSearchResponse r = new OrderSearchResponse();
         r.setOrderNo(String.valueOf(updated.getOrderId()));
-        r.setParentOrderId(updated.getParentOrderId());
-        r.setFlightId(updated.getFlightId());
-        r.setSeatId(updated.getSeatId());
         r.setFlightNo(f != null ? f.getFlightNo() : null);
         r.setPassengerName(updated.getPassengerName() != null && !updated.getPassengerName().isBlank() ? updated.getPassengerName() : (u != null ? u.getRealName() : null));
         r.setContactEmail(updated.getContactEmail());
