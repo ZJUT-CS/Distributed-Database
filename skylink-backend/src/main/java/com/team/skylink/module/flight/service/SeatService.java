@@ -18,7 +18,12 @@ public interface SeatService extends IService<Seat> {
 
     boolean releaseSeat(Long seatId);
 
-    boolean confirmSeat(Long seatId); // 确保这一行存在
+    /**
+     * 确认座位 (单座)
+     * @param seatId 座位ID
+     * @param orderId 订单ID (用于修复可能缺失的关联)
+     */
+    boolean confirmSeat(Long seatId, Long orderId);
 
     boolean changeSeat(Long orderId, Long newSeatId);
 

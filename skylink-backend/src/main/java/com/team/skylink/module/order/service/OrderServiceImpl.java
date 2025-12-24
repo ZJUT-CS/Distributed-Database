@@ -233,6 +233,14 @@ public class OrderServiceImpl implements OrderService {
                 o.setParentOrderId(parentOrderId);
                 o.setTripType(i + 1);
                 ordersToInsert.add(o);
+                
+                // 【修复】关联座位与订单ID
+                try {
+                    seatService.associateOrder(req.getUserId(), java.util.Collections.singletonList(seatId), oid);
+                } catch (Exception e) {
+                    log.warn("关联座位订单失败: seatId={} orderId={}", seatId, oid);
+                    // 不阻断下单，后续可修复
+                }
             }
         }
         
@@ -375,10 +383,16 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<OrderSearchResponse> selectSeat(Long orderId, Long seatId) {
+        log.info("=== 收到选座请求 === orderId={} seatId={}", orderId, seatId);
+
         // 1. 基础参数校验
         if (orderId == null || seatId == null) {
+            log.warn("选座参数无效: orderId={} seatId={}", orderId, seatId);
             return Result.fail(400, "参数无效：订单ID或座位ID不能为空");
         }
+        
+        // DEBUG LOG
+        // log.info("Processing selectSeat request: orderId={} seatId={}", orderId, seatId);
 
         // 2. 获取订单信息
         Orders o = orderMapper.selectById(orderId);
@@ -389,6 +403,7 @@ public class OrderServiceImpl implements OrderService {
         // 3. 获取座位信息进行预检查
         Seat seat = seatService.getById(seatId);
         if (seat == null) {
+            log.error("selectSeat failed: Seat not found in DB. seatId={}", seatId);
             return Result.fail(404, "座位不存在");
         }
 
@@ -480,7 +495,16 @@ public class OrderServiceImpl implements OrderService {
      * 检查座位状态 (改进点4: 独立方法)
      */
     private Result<Void> checkSeatStatus(Seat seat, Orders order) {
+        if (seat.getFlightId() == null || order.getFlightId() == null) {
+            log.error("座位或订单缺少航班ID: seatId={} seatFlightId={} orderId={} orderFlightId={}", 
+                      seat.getSeatId(), seat.getFlightId(), order.getOrderId(), order.getFlightId());
+            return Result.fail(500, "数据异常：航班信息缺失");
+        }
+        
+        // 增加日志：打印两者的航班ID，排查是否真的不匹配
         if (!seat.getFlightId().equals(order.getFlightId())) {
+            log.warn("航班ID不匹配: seatId={} seatFlightId={} orderId={} orderFlightId={}", 
+                     seat.getSeatId(), seat.getFlightId(), order.getOrderId(), order.getFlightId());
             return Result.fail(400, "座位所属航班与订单不匹配");
         }
         

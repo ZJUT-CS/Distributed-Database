@@ -1,7 +1,7 @@
 import React from 'react';
 
 export interface SeatData {
-    seatId: number;
+    seatId: string;
     seatNumber: string;
     rowNumber: number;
     columnLetter: string;
@@ -12,8 +12,8 @@ export interface SeatData {
 export interface SeatMapProps {
     seats: SeatData[];
     layout: { rows: number; cols: number };
-    selectedSeatId?: number | null;
-    currentSeatId?: number | null;
+    selectedSeatId?: string | null;
+    currentSeatId?: string | null;
     onSelect?: (seat: SeatData) => void;
     disabled?: boolean;
 }

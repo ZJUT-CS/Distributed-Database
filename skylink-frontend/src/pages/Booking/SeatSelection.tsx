@@ -18,7 +18,7 @@ const SeatSelectionPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [seats, setSeats] = useState<SeatData[]>([]);
     const [layout, setLayout] = useState({ rows: 0, cols: 0 });
-    const [currentSeatId, setCurrentSeatId] = useState<number | null>(null);
+    const [currentSeatId, setCurrentSeatId] = useState<string | null>(null);
     const [selectedSeat, setSelectedSeat] = useState<SeatData | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -55,7 +55,7 @@ const SeatSelectionPage: React.FC = () => {
                 if (orders.length > 0) {
                     const order = orders[0] as any;
                     if (order.seatId) {
-                        setCurrentSeatId(Number(order.seatId));
+                        setCurrentSeatId(String(order.seatId));
                     }
                 }
             } catch (e: any) {
@@ -101,6 +101,7 @@ const SeatSelectionPage: React.FC = () => {
         };
 
         try {
+            // 直接传递字符串 ID，避免 Number 转换导致精度丢失
             await changeSeat(orderNo, selectedSeat.seatId);
             setSuccessMsg(`座位已更换为 ${selectedSeat.seatNumber}`);
             setCurrentSeatId(selectedSeat.seatId);

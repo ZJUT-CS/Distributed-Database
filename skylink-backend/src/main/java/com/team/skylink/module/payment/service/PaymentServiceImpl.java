@@ -295,7 +295,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         // 确认座位 (锁定 -> 已售)
         if (o.getSeatId() != null) {
-            seatService.confirmSeat(o.getSeatId());
+            seatService.confirmSeat(o.getSeatId(), o.getOrderId());
         } else {
             seatService.confirmSeats(o.getOrderId());
         }
@@ -327,10 +327,10 @@ public class PaymentServiceImpl implements PaymentService {
                             .set(Orders::getOrderStatus, 2) // 2=CONFIRMED
                             .set(Orders::getPayTime, payTime);
                     orderMapper.update(null, sibUpdate);
-
+                    
                     // 确认座位
                     if (sib.getSeatId() != null) {
-                        seatService.confirmSeat(sib.getSeatId());
+                        seatService.confirmSeat(sib.getSeatId(), sib.getOrderId());
                     } else {
                         seatService.confirmSeats(sib.getOrderId());
                     }
@@ -378,7 +378,7 @@ public class PaymentServiceImpl implements PaymentService {
         
         // 确认座位 (锁定 -> 已售)
         if (o.getSeatId() != null) {
-            seatService.confirmSeat(o.getSeatId());
+            seatService.confirmSeat(o.getSeatId(), o.getOrderId());
         } else {
             seatService.confirmSeats(o.getOrderId());
         }

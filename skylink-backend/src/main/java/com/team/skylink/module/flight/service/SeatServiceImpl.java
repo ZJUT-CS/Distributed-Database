@@ -232,8 +232,13 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
         if (order.getSeatId() != null && !Objects.equals(order.getSeatId(), newSeatId)) {
             releaseSeat(order.getSeatId());
         }
-        order.setSeatId(newSeatId);
-        orderMapper.updateById(order);
+        
+        // 修复：使用 LambdaUpdateWrapper 仅更新 seatId 和 changeTime，避免更新分片键
+        orderMapper.update(null, Wrappers.<com.team.skylink.module.order.entity.Orders>lambdaUpdate()
+                .eq(com.team.skylink.module.order.entity.Orders::getOrderId, orderId)
+                .set(com.team.skylink.module.order.entity.Orders::getSeatId, newSeatId)
+                .set(com.team.skylink.module.order.entity.Orders::getChangeTime, LocalDateTime.now()));
+                
         return true; 
     }
 
@@ -264,12 +269,14 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean confirmSeat(Long seatId) {
+    public boolean confirmSeat(Long seatId, Long orderId) {
         // 将指定 seatId 的座位从 锁定(3) 改为 已售(2)
+        // 同时确保 orderId 正确
         return update(null, Wrappers.<Seat>lambdaUpdate()
                 .eq(Seat::getSeatId, seatId)
                 .eq(Seat::getStatus, 3)
-                .set(Seat::getStatus, 2));
+                .set(Seat::getStatus, 2)
+                .set(Seat::getOrderId, orderId));
     }
     
 }

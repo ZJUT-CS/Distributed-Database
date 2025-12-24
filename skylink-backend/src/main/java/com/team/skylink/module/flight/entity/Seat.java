@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.Version;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 import net.sf.jsqlparser.expression.operators.relational.Plus;
 
@@ -21,6 +23,7 @@ public class Seat {
      * 座位ID（自增主键）
      */
     @TableId(value = "seat_id", type = IdType.AUTO)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long seatId;
 
     /**
@@ -31,6 +34,7 @@ public class Seat {
      * 加上这个注解后，MyBatis-Plus 生成 Update SQL 时会自动忽略这个字段
      */
     @TableField(updateStrategy = FieldStrategy.NEVER)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long flightId;
 
     /**
@@ -56,8 +60,10 @@ public class Seat {
     /**
      * 占用该座位的订单ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long orderId;
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long userId;
 
 

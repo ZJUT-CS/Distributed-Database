@@ -4,15 +4,15 @@ import { request, ApiError } from '../../../lib/axios';
  * 座位信息
  */
 export interface Seat {
-  seatId: number;
-  flightId: number;
+  seatId: string;
+  flightId: string;
   cabinType: string;
   seatNumber: string;
   rowNumber: number;
   columnLetter: string;
   /** 1=可用, 2=已售, 3=锁定中 */
   status: 1 | 2 | 3;
-  orderId?: number | null;
+  orderId?: string | null;
   version?: number;
 }
 
@@ -54,18 +54,12 @@ export async function getFlightSeats(
     // 防御性处理：确保是数组
     const rawList = Array.isArray(rawSeats) ? rawSeats : [];
 
-    // 转换座位数据，确保 seatId 为有效数字
+    // 转换座位数据，确保 seatId 为有效字符串
     const seatList: Seat[] = rawList.map((s: any) => {
       // seatId 可能是数字、字符串、或 BigInt 表示
-      let seatIdNum: number;
-      if (typeof s.seatId === 'number') {
-        seatIdNum = s.seatId;
-      } else if (typeof s.seatId === 'string') {
-        seatIdNum = parseInt(s.seatId, 10);
-      } else {
-        seatIdNum = 0;
-      }
-
+      // 【修复】统一转为 string，避免精度丢失
+      const seatIdStr = String(s.seatId || '');
+      
       // 解析 status：支持数字或字符串
       let statusVal: 1 | 2 | 3 = 2; // 默认不可用
       const st = s.status;
@@ -80,17 +74,17 @@ export async function getFlightSeats(
       }
 
       return {
-        seatId: seatIdNum,
-        flightId: typeof s.flightId === 'number' ? s.flightId : parseInt(String(s.flightId || '0'), 10),
+        seatId: seatIdStr,
+        flightId: String(s.flightId || ''),
         cabinType: String(s.cabinType || s.classType || ''),
         seatNumber: String(s.seatNumber || ''),
         rowNumber: typeof s.rowNumber === 'number' ? s.rowNumber : parseInt(String(s.rowNumber || '0'), 10),
         columnLetter: String(s.columnLetter || ''),
         status: statusVal,
-        orderId: s.orderId ?? null,
+        orderId: s.orderId ? String(s.orderId) : null,
         version: s.version ?? undefined,
       };
-    }).filter(s => s.seatId > 0);  // 过滤无效 seatId
+    }).filter(s => !!s.seatId && s.seatId !== '0');  // 过滤无效 seatId
 
     if (seatList.length === 0) {
       return {
@@ -145,17 +139,20 @@ export async function getAvailableSeatCount(
  */
 export async function changeSeat(
   orderId: string | number,
-  newSeatId: number
+  newSeatId: number | string
 ): Promise<void> {
   const id = String(orderId ?? '').trim();
   if (!id) throw new Error('缺少 orderId');
-  if (!Number.isFinite(newSeatId) || newSeatId <= 0) {
+  
+  // 移除 Number 转换，避免大整数精度丢失
+  const seatIdStr = String(newSeatId);
+  if (!seatIdStr) {
     throw new Error('newSeatId 无效');
   }
 
   await request({
     method: 'PUT',
     url: `/api/v1/orders/${encodeURIComponent(id)}/seat`,
-    data: { seatId: newSeatId },
+    data: { seatId: seatIdStr },
   });
 }
