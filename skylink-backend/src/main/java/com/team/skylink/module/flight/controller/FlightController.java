@@ -21,6 +21,7 @@ import java.util.List;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.module.flight.entity.Seat;
 import com.team.skylink.module.flight.entity.Flight;
@@ -45,7 +46,8 @@ public class FlightController {
     private final RouteMapper routeMapper;
     private final AircraftCabinConfigMapper configMapper;
 
-    public FlightController(FlightService flightService, SeatMapper seatMapper, FlightMapper flightMapper, RouteMapper routeMapper, AircraftCabinConfigMapper configMapper) {
+    public FlightController(FlightService flightService, SeatMapper seatMapper, FlightMapper flightMapper,
+            RouteMapper routeMapper, AircraftCabinConfigMapper configMapper) {
         this.flightService = flightService;
         this.seatMapper = seatMapper;
         this.flightMapper = flightMapper;
@@ -54,10 +56,7 @@ public class FlightController {
     }
 
     @GetMapping("")
-    @Cacheable(
-        cacheNames = "flightSearch",
-        key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo, #page, #size)"
-    )
+    @Cacheable(cacheNames = "flightSearch", key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo, #page, #size)")
     public Result<FlightSearchResult> search(
             @RequestParam(required = false) String departurePlace,
             @RequestParam(required = false) String destination,
@@ -69,8 +68,7 @@ public class FlightController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime departureTimeFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime departureTimeTo,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size
-    ) {
+            @RequestParam(defaultValue = "20") int size) {
         return flightService.search(
                 departurePlace,
                 destination,
@@ -82,8 +80,7 @@ public class FlightController {
                 departureTimeFrom,
                 departureTimeTo,
                 page,
-                size
-        );
+                size);
     }
 
     @PostMapping("")
@@ -92,14 +89,20 @@ public class FlightController {
     }
 
     @GetMapping("/{flightId}/seats")
-    public Result<List<Map<String, Object>>> listSeats(@PathVariable Long flightId) {
+    public Result<List<Map<String, Object>>> listSeats(
+            @PathVariable Long flightId,
+            @RequestParam(required = false) String cabinType) {
         Flight flight = flightMapper.selectById(flightId);
         if (flight == null) {
             return Result.fail(404, "航班不存在");
         }
         Route route = routeMapper.selectById(flight.getRouteId());
         BigDecimal base = route != null ? route.getBasePrice() : null;
-        var seats = seatMapper.selectList(Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, flightId));
+        var seatQ = Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, flightId);
+        if (cabinType != null && !cabinType.isBlank()) {
+            seatQ.eq(Seat::getCabinType, cabinType);
+        }
+        var seats = seatMapper.selectList(seatQ);
         List<Map<String, Object>> data = new ArrayList<>();
         for (Seat s : seats) {
             AircraftCabinConfig cfg = configMapper.selectOne(new QueryWrapper<AircraftCabinConfig>()
@@ -110,20 +113,55 @@ public class FlightController {
             if (base != null && cfg != null && cfg.getCabinCoefficient() != null) {
                 price = base.multiply(cfg.getCabinCoefficient());
             }
-            String status;
-            if (s.getStatus() != null && s.getStatus() == 1) status = "AVAILABLE";
-            else if (s.getStatus() != null && s.getStatus() == 2) status = "OCCUPIED";
-            else if (s.getStatus() != null && s.getStatus() == 3) status = "RESERVED";
-            else status = "MAINTENANCE";
+            String statusText;
+            if (s.getStatus() != null && s.getStatus() == 1)
+                statusText = "AVAILABLE";
+            else if (s.getStatus() != null && s.getStatus() == 2)
+                statusText = "OCCUPIED";
+            else if (s.getStatus() != null && s.getStatus() == 3)
+                statusText = "RESERVED";
+            else
+                statusText = "MAINTENANCE";
+
+            Integer rowNumber = null;
+            String columnLetter = null;
+            if (s.getSeatNumber() != null) {
+                String sn = s.getSeatNumber().trim();
+                if (!sn.isEmpty()) {
+                    int i = 0;
+                    while (i < sn.length() && Character.isDigit(sn.charAt(i)))
+                        i++;
+                    if (i > 0) {
+                        try {
+                            rowNumber = Integer.parseInt(sn.substring(0, i));
+                        } catch (Exception ignore) {
+                            rowNumber = null;
+                        }
+                    }
+                    if (i < sn.length()) {
+                        columnLetter = sn.substring(i).toUpperCase();
+                    }
+                }
+            }
             Map<String, Object> it = new HashMap<>();
             it.put("seatId", s.getSeatId());
             it.put("seatNumber", s.getSeatNumber());
-            it.put("status", status);
+            // 新口径（与前端选座一致）
+            it.put("flightId", s.getFlightId());
+            it.put("cabinType", s.getCabinType());
+            it.put("rowNumber", rowNumber);
+            it.put("columnLetter", columnLetter);
+            it.put("status", s.getStatus()); // 1=可用,2=已售,3=锁定
+            it.put("orderId", s.getOrderId());
+            it.put("version", s.getVersion());
+
+            // 兼容字段（避免老客户端依赖字符串状态）
+            it.put("statusText", statusText);
             it.put("classType", s.getCabinType());
             it.put("price", price);
             data.add(it);
         }
         return Result.ok(data);
     }
-    
+
 }

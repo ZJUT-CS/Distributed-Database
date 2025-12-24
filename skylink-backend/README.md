@@ -193,7 +193,8 @@ stateDiagram-v2
     ```
 
 **Step 3: 结果处理**
-- **成功**: 返回 `200`，`data` 中包含 `orderNo` (即 Parent Order ID) 和 `orderStatus: 1` (待支付)。
+- **成功**: 返回 `200`，`data` 中包含 `orderNo`（首个子订单的 `orderId`，后续支付/取消/选座等操作均以该值作为路径参数）与 `orderStatus: 1`（待支付）。
+  - 若为联程/多乘客场景：`data.parentOrderId` 会提供联程关联用的 `parent_order_id`。
 - **注意**: 请提示用户在 **1分钟** 内完成支付，否则订单将自动取消。
 - **失败**: 
   - `4001`: 库存不足 (任一段无票即全单失败)。
@@ -218,8 +219,12 @@ stateDiagram-v2
   - Response: 包含直飞 (`directFlights`) 和联程 (`interlineFlights`) 列表。
 - **座位列表**: `GET /api/v1/flights/{flightId}/seats`
   - Path: `flightId`
-  - Response: `200` 返回数组元素包含 `seatId`, `seatNumber`, `status`, `classType`, `price`
-  - 状态映射: `AVAILABLE`(1), `OCCUPIED`(2), `RESERVED`(3), `MAINTENANCE`
+  - Query: `cabinType`（可选，用于过滤舱位）
+  - Response: `200` 返回数组元素包含（核心字段）：
+    - `seatId`, `flightId`, `cabinType`, `seatNumber`
+    - `rowNumber`, `columnLetter`（由 `seatNumber` 解析得到）
+    - `status`：`1=可用, 2=已售, 3=锁定`
+    - 兼容字段：`statusText`（AVAILABLE/OCCUPIED/RESERVED/MAINTENANCE）、`classType`
   - 价格计算: 航线基础价 × 舱位系数
 
 #### 📦 订单 (Orders)
@@ -244,6 +249,7 @@ stateDiagram-v2
     ```json
     { "seatId": 12345 }
     ```
+    > 兼容：也接受 `{ "newSeatId": 12345 }`（历史口径）
   - Response: `200` 返回更新后的 `OrderSearchResponse`
   - 规则:
     - 仅可选择 `AVAILABLE` 座位

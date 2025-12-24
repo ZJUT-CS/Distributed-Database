@@ -27,8 +27,8 @@ export async function applyRefundChange(body: {
   newFlightNo?: string;
   newCabinType?: string;
 }): Promise<number> {
-  const orderNo = String(body.orderNo ?? '').trim();
-  if (!orderNo) throw new Error('缺少 orderNo');
+  const orderNoStr = String(body.orderNo ?? '').trim();
+  if (!orderNoStr) throw new Error('缺少 orderNo');
 
   if (body.operType !== 1 && body.operType !== 2) throw new Error('operType 无效');
 
@@ -38,11 +38,13 @@ export async function applyRefundChange(body: {
     }
   }
 
+  // 使用字符串形式发送 orderNo，后端 Jackson 会正确解析为 Long
+  // 避免 JavaScript Number 类型对雪花ID的精度丢失
   return request<number>({
     method: 'POST',
     url: '/api/v1/refund-change-requests',
     data: {
-      orderNo: Number(orderNo),
+      orderNo: orderNoStr,  // 保持字符串形式
       operType: body.operType,
       remark: body.remark,
       newFlightNo: body.newFlightNo,

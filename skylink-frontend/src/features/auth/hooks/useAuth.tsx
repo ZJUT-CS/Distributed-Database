@@ -26,7 +26,7 @@ const parseStoredUser = (): { user: User | null; token: string | null } => {
   try {
     const token = localStorage.getItem(TOKEN_KEY);
     const userRaw = localStorage.getItem(USER_KEY);
-    
+
     if (!token || !userRaw) {
       return { user: null, token: null };
     }
@@ -105,10 +105,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const { user: storedUser, token: storedToken } = parseStoredUser();
-    setUser(storedUser);
-    setToken(storedToken);
-  }, []);
+    try {
+      // 从服务端获取最新用户信息，而非仅读取 localStorage
+      const { getMyProfile } = await import('../api/auth');
+      const profile = await getMyProfile();
+
+      if (profile) {
+        const updatedUser: User = {
+          id: profile.userId,
+          username: user?.username || '',  // 保留原值或使用空字符串
+          email: profile.email ?? undefined,
+          phoneNumber: profile.phoneNumber ?? undefined,
+          role: user?.role || 'user',  // 保留原值或默认 user
+          adminRole: user?.adminRole,
+          createdAt: profile.createTime ?? user?.createdAt,
+          // 实名认证关键字段
+          realName: profile.realName ?? undefined,
+          idCard: profile.idCard ?? undefined,
+          gender: profile.gender as 0 | 1 | 2 | undefined,
+        };
+
+        setUser(updatedUser);
+        localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error('Failed to refresh user from server, falling back to localStorage', error);
+      // 降级：从 localStorage 读取
+      const { user: storedUser, token: storedToken } = parseStoredUser();
+      setUser(storedUser);
+      setToken(storedToken);
+    }
+  }, [user?.username, user?.role, user?.adminRole, user?.createdAt]);
 
   const value: AuthContextType = {
     user,

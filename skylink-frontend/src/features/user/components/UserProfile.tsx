@@ -1,6 +1,7 @@
 import React from 'react';
 import type { User } from '../../auth/types';
 import { ArrowLeft, Mail, Shield, User as UserIcon, CreditCard, CalendarDays, ShieldCheck } from 'lucide-react';
+import { isUserVerified } from '@/utils/userVerification';
 
 interface UserProfileProps {
   user: User;
@@ -19,7 +20,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onBack, mode = 'page' }
   const colors = ['bg-blue-500', 'bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-sky-500'];
   const avatarColor = colors[seed % colors.length];
 
-  const isVerified = !!user.realName && !!user.idCard;
+  // 使用统一的严格校验标准
+  const isVerified = isUserVerified(user);
 
   const formatMaskedIdCard = (id?: string) => {
     if (!id) return '未实名认证';

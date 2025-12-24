@@ -1,196 +1,93 @@
-# SkyLink 项目深度分析与改进建议（以源码为准，更新：2025-12-24）
+# SkyLink 项目深度分析与改进建议
 
-> 本文定位：为“研发 / 联调 / 验收”提供一份可落地的现状盘点与改进清单。
->
-> 口径：本文的“完成度”以 **可联调闭环** 为准（后端路由存在 + 前端调用成功 + 状态回写可验证），而不是“页面/文件存在”。
-
----
-
-## 0. 证据来源与优先级
-
-当不同材料出现冲突时，按以下优先级决策：
-
-1. **源码实现**（Controller 路由、DTO、服务逻辑）
-2. **API 审计文档**：[API_AUDIT_REPORT.md](API_AUDIT_REPORT.md)
-3. **综合落地报告**：[SKYLINK_OPTIMIZATION_REPORT_2025-12-24.md](SKYLINK_OPTIMIZATION_REPORT_2025-12-24.md)
-4. 其余 README / 说明文档
-
-配套参考：
-
-- 端口与环境：[PORT_CONFIGURATION.md](PORT_CONFIGURATION.md)
-- 项目说明：[README.md](README.md)
+> 最后更新：2025-12-24
+> 
+> 本文定位：项目技术文档与接口契约说明。
 
 ---
 
-## 1. 项目概览（当前代码态）
+## 项目概览
 
-### 1.1 技术栈（以依赖文件为准）
+### 技术栈
 
-- 后端：Spring Boot 4.0.0（Java 21）+ Spring Web/Security/Validation + Spring Cache + Caffeine + MyBatis-Plus（Boot4 Starter）+ SpringDoc OpenAPI
-- 数据：MySQL + ShardingSphere Proxy
-- 前端：React 18.2 + TypeScript + Vite 5 + React Router 7 + TanStack Query v5 + Axios + TailwindCSS
+| 层级 | 技术 |
+|------|------|
+| 前端 | React 18.2 + TypeScript + Vite 5 + TanStack Query v5 |
+| 后端 | Spring Boot 4.0.0 + Java 21 + MyBatis-Plus |
+| 数据 | MySQL + ShardingSphere Proxy |
 
-### 1.2 业务闭环目标
+### 业务闭环
 
-- 用户端：搜索航班 → 选择方案（直飞/联程）→ 下单/预订 → 支付确认 → 订单列表/详情 → 退改签申请/撤销
-- 管理端：航班/机型/舱位/配置管理 → 订单审核 → 支付记录查询 → 系统日志/审计
-
----
-
-## 2. 当前完成度快照（按“闭环”口径）
-
-### 2.1 已具备可验收闭环（主链路可跑通）
-
-- 航班搜索与结果展示：`GET /api/v1/flights`（包含直飞与联程方案的展示与选择）
-- 单程下单与支付：`POST /api/v1/orders` → 支付确认（token + confirm）→ 订单列表/详情展示
-- 售后（退改签）：`/api/v1/refund-change-requests` 相关链路
-- 管理后台：页面覆盖面较全，且具备通用导出工具（CSV）支持
-
-### 2.2 关键未闭环项（决定“项目是否完成”的阻塞点）
-
-1) **联程下单未闭环**
-
-- 现状：前端可以选择联程方案，但下单仍以“单航班语义”的 `POST /api/v1/orders` 为主。
-- 影响：联程 split-join 的“提交/生成订单/展示/支付”无法按联程语义验收。
-- 线索：后端已存在 `POST /api/v1/bookings`（预订/联程入口），前端尚未接入。
-
-2) **在线选座/换座无法联调闭环（后端缺路由）**
-
-- 现状：前端已有用户侧选座页面与交互实现（例如 `skylink-frontend/src/pages/Booking/SeatSelection.tsx`）。
-- 影响：即使 UI 完成，也无法在真实环境验收“拉座位图/换座成功/并发冲突提示”。
-- 原因：前端期望的 seats 查询与换座接口后端当前缺少对应 Controller 路由（需要后端补齐或前端临时降级隐藏入口）。
-
-3) **管理端审计/敏感操作日志的数据源未统一**
-
-- 现状：部分审计能力存在 TODO 或本地临时存储的实现痕迹。
-- 影响：无法作为可信的运营/合规/排障依据。
+- **用户端**: 搜索 → 选择 → 下单 → 支付 → 订单管理 → 退改签
+- **管理端**: 航班/机型/舱位/配置管理 + 订单审核 + 支付记录 + 系统日志
 
 ---
 
-## 3. 关键缺口与改进建议（按优先级）
+## 接口契约
 
-### P0：契约与口径统一（先做，否则“做完也不稳定”）
+### 响应结构
 
-1) **统一成功/失败语义**
+```json
+{
+  "code": 0,      // 0 = 成功
+  "msg": "...",   // 消息
+  "data": { }     // 数据
+}
+```
 
-- 统一响应结构：`code/msg/data`，以 `code=0` 为成功。
-- 建议明确错误可恢复性（前端可用来判断是否可重试）：
-  - 400：参数问题（不可重试）
-  - 401/403：鉴权/权限（不可重试）
-  - 409：业务冲突（可重试，例如并发换座/重复提交）
-  - 5xx：系统异常（可重试但需要限流）
+### 核心接口
 
-2) **支付窗口的单一来源**
+| 功能 | 方法 | 路径 |
+|------|------|------|
+| 航班搜索 | GET | /api/v1/flights |
+| 单程下单 | POST | /api/v1/orders |
+| 联程下单 | POST | /api/v1/bookings |
+| 座位查询 | GET | /api/v1/flights/by-flight-no/{flightNo}/seats |
+| 换座 | PUT | /api/v1/orders/{orderId}/seat |
+| 支付令牌 | POST | /api/v1/payments/confirmation-tokens |
+| 确认支付 | POST | /api/v1/payments/confirmations |
 
-- 后端超时取消逻辑、后端返回信息、前端倒计时展示必须完全一致。
-- 建议把“支付窗口”固定为单一来源（后端配置/系统配置项），前端只读展示，避免散落硬编码。
+### 状态枚举
 
-验收标准：
+**订单状态 (orderStatus)**
+- `1` 待支付
+- `2` 已支付
+- `4` 改签处理中
+- `5` 已退票
+- `6` 已取消
 
-- 文档口径与代码口径一致（不再出现“1 分钟/2 分钟/30 分钟”混用）
-- 前端倒计时结束后，能刷新订单状态并禁止继续支付
-
----
-
-### P1：联程下单闭环（最高优先级功能缺口）
-
-目标：让“联程方案”不仅能看/能选，还能真正提交并可验收。
-
-建议做法（最小改动路径）：
-
-- 前端新增并接入 `POST /api/v1/bookings`：当用户选择多段行程时，走 bookings 提交；单段仍走 `POST /api/v1/orders`。
-- 前端“我的订单/订单详情”增加联程聚合展示（按 `parentOrderId` 或后端返回的聚合标识），能清晰呈现每段航班信息。
-
-验收标准：
-
-- 联程方案下单成功后，订单详情可分段展示每一程信息
-- 联程订单支付可完成（支付对象/父子订单语义明确且一致）
-- 重复点击提交不会生成重复订单（幂等与错误语义可观测）
-
----
-
-### P2：在线选座/换座闭环（依赖后端补齐接口）
-
-现状：前端页面已存在，但后端缺少可联调的 seats/换座 Controller 路由。
-
-建议：先固化契约，再实现后端接口。
-
-建议契约草案（最终以 [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md) 固化为准）：
-
-| 功能 | Method/Path | Request | Response（建议） |
-|---|---|---|---|
-| 查询座位列表 | `GET /api/v1/flights/{flightId}/seats` | `cabinType?` | `{ seats: Seat[] }` |
-| 查询可用座位数（可选） | `GET /api/v1/flights/{flightId}/seats/available-count` | `cabinType` | `{ count: number }` |
-| 支付后换座 | `PUT /api/v1/orders/{orderId}/seat` | `{ newSeatId }` | `{ success: true }` |
-
-Seat 建议字段：`seatId/seatNumber/rowNumber/columnLetter/status/cabinType?`
-
-验收标准：
-
-- 已支付订单进入选座页能获取座位状态并展示
-- 换座成功后订单信息回写可见
-- 并发冲突返回 409，前端提示“该座位已被占用，可重试”
-
-兜底策略：
-
-- 若后端短期无法提供接口，前端应将入口置为“不可用/隐藏”，避免用户走到死路。
+**支付状态 (paymentStatus)**
+- `0` 待支付
+- `1` 已支付
+- `2` 支付失败
+- `3` 退款中
+- `4` 已退款
 
 ---
 
-### P3：管理端审计与运营能力补齐
+## 配置项
 
-建议：
-
-- 明确“审计日志”的权威数据源为后端（复用系统日志接口或新增审计 API）。
-- 列表查询默认分页；导出优先导出“当前筛选结果/当前页”。若需全量导出，建议后端异步任务或流式导出。
-
-验收标准：
-
-- 管理端日志可按时间/类型检索，且不会一次性拉全量导致卡顿
-- 导出具备 loading 与错误提示，不阻塞页面
+| 配置 | 位置 | 值 |
+|------|------|-----|
+| 支付超时 | constants.ts | 1 分钟 |
+| API 端口 | PORT_CONFIGURATION.md | 9999 |
+| 前端开发端口 | vite.config.ts | 5173 |
 
 ---
 
-## 4. 执行计划（与综合报告保持一致）
+## 证据来源
 
-本文件只保留“简版路线图”，避免与综合报告重复维护。
+优先级（当材料冲突时）：
 
-详细计划与交付物：
-
-- [SKYLINK_OPTIMIZATION_REPORT_2025-12-24.md](SKYLINK_OPTIMIZATION_REPORT_2025-12-24.md)
-
-简版 Milestone：
-
-1) Milestone 0：契约/口径统一（`code` 语义、支付窗口、端口与环境说明）
-2) Milestone 1：联程下单闭环（接入 `/api/v1/bookings` + 订单聚合展示 + 支付验证）
-3) Milestone 2：在线选座闭环（后端补齐 seats/换座接口 + 前端联调验收；或临时禁用入口）
-4) Milestone 3：管理端收尾（审计日志接后端 + 导出策略统一）
-5) Milestone 4：回归与验收（最小自动化 + 手工验收清单）
+1. 源码实现
+2. API_AUDIT_REPORT.md
+3. 本文档
+4. 其他 README
 
 ---
 
-## 5. 工程化建议（不改变业务语义，可选）
+## 参考文档
 
-1) **巨型组件拆分**
-
-- 将过大的页面拆分为：UI 组件 + 业务 hooks + API/类型层，降低耦合与回归成本。
-
-2) **表单校验收敛**
-
-- 可选引入 Zod 统一校验规则（身份证/手机号等），减少多处手写正则的漂移风险。
-
-3) **日期/时区处理统一**
-
-- 建议使用 date-fns 等库处理日期比较与加减，避免字符串比较/时区边界问题。
-
-4) **错误上报脱敏**
-
-- 对 phone/passport 等敏感字段做脱敏后再上报日志或错误追踪，避免泄露。
-
----
-
-## 6. 待核查清单（避免“文档猜测”）
-
-- 是否同时存在 OpenApiConfig 与 SwaggerConfig（如存在，需明确保留一个，避免文档与 Bean 口径漂移）
-- seats/换座相关 Controller 路由的最终归属与命名（Flight/Order/Seat 模块）
-- 联程下单 `/api/v1/bookings` 的返回结构（父/子订单关系字段）与前端展示映射
+- [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md) - API 审计
+- [PORT_CONFIGURATION.md](PORT_CONFIGURATION.md) - 端口配置
+- [README.md](README.md) - 项目说明

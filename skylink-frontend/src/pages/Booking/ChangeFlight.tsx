@@ -209,31 +209,50 @@ const ChangeFlightPage: React.FC = () => {
     setFlightError(null);
     setSelectedFlight(null);
     try {
-      const data = await request<
-        Array<{
-          flightNo: string;
-          departurePlace: string;
-          destination: string;
-          departureTime: string;
-          arrivalTime: string;
-          duration: string;
-          price?: number;
-          remainingSeats?: number;
-          airlineCompany?: string;
-          cabinType?: string;
-        }>
-      >({
+      // 后端接口：GET /api/v1/flights
+      const data = await request<{
+        directFlights?: {
+          total: number;
+          data: Array<{
+            flightNo: string;
+            departurePlace: string;
+            destination: string;
+            departureTime: string;
+            arrivalTime: string;
+            duration: string;
+            price?: number;
+            remainingSeats?: number;
+            airlineCompany?: string;
+            cabinType?: string;
+          }>;
+        };
+        interlineFlights?: Array<{
+          segments: Array<{
+            flightNo: string;
+            departurePlace: string;
+            destination: string;
+            departureTime: string;
+            arrivalTime: string;
+            duration: string;
+            price?: number;
+          }>;
+          totalPrice?: number;
+        }>;
+      }>({
         method: 'GET',
-        url: '/flights/search',
+        url: '/api/v1/flights',
         params: {
           departurePlace: o,
           destination: d,
           departureDate: dt,
-          cabinType,
+          page: '1',
+          size: '50',
         },
       });
 
-      const mapped: Flight[] = (data || []).map((r) => ({
+      // 处理直飞航班
+      const directFlights = data?.directFlights?.data ?? [];
+      const mappedDirect: Flight[] = directFlights.map((r) => ({
         id: r.flightNo || `${r.departurePlace}-${r.destination}-${r.departureTime}`,
         airline: r.airlineCompany || '',
         airlineCode: (r.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
@@ -251,9 +270,41 @@ const ChangeFlightPage: React.FC = () => {
         amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
       }));
 
-      const valid = mapped.filter((f) => f.flightNumber && f.departureTime);
+      // 处理联程航班
+      const interlineFlights = data?.interlineFlights ?? [];
+      const mappedInterline: Flight[] = interlineFlights.map((it) => {
+        const segs = it.segments ?? [];
+        const first = segs[0];
+        const last = segs[segs.length - 1];
+        const id = segs.map((s) => s.flightNo).filter(Boolean).join('+') || `interline-${Date.now()}`;
+        return {
+          id,
+          airline: '',
+          airlineCode: (first?.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
+          flightNumber: id,
+          cabinType: undefined,
+          origin: first?.departurePlace || o,
+          destination: last?.destination || d,
+          departureTime: first?.departureTime || '',
+          arrivalTime: last?.arrivalTime || '',
+          price: Number(it.totalPrice ?? 0),
+          remainingSeats: undefined,
+          duration: '',
+          stops: Math.max(0, segs.length - 1),
+          baggageWeight: 23,
+          amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+        };
+      });
+
+      const allFlights = [...mappedDirect, ...mappedInterline];
+      const valid = allFlights.filter((f) => f.flightNumber && f.departureTime);
       setFlights(valid);
-      setStep(2);
+
+      if (valid.length === 0) {
+        setFlightError('未找到符合条件的航班，请尝试更换日期或目的地');
+      } else {
+        setStep(2);
+      }
     } catch (e: any) {
       setFlights([]);
       setFlightError(e?.message || '加载航班失败');

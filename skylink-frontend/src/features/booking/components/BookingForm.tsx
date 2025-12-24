@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { Flight } from '../../flight/types';
 import type { BookingDetails } from '../types';
@@ -25,9 +25,17 @@ const cabinMeta = (c: 'economy' | 'business' | 'first') => {
 };
 
 const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabinClass, onConfirm, onCancel }) => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 关键修复：进入下单页时，立即从服务端获取最新用户数据
+  // 确保即使用户刚在另一个页面修改了实名信息，这里也能拿到最新数据
+  useEffect(() => {
+    if (localStorage.getItem('skylink_token')) {
+      refreshUser();
+    }
+  }, [refreshUser]);
 
   const {
     state,
@@ -348,11 +356,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                   <button
                     onClick={handleNextStep}
                     aria-disabled={validation.hasErrors}
-                    className={`text-white px-8 py-3.5 rounded-2xl font-extrabold shadow-xl flex items-center gap-2 transition-all transform hover:-translate-y-1 active:scale-95 ${
-                      validation.hasErrors
+                    className={`text-white px-8 py-3.5 rounded-2xl font-extrabold shadow-xl flex items-center gap-2 transition-all transform hover:-translate-y-1 active:scale-95 ${validation.hasErrors
                         ? 'bg-gray-300 shadow-none hover:-translate-y-0 cursor-pointer'
                         : 'bg-sky-600 hover:bg-sky-700 shadow-sky-500/30'
-                    }`}
+                      }`}
                   >
                     下一步：支付订单 <ChevronRight className="w-4 h-4" />
                   </button>

@@ -50,6 +50,11 @@ npm run dev
 
 - [../API_AUDIT_REPORT.md](../API_AUDIT_REPORT.md)
 
+### 关键联调约定（避免口径漂移）
+
+- 订单列表/查询：后端 `GET /api/v1/orders` 返回分页结构 `data.total + data.data[]`；前端已在请求封装层做了解包，业务侧按数组使用即可。
+- 在线选座：依赖 `GET /api/v1/flights/{flightId}/seats` 返回 `seatId/seatNumber/rowNumber/columnLetter/status(1|2|3)`；换座使用 `PUT /api/v1/orders/{orderId}/seat`，请求体为 `{ "seatId": number }`。
+
 ### 环境变量
 
 - `VITE_API_URL`：后端 API 基地址（默认 `http://localhost:9999`）

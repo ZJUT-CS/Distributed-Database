@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Flight } from '../../flight/types';
 import type { BookingDetails, PassengerInfo } from '../types';
 import { usePassengerValidation } from './usePassengerValidation';
+import { isUserVerified } from '@/utils/userVerification';
 
 const BOOKING_DRAFT_KEY = 'skylink_booking_form_draft';
 
@@ -141,7 +142,8 @@ export const useBookingLogic = (
 
   const passengerValidation = usePassengerValidation(passengers);
 
-  const canUseSelfFill = !!user?.realName && !!user?.idCard && passengerValidation.isIdCardValid(user.idCard);
+  // 使用统一的严格校验标准判断用户是否可以一键填充
+  const canUseSelfFill = isUserVerified(user);
 
   const updatePassenger = useCallback((index: number, patch: Partial<PassengerInfo>) => {
     setPassengers((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));

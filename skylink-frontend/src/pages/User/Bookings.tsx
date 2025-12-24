@@ -41,10 +41,14 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
   const id = String(o.orderNo);
   const passengers = parsePassengersJson(o.passengersJson) ?? loadOrderPassengers(id) ?? [];
 
+  // 使用 flightId（数据库主键）作为航班 ID，用于座位查询等需要主键的操作
+  // flightNo 是航班号字符串，仅用于显示
+  const dbFlightId = o.flightId || '';
+
   return {
     id,
     flight: {
-      id: o.flightNo || '',
+      id: dbFlightId,  // 数据库主键，用于 API 调用
       airline: '',
       airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
       flightNumber: o.flightNo || '',
@@ -61,7 +65,7 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
       amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
     },
     flights: [{
-      id: o.flightNo || '',
+      id: dbFlightId,  // 数据库主键
       airline: '',
       airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
       flightNumber: o.flightNo || '',
@@ -120,7 +124,7 @@ const BookingsPage: React.FC = () => {
     setLoading(true);
     setError(null);
     searchOrders({ userId: user.id })
-      .then((res) => setBookings(res.map(mapOrderToBooking)))
+      .then((res) => setBookings(Array.isArray(res) ? res.map(mapOrderToBooking) : []))
       .catch((e: any) => setError(e?.message || '加载订单失败'))
       .finally(() => setLoading(false));
   }, [user]);
@@ -130,7 +134,7 @@ const BookingsPage: React.FC = () => {
     setLoading(true);
     setError(null);
     searchOrders({ userId: user.id })
-      .then((res) => setBookings(res.map(mapOrderToBooking)))
+      .then((res) => setBookings(Array.isArray(res) ? res.map(mapOrderToBooking) : []))
       .catch((e: any) => setError(e?.message || '刷新订单失败'))
       .finally(() => setLoading(false));
   };

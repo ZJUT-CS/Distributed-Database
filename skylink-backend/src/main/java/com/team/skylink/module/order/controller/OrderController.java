@@ -65,6 +65,9 @@ public class OrderController {
     @PutMapping("/{orderId}/seat")
     public Result<OrderSearchResponse> selectSeat(@PathVariable("orderId") Long orderId, @RequestBody Map<String, Object> body) {
         Object sid = body != null ? body.get("seatId") : null;
+        if (sid == null) {
+            sid = body != null ? body.get("newSeatId") : null;
+        }
         Long seatId = sid instanceof Number ? ((Number) sid).longValue() : sid != null ? Long.valueOf(String.valueOf(sid)) : null;
         return orderService.selectSeat(orderId, seatId);
     }

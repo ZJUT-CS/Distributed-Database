@@ -10,6 +10,16 @@ import java.time.LocalDateTime;
 @Data
 public class OrderSearchResponse {
     private String orderNo;
+
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long parentOrderId;
+
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long flightId;
+
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long seatId;
+
     private String flightNo;
     private String passengerName;
     private String contactEmail;
