@@ -1,6 +1,7 @@
 package com.team.skylink.module.payment.service;
 
 import com.team.skylink.common.Result;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.module.payment.dto.ConfirmPaymentRequest;
 import com.team.skylink.module.payment.dto.CreatePaymentRequest;
 import com.team.skylink.module.payment.dto.CreatePaymentTokenRequest;
@@ -11,13 +12,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PaymentService {
-    Result<List<PaymentSearchResponse>> search(
+    Result<PageResult<PaymentSearchResponse>> search(
             Long orderNo,
             Long userId,
             Integer paymentStatus,
             String paymentMethod,
             LocalDateTime paymentTimeStart,
-            LocalDateTime paymentTimeEnd
+            LocalDateTime paymentTimeEnd,
+            int page,
+            int size
     );
 
     Result<CreatePaymentTokenResponse> createConfirmToken(CreatePaymentTokenRequest req);

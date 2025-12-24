@@ -27,7 +27,7 @@ public class AdminOrderController {
     public Result<PageResult<AdminOrderItem>> list(
             HttpServletRequest request,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "20") Integer size,
             @RequestParam(required = false) Long orderNo,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Integer orderStatus,

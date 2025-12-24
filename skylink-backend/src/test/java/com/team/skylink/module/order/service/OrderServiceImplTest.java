@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.common.Result;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.common.exception.InventoryShortageException;
 import com.team.skylink.module.aircraft.entity.AircraftCabinConfig;
 import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper;
@@ -291,10 +292,10 @@ class OrderServiceImplTest {
     @Test
     void testSearch_flightNoNotFound_returnsEmptyList() {
         when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(null);
-        Result<List<OrderSearchResponse>> result = orderService.search(null, null, null, null, null, "NOPE", null);
+        Result<PageResult<OrderSearchResponse>> result = orderService.search(null, null, null, null, null, "NOPE", null, 1, 20);
         assertEquals(0, result.getCode());
         assertNotNull(result.getData());
-        assertTrue(result.getData().isEmpty());
+        assertTrue(result.getData().getData().isEmpty());
     }
 
     @Test
@@ -321,11 +322,11 @@ class OrderServiceImplTest {
         u.setRealName("Real Name");
         when(userMapper.selectById(10L)).thenReturn(u);
 
-        Result<List<OrderSearchResponse>> result = orderService.search(10L, null, null, null, null, null, null);
+        Result<PageResult<OrderSearchResponse>> result = orderService.search(10L, null, null, null, null, null, null, 1, 20);
         assertEquals(0, result.getCode());
-        assertEquals(1, result.getData().size());
-        assertEquals("Real Name", result.getData().get(0).getPassengerName());
-        assertEquals("FL001", result.getData().get(0).getFlightNo());
+        assertEquals(1, result.getData().getData().size());
+        assertEquals("Real Name", result.getData().getData().get(0).getPassengerName());
+        assertEquals("FL001", result.getData().getData().get(0).getFlightNo());
     }
 
     @Test

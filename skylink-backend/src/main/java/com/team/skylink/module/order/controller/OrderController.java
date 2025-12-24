@@ -1,6 +1,7 @@
 package com.team.skylink.module.order.controller;
 
 import com.team.skylink.common.Result;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.module.order.dto.OrderSearchResponse;
 import com.team.skylink.module.order.dto.CreateOrderRequest;
 import com.team.skylink.module.order.service.OrderService;
@@ -28,16 +29,18 @@ public class OrderController {
     }
 
     @GetMapping("")
-    public Result<List<OrderSearchResponse>> search(
+    public Result<PageResult<OrderSearchResponse>> search(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long orderNo,
             @RequestParam(required = false) Integer orderStatus,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createTimeStart,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createTimeEnd,
             @RequestParam(required = false) String flightNo,
-            @RequestParam(required = false) String cabinType
+            @RequestParam(required = false) String cabinType,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
-        return orderService.search(userId, orderNo, orderStatus, createTimeStart, createTimeEnd, flightNo, cabinType);
+        return orderService.search(userId, orderNo, orderStatus, createTimeStart, createTimeEnd, flightNo, cabinType, page, size);
     }
 
     @GetMapping("/my")

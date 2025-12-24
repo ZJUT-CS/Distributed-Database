@@ -3,7 +3,7 @@
 ## 📝 更新日志 (Changelog)
 - 2025-12-23
   - 订单状态机重构：移除“创建审核”环节，下单即“待支付(1)”。
-  - 支付策略调整：支付窗口缩短为 **2分钟**，超时自动取消(6)并释放座位。
+  - 支付策略调整：支付窗口缩短为 **1分钟**，超时自动取消(6)并释放座位。
   - 接口治理：合并审核接口，仅保留管理端 `/api/v1/admins/orders/{orderId}/audits` 用于退改签审核。
   - 异常提示优化：全面替换技术性报错为用户友好的中文提示。
   - 订单创建：切换至 Mode B“下单即隐式锁座，支付后可选座”
@@ -104,7 +104,7 @@ stateDiagram-v2
     
     state "联程订单状态联动" as Link {
         PendingPayment --> Paid: 支付成功 (ParentID关联所有子单)
-        PendingPayment --> Cancelled: 超时未支付(2min)/用户取消 (Status=6)
+        PendingPayment --> Cancelled: 超时未支付(1min)/用户取消 (Status=6)
         Paid --> Refunded: 全额退款 (触发级联退票)
     }
     
@@ -127,11 +127,27 @@ stateDiagram-v2
 所有接口均返回统一的 JSON 结构：
 ```json
 {
-  "code": 200,      // 200: 成功, 非200: 业务异常
-  "msg": "success", // 提示信息
-  "data": { ... }   // 业务数据
+  "code": 0,
+  "msg": "success",
+  "data": { ... }
 }
 ```
+
+### 1.1 分页响应规范
+- 列表类接口统一返回 `PageResult`：
+```json
+{
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "total": 123,     // 总记录数
+    "data": [ ... ]   // 当前页数据数组
+  }
+}
+```
+- 通用分页参数：`page` (默认 1), `size` (默认 20，最大建议 100)。
+  - 页码从 1 开始；后端使用 `offset = (page - 1) * size` 做物理分页。
+  - 异常返回时 `code != 0`，`msg` 为具体错误信息（如 404 订单不存在、409 状态冲突等）。
 
 ### 2. 认证鉴权 (Headers)
 
@@ -177,7 +193,7 @@ stateDiagram-v2
 
 **Step 3: 结果处理**
 - **成功**: 返回 `200`，`data` 中包含 `orderNo` (即 Parent Order ID) 和 `orderStatus: 1` (待支付)。
-- **注意**: 请提示用户在 **2分钟** 内完成支付，否则订单将自动取消。
+- **注意**: 请提示用户在 **1分钟** 内完成支付，否则订单将自动取消。
 - **失败**: 
   - `4001`: 库存不足 (任一段无票即全单失败)。
   - `4002`: 中转时间非法 (后端二次校验)。
@@ -197,6 +213,7 @@ stateDiagram-v2
 #### ✈️ 航班 (Flights)
 - **搜索航班**: `GET /api/v1/flights`
   - Params: `departurePlace`, `destination`, `departureDate`
+  - 分页: `page` (默认1), `size` (默认20)
   - Response: 包含直飞 (`directFlights`) 和联程 (`interlineFlights`) 列表。
 
 #### 📦 订单 (Orders)
@@ -212,10 +229,106 @@ stateDiagram-v2
       "contactPhone": "13800138000"
     }
     ```
+- **查询订单**: `GET /api/v1/orders`
+  - Params: `userId`, `orderNo`, `orderStatus`, `createTimeStart`, `createTimeEnd`, `flightNo`, `cabinType`, `page`(默认1), `size`(默认20)
+  - Response: `PageResult<OrderSearchResponse>`
 - **我的订单**: `GET /api/v1/orders/my`
   - Params: `userId` (固定用户ID，例如 `${user_id}`)
   - 规则：仅返回有效订单（状态不为 0，且未被自动清理），按 `orderTime` 降序
   - 返回字段：与 `OrderSearchResponse` 一致，包含 `orderNo`、`flightNo`、`passengerName`、`contactEmail`、`contactPhone`、`passengersJson`、`orderStatus`、`totalAmount`、`orderTime`、`payTime`、`refundTime`、`changeTime`、`origin`、`destination`、`departureTime`、`arrivalTime`
+
+#### 💳 支付 (Payments)
+- **查询支付记录**: `GET /api/v1/payments`
+  - Params: `orderNo`, `userId`, `paymentStatus`, `paymentMethod`, `paymentTimeStart`, `paymentTimeEnd`, `page`(默认1), `size`(默认20)
+  - Response: `PageResult<PaymentSearchResponse>`
+  - 说明：当传入 `userId` 时，将按该用户的订单进行关联查询
+
+### 3. 前端分页对接示例
+
+#### 3.1 订单列表（按用户ID筛选）
+请求示例：
+```http
+GET /api/v1/orders?userId=1001&page=1&size=20
+Authorization: Bearer <token>
+```
+响应示例：
+```json
+{
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "total": 57,
+    "data": [
+      {
+        "orderNo": "123456789012345678",
+        "flightNo": "MU5588",
+        "passengerName": "Alice",
+        "contactEmail": "alice@example.com",
+        "contactPhone": "13900000000",
+        "orderStatus": 1,
+        "totalAmount": 1999.00,
+        "orderTime": "2025-12-24T10:01:00",
+        "payTime": null,
+        "refundTime": null,
+        "changeTime": null,
+        "origin": "Beijing",
+        "destination": "Shanghai",
+        "departureTime": "2025-12-25T08:30:00",
+        "arrivalTime": "2025-12-25T10:45:00"
+      }
+    ]
+  }
+}
+```
+前端处理要点：
+- 读取 `data.total` 计算总页数：`const totalPages = Math.ceil(total / size)`
+- 列表数据为 `data.data`，非顶层数组
+- 页码从 1 开始；切页时传递 `page` 与 `size`
+
+#### 3.2 支付记录列表（按订单号筛选）
+请求示例：
+```http
+GET /api/v1/payments?orderNo=123456789012345678&page=2&size=20
+Authorization: Bearer <token>
+```
+响应示例：
+```json
+{
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "total": 3,
+    "data": [
+      {
+        "paymentId": "8888888888",
+        "orderNo": "123456789012345678",
+        "paymentAmount": 1999.00,
+        "paymentMethod": "ALIPAY",
+        "paymentStatus": 1,
+        "tradeNo": "TRADE-2025-xxxx",
+        "paymentTime": "2025-12-24T10:05:00",
+        "refundTime": null
+      }
+    ]
+  }
+}
+```
+
+#### 3.3 前端分页伪代码
+```ts
+async function fetchOrders({ page = 1, size = 20, filters }) {
+  const qs = new URLSearchParams({ page: String(page), size: String(size), ...filters });
+  const res = await fetch(`/api/v1/orders?${qs.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+  const json = await res.json();
+  if (json.code !== 0) throw new Error(json.msg);
+  return {
+    items: json.data.data,
+    total: json.data.total,
+    page,
+    size
+  };
+}
+```
 
 ### 2. 管理后台接口 (Admin APIs)
 > **Base Path**: `/api/v1/admins`

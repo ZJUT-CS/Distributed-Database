@@ -3,6 +3,7 @@ package com.team.skylink.module.payment.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.team.skylink.common.Result;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.common.enums.OrderStatusEnum;
 import com.team.skylink.module.flight.service.SeatService;
 import com.team.skylink.module.order.entity.Orders;
@@ -57,13 +58,15 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public Result<List<PaymentSearchResponse>> search(
+    public Result<PageResult<PaymentSearchResponse>> search(
             Long orderNo,
             Long userId,
             Integer paymentStatus,
             String paymentMethod,
             LocalDateTime paymentTimeStart,
-            LocalDateTime paymentTimeEnd
+            LocalDateTime paymentTimeEnd,
+            int page,
+            int size
     ) {
         QueryWrapper<Payment> qw = new QueryWrapper<>();
         if (orderNo != null) {
@@ -85,11 +88,16 @@ public class PaymentServiceImpl implements PaymentService {
         if (userId != null) {
             List<Orders> orders = orderMapper.selectList(new QueryWrapper<Orders>().eq("user_id", userId));
             if (orders.isEmpty()) {
-                return Result.ok(new ArrayList<>());
+                return Result.ok(new PageResult<>(0, new ArrayList<>()));
             }
             List<Long> orderIds = orders.stream().map(Orders::getOrderId).toList();
             qw.in("order_id", orderIds);
         }
+
+        Long total = paymentMapper.selectCount(qw);
+        
+        int offset = (page - 1) * size;
+        qw.last("limit " + offset + "," + size);
 
         List<Payment> payments = paymentMapper.selectList(qw);
         List<PaymentSearchResponse> resp = new ArrayList<>();
@@ -105,7 +113,7 @@ public class PaymentServiceImpl implements PaymentService {
             r.setRefundTime(p.getRefundTime());
             resp.add(r);
         }
-        return Result.ok(resp);
+        return Result.ok(new PageResult<>(total, resp));
     }
 
     @Override

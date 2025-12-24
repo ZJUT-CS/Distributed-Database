@@ -32,7 +32,7 @@ public class AdminFlightController {
     public Result<PageResult<Flight>> list(
             HttpServletRequest request,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "20") Integer size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String flightNo,
             @RequestParam(required = false) String departureCity,

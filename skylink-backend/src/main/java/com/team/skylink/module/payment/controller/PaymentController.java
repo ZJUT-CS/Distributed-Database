@@ -1,6 +1,7 @@
 package com.team.skylink.module.payment.controller;
 
 import com.team.skylink.common.Result;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.module.payment.dto.ConfirmPaymentRequest;
 import com.team.skylink.module.payment.dto.CreatePaymentTokenRequest;
 import com.team.skylink.module.payment.dto.CreatePaymentTokenResponse;
@@ -29,15 +30,17 @@ public class PaymentController {
     }
 
     @GetMapping("")
-    public Result<List<PaymentSearchResponse>> search(
+    public Result<PageResult<PaymentSearchResponse>> search(
             @RequestParam(required = false) Long orderNo,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Integer paymentStatus,
             @RequestParam(required = false) String paymentMethod,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime paymentTimeStart,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime paymentTimeEnd
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime paymentTimeEnd,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
-        return paymentService.search(orderNo, userId, paymentStatus, paymentMethod, paymentTimeStart, paymentTimeEnd);
+        return paymentService.search(orderNo, userId, paymentStatus, paymentMethod, paymentTimeStart, paymentTimeEnd, page, size);
     }
 
     @PostMapping("/confirmation-tokens")

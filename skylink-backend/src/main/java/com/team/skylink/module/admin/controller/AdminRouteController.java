@@ -28,7 +28,7 @@ public class AdminRouteController {
     public Result<PageResult<Route>> list(
             HttpServletRequest request,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "20") Integer size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String departureCity,
             @RequestParam(required = false) String arrivalCity

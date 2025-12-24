@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException; // 导入异常类
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team.skylink.common.Result;
+import com.team.skylink.common.PageResult;
 import com.team.skylink.module.aircraft.entity.AircraftCabinConfig;
 import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper;
 import com.team.skylink.module.user.entity.User;
@@ -50,7 +51,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Result<List<OrderSearchResponse>> search(Long userId, Long orderNo, Integer orderStatus, LocalDateTime createTimeStart, LocalDateTime createTimeEnd, String flightNo, String cabinType) {
+    public Result<PageResult<OrderSearchResponse>> search(Long userId, Long orderNo, Integer orderStatus, LocalDateTime createTimeStart, LocalDateTime createTimeEnd, String flightNo, String cabinType, int page, int size) {
         QueryWrapper<Orders> qw = new QueryWrapper<>();
         if (userId != null) qw.eq("user_id", userId);
         if (orderNo != null) qw.eq("order_id", orderNo);
@@ -73,9 +74,15 @@ public class OrderServiceImpl implements OrderService {
             if (f != null) {
                 qw.eq("flight_id", f.getFlightId());
             } else {
-                return Result.ok(new ArrayList<>());
+                return Result.ok(new PageResult<>(0, new ArrayList<>()));
             }
         }
+        
+        Long total = orderMapper.selectCount(qw);
+        
+        qw.orderByDesc("order_time");
+        int offset = (page - 1) * size;
+        qw.last("limit " + offset + "," + size);
         
         List<Orders> orders = orderMapper.selectList(qw);
         List<OrderSearchResponse> resp = new ArrayList<>();
@@ -104,7 +111,7 @@ public class OrderServiceImpl implements OrderService {
             }
             resp.add(r);
         }
-        return Result.ok(resp);
+        return Result.ok(new PageResult<>(total, resp));
     }
 
     @Override
