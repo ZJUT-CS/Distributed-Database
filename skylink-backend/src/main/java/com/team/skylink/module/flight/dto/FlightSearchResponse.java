@@ -18,5 +18,7 @@ public class FlightSearchResponse {
     private Integer remainingSeats;
     private String airlineCompany;
     private String cabinType;
-}
 
+    // ✅ 新增：机型名称（如 Boeing 737-800）
+    private String aircraftModel;
+}

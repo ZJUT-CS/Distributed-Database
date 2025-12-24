@@ -7,6 +7,7 @@ import { ArrowLeft, Plane, Calendar, CheckCircle, XCircle, Route, Ticket, Circle
 import { exportToCSV, type ExportColumn } from '@/utils/export';
 import { Countdown } from '@/components';
 import { API_CONFIG } from '@/config/constants';
+import InterlineOrderBadge from '@/components/booking/InterlineOrderBadge';
 
 interface UserBookingsProps {
   bookings: ConfirmedBooking[];
@@ -421,6 +422,13 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
                               {b.id}
                             </span>
                             {renderStatusBadge(b)}
+                            {/* 联程订单标识 */}
+                            {(b as any).parentOrderId && (
+                              <InterlineOrderBadge />
+                            )}
+                            {flights.length > 1 && flights[0]?.segments && flights[0].segments.length > 1 && (
+                              <InterlineOrderBadge totalSegments={flights[0].segments.length} />
+                            )}
                             <span className="text-xs text-gray-500 flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5" /> {formatDateTime(b.bookingDate)}
                             </span>
