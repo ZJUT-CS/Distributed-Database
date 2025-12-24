@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CalendarDays, Check, Lock, Mail, Phone, Shield, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { useToast } from '../../features/admin/components/Toast';
+import { useConfirm } from '../../features/admin';
 import {
   bindEmail,
   bindPhone,
@@ -20,6 +21,7 @@ const UserCenterPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const { confirm } = useConfirm();
 
   const initialTab = useMemo<TabKey>(() => {
     const tab = new URLSearchParams(location.search).get('tab');
@@ -138,9 +140,15 @@ const UserCenterPage: React.FC = () => {
     navigate({ pathname: '/user-center', search: `?${params.toString()}` }, { replace: true });
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
     if (!isVerified) {
-      const ok = window.confirm('您尚未实名认证，将无法购买机票，是否现在去认证？');
+      const ok = await confirm({
+        title: '提示',
+        message: '您尚未实名认证，将无法购买机票，是否现在去认证？',
+        variant: 'warning',
+        confirmText: '去认证',
+        cancelText: '返回首页',
+      });
       if (ok) {
         setActiveTab('profile');
         const params = new URLSearchParams(location.search);

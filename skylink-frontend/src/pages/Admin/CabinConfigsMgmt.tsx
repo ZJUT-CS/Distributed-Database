@@ -14,6 +14,7 @@ import { listAircraftModelOptions, type AircraftModelOption } from '@/features/a
 import EntityCell from '@/components/common/EntityCell';
 import { formatApiError } from '@/utils/apiError';
 import { exportToCSV } from '@/utils/export';
+import { logger } from '@/lib/logger';
 
 interface ConfigFilters {
   modelId: number | '';
@@ -30,7 +31,7 @@ const CabinConfigsMgmt: React.FC = () => {
   const [modelOptions, setModelOptions] = useState<AircraftModelOption[]>([]);
 
   useEffect(() => {
-    listAircraftModelOptions().then(setModelOptions).catch(console.error);
+    listAircraftModelOptions().then(setModelOptions).catch((e) => logger.error('加载机型选项失败', e));
   }, []);
 
   const fetchConfigs = useCallback(

@@ -1,16 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { UserBookings as UserBookingsComponent } from '@/features/user';
 import { useAuth } from '@/features/auth';
 import { type ConfirmedBooking, type PassengerInfo } from '@/features/booking';
-import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, RefreshCw, Clock, Armchair } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, RefreshCw, Clock, Armchair, AlertTriangle } from 'lucide-react';
 import { searchOrders, type OrderSearchResult, cancelOrder } from '@/features/booking/api/order';
 import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '@/features/booking/api/payment';
+import { applyRefundChange } from '@/features/user/api/refund';
 import { loadOrderPassengers } from '@/utils/storage';
 import { ORDER_STATUS } from '@/features/admin/constants';
 import { API_CONFIG } from '@/config/constants';
 import InterlineJourneyTimeline from '@/components/booking/InterlineJourneyTimeline';
 import { useToast } from '@/features/admin/components/Toast';
+import { logger } from '@/lib/logger';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -181,6 +183,11 @@ export const BookingDetailsPage: React.FC = () => {
   const [payError, setPayError] = useState<string | null>(null);
   const [payToken, setPayToken] = useState<PaymentConfirmToken | null>(null);
 
+  // 退票申请模态框状态
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundApplying, setRefundApplying] = useState(false);
+
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -286,8 +293,38 @@ export const BookingDetailsPage: React.FC = () => {
   };
 
   const handleRefundChange = () => {
-    if (window.confirm('是否申请退改签服务？\n\n提交申请后，请在“退改/售后”页面查看进度。')) {
-      navigate('/refunds-help');
+    navigate('/refunds-help');
+  };
+
+  const openRefundModal = () => {
+    setRefundReason('');
+    setRefundModalOpen(true);
+  };
+
+  const handleApplyRefund = async () => {
+    if (!refundReason.trim()) {
+      toast.error('请填写退票原因');
+      return;
+    }
+    try {
+      setRefundApplying(true);
+      await applyRefundChange({
+        orderNo: booking.id,
+        operType: 1,
+        remark: refundReason.trim(),
+      });
+      toast.success('退票申请已提交，请前往"退改/售后"页面查看进度');
+      setRefundModalOpen(false);
+      if (user?.id) {
+        const latestOrders = await searchOrders({ userId: user.id, orderNo: booking.id });
+        if (latestOrders.length > 0) {
+          setBooking(mapOrderToBooking(latestOrders[0]));
+        }
+      }
+    } catch (e: any) {
+      toast.error(e?.message || '退票申请失败');
+    } finally {
+      setRefundApplying(false);
     }
   };
 
@@ -340,7 +377,7 @@ export const BookingDetailsPage: React.FC = () => {
         }
       } catch (refreshErr) {
         // 刷新失败时继续使用缓存数据
-        console.warn('刷新订单状态失败，继续使用缓存数据', refreshErr);
+        logger.warn('刷新订单状态失败，继续使用缓存数据', refreshErr);
       }
 
       // 检查订单状态
@@ -450,6 +487,13 @@ export const BookingDetailsPage: React.FC = () => {
               >
                 <Plane className="w-4 h-4" />
                 申请改签
+              </button>
+              <button
+                onClick={openRefundModal}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 text-red-700 border border-red-100 text-sm font-bold hover:bg-red-100 transition-all shadow-sm"
+              >
+                <XCircle className="w-4 h-4" />
+                申请退票
               </button>
               <button
                 onClick={handleRefundChange}
@@ -661,6 +705,63 @@ export const BookingDetailsPage: React.FC = () => {
                 className="flex-1 px-4 py-2.5 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-500/20 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {payConfirming ? '支付中...' : '确认支付'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 退票申请模态框 */}
+      {refundModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-scale-up">
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">申请退票</h3>
+                  <p className="text-sm text-gray-500 mt-0.5">订单号 {booking.id}</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 text-xs text-orange-800">
+                <strong>温馨提示：</strong>退票申请提交后将进入人工审核流程，退款金额将根据退票规则扣除相应手续费后原路返还。
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">退票原因 <span className="text-red-500">*</span></label>
+                <textarea
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  placeholder="请详细描述您的退票原因，以便我们更快处理您的申请..."
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm min-h-[120px] resize-none transition-all"
+                />
+              </div>
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">订单金额</span>
+                  <span className="text-lg font-extrabold text-gray-900">¥{Number(booking.totalPrice || 0).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-100 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setRefundModalOpen(false)}
+                disabled={refundApplying}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-all disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyRefund}
+                disabled={refundApplying || !refundReason.trim()}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-500/20 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {refundApplying ? '提交中...' : '确认申请'}
               </button>
             </div>
           </div>

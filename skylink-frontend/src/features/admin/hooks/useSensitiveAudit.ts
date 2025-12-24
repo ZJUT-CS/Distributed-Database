@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 import { useToast } from '../components/Toast';
+import { useConfirm } from '../components/ConfirmModal';
+import { logger } from '@/lib/logger';
 
 export type AuditAction = 'view' | 'copy' | 'edit' | 'export';
 
@@ -18,6 +20,7 @@ export interface AuditLogEntry {
  */
 export function useSensitiveAudit() {
   const toast = useToast();
+  const { confirm } = useConfirm();
 
   /**
    * 记录审计日志
@@ -29,8 +32,8 @@ export function useSensitiveAudit() {
     };
 
     // 开发环境输出到控制台
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[敏感数据审计]', log);
+    if (import.meta.env.DEV) {
+      logger.debug('[敏感数据审计]', log);
     }
 
     // TODO: 后续接入后端审计日志 API
@@ -46,7 +49,7 @@ export function useSensitiveAudit() {
       }
       localStorage.setItem('sensitive_audit_logs', JSON.stringify(existing));
     } catch (e) {
-      console.error('审计日志存储失败:', e);
+      logger.error('审计日志存储失败:', e);
     }
   }, []);
 
@@ -86,10 +89,15 @@ export function useSensitiveAudit() {
    */
   const createRevealConfirm = useCallback((message?: string) => {
     return async (): Promise<boolean> => {
-      // 简单确认，生产环境可接入权限校验 API
-      return window.confirm(message || '确定要查看完整信息吗？此操作将被记录。');
+      return confirm({
+        title: '敏感信息确认',
+        message: message || '确定要查看完整信息吗？此操作将被记录。',
+        variant: 'warning',
+        confirmText: '继续查看',
+        cancelText: '取消',
+      });
     };
-  }, []);
+  }, [confirm]);
 
   /**
    * 获取本地存储的审计日志（调试用）

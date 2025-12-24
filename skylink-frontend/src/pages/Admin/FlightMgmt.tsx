@@ -6,8 +6,10 @@ import { formatApiError } from '@/utils/apiError';
 import EntityCell from '@/components/common/EntityCell';
 import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
+import { listAdminFlights } from '@/features/admin/api/flights';
 import { exportToCSV } from '@/utils/export';
 import { useAdminFlights, useCreateAdminFlight, useUpdateAdminFlight, useDeleteAdminFlight } from '@/features/admin/hooks/useAdminFlights';
+import { logger } from '@/lib/logger';
 
 type UiFlight = {
   rowId: string; // 唯一标识（用于 key / 选中态 / 菜单展开态）
@@ -154,8 +156,8 @@ const FlightMgmt: React.FC = () => {
 
   // 加载原始数据用于 map 查找
   useEffect(() => {
-    listRouteOptions().then(setRouteOptions).catch(console.error);
-    listAircraftModelOptions().then(setModelOptions).catch(console.error);
+    listRouteOptions().then(setRouteOptions).catch((e) => logger.error('加载航线选项失败', e));
+    listAircraftModelOptions().then(setModelOptions).catch((e) => logger.error('加载机型选项失败', e));
   }, []);
 
   const routeMap = useMemo(() => {
@@ -394,7 +396,6 @@ const FlightMgmt: React.FC = () => {
   const handleExport = async () => {
     try {
       toast.info('正在导出数据...');
-      const { listAdminFlights } = await import('@/features/admin/api/flights');
       const res = await listAdminFlights({ page: 1, size: 1000, keyword: searchKeyword || undefined });
       const data = (res.data ?? []).map(mapAdminFlight);
       if (!data.length) {

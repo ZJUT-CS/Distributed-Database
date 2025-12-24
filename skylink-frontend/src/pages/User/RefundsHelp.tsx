@@ -5,11 +5,13 @@ import { type RefundChangeRecord, type AuditStatus } from '@/features/user';
 import { listRefundChanges, revokeRefundChange, updateRefundChange } from '@/features/user/api/refund';
 import { ArrowLeft, CheckCircle2, Filter, RefreshCw, Search, Ticket, XCircle, AlertCircle, Trash2, Edit } from 'lucide-react';
 import { useToast } from '@/features/admin/components/Toast';
+import { useConfirm } from '@/features/admin';
 
 const RefundsHelpPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AuditStatus | 'all'>('all');
   const [audits, setAudits] = useState<RefundChangeRecord[]>([]);
@@ -76,7 +78,14 @@ const RefundsHelpPage: React.FC = () => {
   const pendingCount = audits.filter((a) => a.status === 'pending').length;
 
   const handleRevoke = async (record: RefundChangeRecord) => {
-    if (!window.confirm('确定要撤销这个申请吗？撤销后订单将恢复为正常状态。')) return;
+    const ok = await confirm({
+      title: '确认撤销',
+      message: '确定要撤销这个申请吗？撤销后订单将恢复为正常状态。',
+      variant: 'warning',
+      confirmText: '确认撤销',
+      cancelText: '取消',
+    });
+    if (!ok) return;
 
     try {
       setActionLoading(record.id);

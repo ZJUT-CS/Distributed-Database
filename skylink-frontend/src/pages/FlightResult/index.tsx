@@ -178,6 +178,17 @@ const FlightResultPage: React.FC = () => {
   // Filter Logic
   const filteredFlights = useMemo(() => {
     const cabinMultiplier = cabinClass === 'first' ? 2.1 : cabinClass === 'business' ? 1.6 : 1;
+
+    // 时段判断辅助函数
+    const getTimeSlot = (timeStr: string): string => {
+      if (!timeStr) return '';
+      const hour = new Date(timeStr).getHours();
+      if (hour >= 6 && hour < 12) return 'morning';
+      if (hour >= 12 && hour < 18) return 'afternoon';
+      if (hour >= 18 && hour < 24) return 'evening';
+      return 'night'; // 00:00-06:00
+    };
+
     return flights
       .filter((flight) => {
         const effectivePrice = flight.price * cabinMultiplier;
@@ -187,6 +198,29 @@ const FlightResultPage: React.FC = () => {
         if (filters.stops === '1stop' && flight.stops !== 1) return false;
         if (filters.airlines.length > 0 && !filters.airlines.includes(flight.airlineCode)) return false;
         if (parseDuration(flight.duration) > filters.durationMax) return false;
+
+        // 🔧 起飞时段筛选（兼容联程航班：取第一段起飞时间）
+        if (filters.departureTime.length > 0) {
+          const depTime = (flight as any).segments?.[0]?.departureTime || flight.departureTime;
+          const slot = getTimeSlot(depTime);
+          if (slot && !filters.departureTime.includes(slot)) return false;
+        }
+
+        // 🔧 出发机场筛选（兼容联程航班：取第一段出发机场）
+        if (filters.originAirports.length > 0) {
+          const originCode = (flight as any).segments?.[0]?.originCode || flight.originCode;
+          if (originCode && !filters.originAirports.includes(originCode)) return false;
+        }
+
+        // 🔧 到达机场筛选（兼容联程航班：取最后一段到达机场）
+        if (filters.destinationAirports.length > 0) {
+          const segments = (flight as any).segments || [];
+          const destCode = segments.length > 0
+            ? segments[segments.length - 1].destinationCode
+            : flight.destinationCode;
+          if (destCode && !filters.destinationAirports.includes(destCode)) return false;
+        }
+
         return true;
       })
       .map((flight) => ({

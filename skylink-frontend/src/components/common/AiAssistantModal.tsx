@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Sparkles, MapPin, Loader2, Send } from 'lucide-react';
 import { getSmartRecommendations, type AIRecommendation } from '../../features/ai/api/gemini';
+import { logger } from '@/lib/logger';
 
 interface AiAssistantModalProps {
   isOpen: boolean;
@@ -29,7 +30,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ isOpen, onClose, on
       }
       setRecommendations(results);
     } catch (err) {
-      console.error('Failed to get AI travel recommendations', err);
+      logger.error('Failed to get AI travel recommendations', err);
       setError('获取 AI 推荐时发生错误，请稍后重试或联系管理员。');
     } finally {
       setLoading(false);
