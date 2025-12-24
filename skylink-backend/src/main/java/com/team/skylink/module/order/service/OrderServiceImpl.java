@@ -133,7 +133,17 @@ public class OrderServiceImpl implements OrderService {
         if (flightNos == null || flightNos.isEmpty()) {
             flightNos = new ArrayList<>();
             if (req.getFlightNo() != null) {
-                flightNos.add(req.getFlightNo());
+                // 兼容前端传来的组合航班号 (e.g. "SK3453+ca10080")
+                if (req.getFlightNo().contains("+")) {
+                    String[] parts = req.getFlightNo().split("\\+");
+                    for (String p : parts) {
+                        if (!p.isBlank()) {
+                            flightNos.add(p.trim());
+                        }
+                    }
+                } else {
+                    flightNos.add(req.getFlightNo());
+                }
             }
         }
 
