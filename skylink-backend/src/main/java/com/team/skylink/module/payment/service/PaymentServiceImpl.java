@@ -16,6 +16,7 @@ import com.team.skylink.module.payment.dto.CreatePaymentTokenResponse;
 import com.team.skylink.module.payment.dto.PaymentSearchResponse;
 import com.team.skylink.module.payment.entity.Payment;
 import com.team.skylink.module.payment.mapper.PaymentMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,14 +39,14 @@ public class PaymentServiceImpl implements PaymentService {
     private static final long PAYMENT_TOKEN_TTL_MS = 30L * 60L * 1000L;
 
     private static final class PaymentTokenRecord {
-        private final Long orderNo;
+        private final List<Long> orderIds;
         private final BigDecimal amount;
         private final long timestamp;
         private final long expiresAt;
         private volatile boolean used;
 
-        private PaymentTokenRecord(Long orderNo, BigDecimal amount, long timestamp, long expiresAt) {
-            this.orderNo = orderNo;
+        private PaymentTokenRecord(List<Long> orderIds, BigDecimal amount, long timestamp, long expiresAt) {
+            this.orderIds = orderIds;
             this.amount = amount;
             this.timestamp = timestamp;
             this.expiresAt = expiresAt;
@@ -214,27 +215,45 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public Result<CreatePaymentTokenResponse> createConfirmToken(CreatePaymentTokenRequest req) {
-        Orders o = orderMapper.selectById(req.getOrderNo());
-        if (o == null) {
-            return Result.fail(404, "order not found");
+        List<Long> orderIds = parseOrderIds(req.getOrderNo());
+        if (orderIds.isEmpty()) {
+            return Result.fail(400, "invalid orderNo format");
         }
-        if (o.getOrderStatus() != null && o.getOrderStatus() == OrderStatusEnum.CONFIRMED.getCode()) {
-            return Result.fail(409, "order already paid");
+
+        List<Orders> ordersList = orderMapper.selectBatchIds(orderIds);
+        if (ordersList.size() != orderIds.size()) {
+            return Result.fail(404, "some orders not found");
         }
-        if (o.getTotalAmount() != null && req.getAmount() != null && o.getTotalAmount().compareTo(req.getAmount()) != 0) {
-            return Result.fail(400, "amount mismatch");
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        for (Orders o : ordersList) {
+            if (o.getOrderStatus() != null && o.getOrderStatus() == OrderStatusEnum.CONFIRMED.getCode()) {
+                return Result.fail(409, "order " + o.getOrderId() + " already paid");
+            }
+            if (o.getTotalAmount() != null) {
+                totalAmount = totalAmount.add(o.getTotalAmount());
+            }
+        }
+
+        if (req.getAmount() != null && totalAmount.compareTo(req.getAmount()) != 0) {
+            return Result.fail(400, "amount mismatch. Expected: " + totalAmount + ", Got: " + req.getAmount());
         }
 
         long now = System.currentTimeMillis();
         long expiresAt = now + PAYMENT_TOKEN_TTL_MS;
         String token = UUID.randomUUID().toString();
-        PAYMENT_TOKENS.put(token, new PaymentTokenRecord(req.getOrderNo(), req.getAmount(), now, expiresAt));
-        return Result.ok(new CreatePaymentTokenResponse(String.valueOf(req.getOrderNo()), req.getAmount(), now, token, expiresAt));
+        PAYMENT_TOKENS.put(token, new PaymentTokenRecord(orderIds, req.getAmount(), now, expiresAt));
+        return Result.ok(new CreatePaymentTokenResponse(req.getOrderNo(), req.getAmount(), now, token, expiresAt));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<PaymentSearchResponse> confirmPay(ConfirmPaymentRequest req) {
+        List<Long> orderIds = parseOrderIds(req.getOrderNo());
+        if (orderIds.isEmpty()) {
+            return Result.fail(400, "invalid orderNo format");
+        }
+
         PaymentTokenRecord record = PAYMENT_TOKENS.get(req.getToken());
         if (record == null) {
             return Result.fail(400, "invalid token");
@@ -244,9 +263,12 @@ public class PaymentServiceImpl implements PaymentService {
             PAYMENT_TOKENS.remove(req.getToken());
             return Result.fail(400, "token expired");
         }
-        if (!record.orderNo.equals(req.getOrderNo())) {
-            return Result.fail(400, "orderNo mismatch");
+        // 验证请求的订单列表是否包含在 Token 记录的订单列表中（或者完全匹配）
+        // 这里简化为：Token 里的订单必须包含请求的订单
+        if (!record.orderIds.containsAll(orderIds)) {
+             return Result.fail(400, "orderNo mismatch");
         }
+
         if (record.amount != null && req.getAmount() != null && record.amount.compareTo(req.getAmount()) != 0) {
             return Result.fail(400, "amount mismatch");
         }
@@ -262,108 +284,80 @@ public class PaymentServiceImpl implements PaymentService {
         }
         PAYMENT_TOKENS.remove(req.getToken());
 
-        Orders o = orderMapper.selectById(req.getOrderNo());
-        if (o == null) {
-            return Result.fail(404, "order not found");
-        }
-        if (o.getOrderStatus() != null && o.getOrderStatus() == OrderStatusEnum.CONFIRMED.getCode()) {
-            return Result.fail(409, "order already paid");
-        }
-        if (o.getTotalAmount() != null && req.getAmount() != null && o.getTotalAmount().compareTo(req.getAmount()) != 0) {
-            return Result.fail(400, "amount mismatch");
-        }
-
-        Long exists = paymentMapper.selectCount(new QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
-        if (exists != null && exists > 0) {
-            return Result.fail(409, "payment already exists");
-        }
-
+        Payment lastPayment = null;
+        String tradeNo = UUID.randomUUID().toString();
         LocalDateTime payTime = LocalDateTime.now();
-        Payment p = new Payment();
-        p.setOrderId(o.getOrderId());
-        p.setPaymentAmount(req.getAmount());
-        p.setPaymentMethod(req.getMethod());
-        p.setPaymentStatus(1);
-        p.setTradeNo(UUID.randomUUID().toString());
-        p.setPaymentTime(payTime);
-        p.setCreateTime(payTime);
-        p.setUpdateTime(payTime);
-        paymentMapper.insert(p);
 
-        LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(Orders::getOrderId, o.getOrderId())
-            .set(Orders::getOrderStatus, OrderStatusEnum.CONFIRMED.getCode())
-                .set(Orders::getPayTime, payTime);
-        orderMapper.update(null, updateWrapper);
-
-        // 确认座位 (锁定 -> 已售)
-        if (o.getSeatId() != null) {
-            seatService.confirmSeat(o.getSeatId(), o.getOrderId());
-        } else {
-            seatService.confirmSeats(o.getOrderId());
-        }
-
-        // 级联确认联程订单 (如果有)
-        if (o.getParentOrderId() != null) {
-            List<Orders> siblings = orderMapper.selectList(new QueryWrapper<Orders>()
-                    .eq("parent_order_id", o.getParentOrderId())
-                    .ne("order_id", o.getOrderId()));
+        // 批量处理所有订单
+        for (Long orderId : record.orderIds) {
+            Orders o = orderMapper.selectById(orderId);
+            if (o == null) continue;
             
-            for (Orders sib : siblings) {
-                // 仅处理待支付(1)的关联订单
-                if (sib.getOrderStatus() != null && sib.getOrderStatus() == 1) {
-                    // 为关联订单创建支付记录 (使用相同的交易号)
-                    Payment sibPayment = new Payment();
-                    sibPayment.setOrderId(sib.getOrderId());
-                    sibPayment.setPaymentAmount(sib.getTotalAmount());
-                    sibPayment.setPaymentMethod(p.getPaymentMethod());
-                    sibPayment.setPaymentStatus(1);
-                    sibPayment.setTradeNo(p.getTradeNo());
-                    sibPayment.setPaymentTime(p.getPaymentTime());
-                    sibPayment.setCreateTime(p.getCreateTime());
-                    sibPayment.setUpdateTime(p.getUpdateTime());
-                    paymentMapper.insert(sibPayment);
-
-                    // 更新订单状态
-                    LambdaUpdateWrapper<Orders> sibUpdate = new LambdaUpdateWrapper<>();
-                    sibUpdate.eq(Orders::getOrderId, sib.getOrderId())
-                            .set(Orders::getOrderStatus, 2) // 2=CONFIRMED
-                            .set(Orders::getPayTime, payTime);
-                    orderMapper.update(null, sibUpdate);
-                    
-                    // 确认座位
-                    if (sib.getSeatId() != null) {
-                        seatService.confirmSeat(sib.getSeatId(), sib.getOrderId());
-                    } else {
-                        seatService.confirmSeats(sib.getOrderId());
-                    }
-                    try {
-                        messagingTemplate.convertAndSend("/topic/orders/" + sib.getOrderId(), "PAID");
-                    } catch (Exception ignore) {}
-                }
+            // 如果已支付，跳过
+            if (o.getOrderStatus() != null && o.getOrderStatus() == OrderStatusEnum.CONFIRMED.getCode()) {
+                continue;
             }
+
+            Long exists = paymentMapper.selectCount(new QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
+            if (exists != null && exists > 0) {
+                continue;
+            }
+
+            Payment p = new Payment();
+            p.setOrderId(o.getOrderId());
+            p.setPaymentAmount(o.getTotalAmount()); // 使用订单实际金额
+            p.setPaymentMethod(req.getMethod());
+            p.setPaymentStatus(1);
+            p.setTradeNo(tradeNo);
+            p.setPaymentTime(payTime);
+            p.setCreateTime(payTime);
+            p.setUpdateTime(payTime);
+            paymentMapper.insert(p);
+            lastPayment = p;
+
+            LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(Orders::getOrderId, o.getOrderId())
+                .set(Orders::getOrderStatus, OrderStatusEnum.CONFIRMED.getCode())
+                    .set(Orders::getPayTime, payTime);
+            orderMapper.update(null, updateWrapper);
+
+            // 确认座位 (锁定 -> 已售)
+            if (o.getSeatId() != null) {
+                seatService.confirmSeat(o.getSeatId(), o.getOrderId());
+            } else {
+                seatService.confirmSeats(o.getOrderId());
+            }
+
+            try {
+                messagingTemplate.convertAndSend("/topic/orders/" + o.getOrderId(), "PAID");
+            } catch (Exception ignore) {}
         }
 
-        try {
-            messagingTemplate.convertAndSend("/topic/orders/" + o.getOrderId(), "PAID");
-        } catch (Exception ignore) {}
+        if (lastPayment == null) {
+            return Result.fail(409, "all orders already paid or not found");
+        }
 
         PaymentSearchResponse r = new PaymentSearchResponse();
-        r.setPaymentId(String.valueOf(p.getPaymentId()));
-        r.setOrderNo(String.valueOf(p.getOrderId()));
-        r.setPaymentAmount(p.getPaymentAmount());
-        r.setPaymentMethod(p.getPaymentMethod());
-        r.setPaymentStatus(p.getPaymentStatus());
-        r.setTradeNo(p.getTradeNo());
-        r.setPaymentTime(p.getPaymentTime());
-        r.setRefundTime(p.getRefundTime());
+        r.setPaymentId(String.valueOf(lastPayment.getPaymentId()));
+        r.setOrderNo(req.getOrderNo()); // 返回请求的 orderNo
+        r.setPaymentAmount(req.getAmount());
+        r.setPaymentMethod(lastPayment.getPaymentMethod());
+        r.setPaymentStatus(lastPayment.getPaymentStatus());
+        r.setTradeNo(lastPayment.getTradeNo());
+        r.setPaymentTime(lastPayment.getPaymentTime());
+        r.setRefundTime(lastPayment.getRefundTime());
         return Result.ok(r);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<PaymentSearchResponse> pay(CreatePaymentRequest req) {
-        Orders o = orderMapper.selectById(req.getOrderNo());
+        Long orderId = parseOrderId(req.getOrderNo());
+        if (orderId == null) {
+            return Result.fail(400, "invalid orderNo format");
+        }
+
+        Orders o = orderMapper.selectById(orderId);
         if (o == null) {
             return Result.fail(404, "order not found");
         }
@@ -382,9 +376,11 @@ public class PaymentServiceImpl implements PaymentService {
         p.setCreateTime(now);
         p.setUpdateTime(now);
         paymentMapper.insert(p);
-        o.setOrderStatus(OrderStatusEnum.CONFIRMED.getCode());
-        o.setPayTime(now);
-        orderMapper.updateById(o);
+        LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Orders::getOrderId, o.getOrderId())
+                .set(Orders::getOrderStatus, OrderStatusEnum.CONFIRMED.getCode())
+                .set(Orders::getPayTime, now);
+        orderMapper.update(null, updateWrapper);
         
         // 确认座位 (锁定 -> 已售)
         if (o.getSeatId() != null) {
@@ -407,6 +403,34 @@ public class PaymentServiceImpl implements PaymentService {
         r.setPaymentTime(p.getPaymentTime());
         r.setRefundTime(p.getRefundTime());
         return Result.ok(r);
+    }
+
+    private Long parseOrderId(String orderNo) {
+        if (orderNo == null || orderNo.isBlank()) return null;
+        try {
+            if (orderNo.contains("+")) {
+                // Return first ID for interline composite IDs
+                return Long.parseLong(orderNo.split("\\+")[0].trim());
+            }
+            return Long.parseLong(orderNo.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private List<Long> parseOrderIds(String orderNo) {
+        if (orderNo == null || orderNo.isBlank()) {
+            return Collections.emptyList();
+        }
+        List<Long> ids = new ArrayList<>();
+        try {
+            for (String part : orderNo.split("\\+")) {
+                ids.add(Long.parseLong(part.trim()));
+            }
+        } catch (NumberFormatException e) {
+            return Collections.emptyList();
+        }
+        return ids;
     }
 }
 

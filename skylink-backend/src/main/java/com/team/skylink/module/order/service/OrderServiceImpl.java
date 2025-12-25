@@ -34,6 +34,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -147,184 +151,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<OrderSearchResponse> create(CreateOrderRequest req) {
-        Map<Long, Flight> flightCache = new HashMap<>();
-        // 优先解析 flightIds（唯一标识）
-        List<Long> flightIds = req.getFlightIds();
-        if (flightIds == null || flightIds.isEmpty()) {
-            flightIds = new ArrayList<>();
-            if (req.getFlightId() != null) {
-                flightIds.add(req.getFlightId());
-            }
-        }
-
-        if (flightIds == null || flightIds.isEmpty()) {
-            return Result.fail(400, "flightId or flightIds is required");
-        }
-
-        Long parentOrderId = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
-        
-        // Check Price Strategy Flags
-        boolean isNewUser = false;
-        if (req.getUserId() != null) {
-             Long count = orderMapper.selectCount(new QueryWrapper<Orders>().eq("user_id", req.getUserId()));
-             isNewUser = (count != null && count == 0);
-        }
-        boolean isInterline = flightIds.size() > 1;
-        
-        BigDecimal totalAmountAll = BigDecimal.ZERO;
-        List<Orders> ordersToInsert = new ArrayList<>();
-        Flight firstFlight = null;
-        ObjectMapper objectMapper = new ObjectMapper();
-        java.util.List<java.util.Map<String, Object>> passengers = null;
-        try {
-            if (req.getPassengersJson() != null && !req.getPassengersJson().isBlank()) {
-                passengers = objectMapper.readValue(req.getPassengersJson(),
-                        new TypeReference<java.util.List<java.util.Map<String, Object>>>() {
-                        });
-            }
-        } catch (Exception e) {
-            passengers = null;
-        }
-
-        for (int i = 0; i < flightIds.size(); i++) {
-            Long fId = flightIds.get(i);
-            // 1. 查航班（flightId 唯一）
-            Flight f = fId != null ? flightCache.getOrDefault(fId, flightMapper.selectById(fId)) : null;
-            if (f == null) {
-                return Result.fail(404, "找不到航班: " + fId);
-            }
-            if (i == 0)
-                firstFlight = f;
-
-            // 2. 查配置
-            String currentCabinType = req.getCabinType();
-            if (req.getCabinTypes() != null && i < req.getCabinTypes().size()) {
-                String c = req.getCabinTypes().get(i);
-                if (c != null && !c.isBlank()) {
-                    currentCabinType = c;
-                }
-            }
-
-            AircraftCabinConfig config = configMapper.selectOne(Wrappers.<AircraftCabinConfig>lambdaQuery()
-                    .eq(AircraftCabinConfig::getModelId, f.getModelId())
-                    .eq(AircraftCabinConfig::getCabinType, currentCabinType)
-                    .eq(AircraftCabinConfig::getCabinLayoutNo, 1) // 默认布局1
-                    .last("LIMIT 1"));
-
-            // 🔧 容错：如果布局1不存在，尝试查询该机型该舱位的任意布局
-            if (config == null) {
-                config = configMapper.selectOne(Wrappers.<AircraftCabinConfig>lambdaQuery()
-                        .eq(AircraftCabinConfig::getModelId, f.getModelId())
-                        .eq(AircraftCabinConfig::getCabinType, req.getCabinType())
-                        .orderByAsc(AircraftCabinConfig::getCabinLayoutNo)
-                        .last("LIMIT 1"));
-            }
-
-            if (config == null) {
-                return Result.fail(404,
-                    "找不到舱位配置: " + f.getFlightId() + " (" + f.getFlightNo() + ")" +
-                        " (机型:" + f.getModelId() + ", 舱位:" + req.getCabinType() + ")" +
-                        " (" + currentCabinType + ")");
-
-                 }
-
-            int ticketCount = req.getTicketNum() != null ? req.getTicketNum()
-                    : (passengers != null ? passengers.size() : 1);
-
-            // 4. 计算总价
-            Route route = routeMapper.selectById(f.getRouteId());
-            if (route == null)
-                return Result.fail(404, "找不到航线信息: " + f.getFlightId());
-            
-            // New Price Strategy
-            BigDecimal unitPrice = priceStrategyService.calculateSegmentPrice(f, route, config, isInterline);
-
-            for (int pIdx = 0; pIdx < ticketCount; pIdx++) {
-                Long oid = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
-                Long seatId;
-                try {
-                    // 修复：传入 userId 而不是 orderId
-                    seatId = seatService.lockRandomSeat(f.getFlightId(), config.getConfigId(), req.getUserId());
-                } catch (InventoryShortageException e) {
-                    // 透传：由 GlobalExceptionHandler 转成 409
-                    throw e;
-                } catch (Exception e) {
-                    // 保持与历史行为一致：锁座失败应视为库存/并发问题（409），而不是 500
-                    throw new InventoryShortageException("您选择的座位刚刚被抢走了，请重新选择");
-                }
-
-                BigDecimal totalAmount = unitPrice;
-                // Apply L4 (New User) to the first ticket of the first flight
-                if (isNewUser && i == 0 && pIdx == 0) {
-                    totalAmount = priceStrategyService.applyUserDiscount(totalAmount, true);
-                }
-
-                totalAmountAll = totalAmountAll.add(totalAmount);
-
-                Orders o = new Orders();
-                o.setOrderId(oid);
-                o.setUserId(req.getUserId());
-                o.setFlightId(f.getFlightId());
-                o.setCabinId(config.getConfigId());
-                o.setOrderStatus(0); // 0=Pending Audit
-                o.setTicketNum(1);
-                o.setTotalAmount(totalAmount);
-
-                String singleName = req.getPassengerName();
-                String singlePhone = req.getContactPhone();
-                String singleEmail = req.getContactEmail();
-                String singlePassengerJson = req.getPassengersJson();
-
-                if (passengers != null && pIdx < passengers.size()) {
-                    java.util.Map<String, Object> pi = passengers.get(pIdx);
-                    // --- 【修复重点】增加 try-catch 处理 JsonProcessingException ---
-                    try {
-                        singlePassengerJson = objectMapper.writeValueAsString(java.util.Collections.singletonList(pi));
-                    } catch (JsonProcessingException e) {
-                        throw new RuntimeException("乘客信息格式错误，请检查", e);
-                    }
-
-                    Object n = pi.get("name");
-                    Object ph = pi.get("phone");
-                    if (n != null)
-                        singleName = String.valueOf(n);
-                    if (ph != null)
-                        singlePhone = String.valueOf(ph);
-                }
-                o.setPassengerName(singleName);
-                o.setContactEmail(singleEmail);
-                o.setContactPhone(singlePhone);
-                o.setPassengersJson(singlePassengerJson);
-                o.setOrderTime(LocalDateTime.now());
-                o.setSeatId(seatId);
-                o.setParentOrderId(parentOrderId);
-                o.setTripType(i + 1);
-                ordersToInsert.add(o);
-
-                // 【修复】关联座位与订单ID
-                try {
-                    seatService.associateOrder(req.getUserId(), java.util.Collections.singletonList(seatId), oid);
-                } catch (Exception e) {
-                    log.warn("关联座位订单失败: seatId={} orderId={}", seatId, oid);
-                    // 不阻断下单，后续可修复
-                }
-            }
-        }
-
-        for (Orders o : ordersToInsert) {
-            orderMapper.insert(o);
-        }
-
-        // 6. 返回结果
-        OrderSearchResponse r = new OrderSearchResponse();
-        r.setOrderNo(String.valueOf(parentOrderId));
-        r.setFlightNo(firstFlight.getFlightNo());
-        r.setPassengerName(ordersToInsert.get(0).getPassengerName());
-        r.setOrderStatus(1); // Pending Payment
-        r.setTotalAmount(totalAmountAll);
-        r.setOrderTime(ordersToInsert.get(0).getOrderTime());
-
-        return Result.ok(r);
+        return Result.fail(410, "该接口已废弃，请改用 /api/v1/bookings");
     }
 
     @Override
@@ -360,8 +187,10 @@ public class OrderServiceImpl implements OrderService {
                     .set(Orders::getOrderStatus, 6); // 6=已取消
             orderMapper.update(null, updateWrapper);
         } else {
-            o.setOrderStatus(6);
-            orderMapper.updateById(o);
+            LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(Orders::getOrderId, o.getOrderId())
+                    .set(Orders::getOrderStatus, 6);
+            orderMapper.update(null, updateWrapper);
         }
 
         return Result.ok(true);
@@ -407,8 +236,10 @@ public class OrderServiceImpl implements OrderService {
                         .set(Orders::getOrderStatus, newStatus);
                 orderMapper.update(null, updateWrapper);
             } else {
-                order.setOrderStatus(newStatus);
-                orderMapper.updateById(order);
+                LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+                updateWrapper.eq(Orders::getOrderId, order.getOrderId())
+                        .set(Orders::getOrderStatus, newStatus);
+                orderMapper.update(null, updateWrapper);
             }
             return Result.ok(true);
         }
@@ -435,12 +266,14 @@ public class OrderServiceImpl implements OrderService {
                 }
                 orderMapper.update(null, updateWrapper);
             } else {
+                LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+                updateWrapper.eq(Orders::getOrderId, order.getOrderId())
+                        .set(Orders::getOrderStatus, newStatus);
                 if (pass) {
                     releaseSeatsForOrder(order);
-                    order.setRefundTime(now);
+                    updateWrapper.set(Orders::getRefundTime, now);
                 }
-                order.setOrderStatus(newStatus);
-                orderMapper.updateById(order);
+                orderMapper.update(null, updateWrapper);
             }
 
             return Result.ok(true);
@@ -456,10 +289,39 @@ public class OrderServiceImpl implements OrderService {
                 .ne("order_status", 0)
                 .orderByDesc("order_time");
         List<Orders> orders = orderMapper.selectList(qw);
+        if (orders.isEmpty()) {
+            return Result.ok(new ArrayList<>());
+        }
+
+        // 批量查询优化
+        Set<Long> flightIds = orders.stream().map(Orders::getFlightId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> cabinIds = orders.stream().map(Orders::getCabinId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> userIds = orders.stream().map(Orders::getUserId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, Flight> flightMap = new HashMap<>();
+        if (!flightIds.isEmpty()) {
+            flightMap = flightMapper.selectBatchIds(flightIds).stream()
+                    .collect(Collectors.toMap(Flight::getFlightId, f -> f));
+        }
+
+        Map<Long, AircraftCabinConfig> cabinMap = new HashMap<>();
+        if (!cabinIds.isEmpty()) {
+            cabinMap = configMapper.selectBatchIds(cabinIds).stream()
+                    .collect(Collectors.toMap(AircraftCabinConfig::getConfigId, c -> c));
+        }
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            userMap = userMapper.selectBatchIds(userIds).stream()
+                    .collect(Collectors.toMap(User::getUserId, u -> u));
+        }
+
         List<OrderSearchResponse> resp = new ArrayList<>();
         for (Orders o : orders) {
-            Flight f = flightMapper.selectById(o.getFlightId());
-            User u = userMapper.selectById(o.getUserId());
+            Flight f = flightMap.get(o.getFlightId());
+            AircraftCabinConfig c = cabinMap.get(o.getCabinId());
+            User u = userMap.get(o.getUserId());
+
             OrderSearchResponse r = new OrderSearchResponse();
             r.setOrderNo(String.valueOf(o.getOrderId()));
             r.setFlightId(o.getFlightId());
@@ -476,6 +338,9 @@ public class OrderServiceImpl implements OrderService {
             r.setPayTime(o.getPayTime());
             r.setRefundTime(o.getRefundTime());
             r.setChangeTime(o.getChangeTime());
+            if (c != null) {
+                r.setCabinType(c.getCabinType());
+            }
             if (f != null) {
                 r.setOrigin(f.getDeparturePlace());
                 r.setDestination(f.getDestination());
@@ -495,6 +360,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Flight f = flightMapper.selectById(o.getFlightId());
+        AircraftCabinConfig c = (o.getCabinId() != null) ? configMapper.selectById(o.getCabinId()) : null;
         User u = userMapper.selectById(o.getUserId());
 
         OrderSearchResponse r = new OrderSearchResponse();
@@ -513,6 +379,9 @@ public class OrderServiceImpl implements OrderService {
         r.setPayTime(o.getPayTime());
         r.setRefundTime(o.getRefundTime());
         r.setChangeTime(o.getChangeTime());
+        if (c != null) {
+            r.setCabinType(c.getCabinType());
+        }
 
         if (f != null) {
             r.setOrigin(f.getDeparturePlace());

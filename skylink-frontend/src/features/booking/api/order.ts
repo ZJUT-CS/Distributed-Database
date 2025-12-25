@@ -23,6 +23,7 @@ export interface OrderSearchResult {
   flightId?: string | null;
   seatId?: string | null;
   parentOrderId?: string | null;
+  cabinType?: string | null;
 }
 
 export type CreateOrderResult = OrderSearchResult;

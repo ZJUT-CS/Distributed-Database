@@ -219,9 +219,11 @@ public class RefundChangeServiceImpl implements RefundChangeService {
                 mainRecordId = r.getRecordId();
             }
             
-            // Update Order Status to 4 (Processing)
-            order.setOrderStatus(4);
-            orderMapper.updateById(order);
+            // Update Order Status to 4 (Processing) - 避免 updateById
+            LambdaUpdateWrapper<Orders> processingUpdate = Wrappers.<Orders>lambdaUpdate()
+                    .eq(Orders::getOrderId, order.getOrderId())
+                    .set(Orders::getOrderStatus, 4);
+            orderMapper.update(null, processingUpdate);
         }
         
         return Result.ok(mainRecordId != null ? mainRecordId : -1L);
@@ -276,17 +278,24 @@ public class RefundChangeServiceImpl implements RefundChangeService {
                      Long newSeatId = seatService.lockRandomSeat(rec.getNewFlightId(), rec.getNewCabinId(), order.getUserId());
                      // Associate
                      seatService.associateOrder(order.getUserId(), java.util.Collections.singletonList(newSeatId), order.getOrderId());
-                     
-                     order.setFlightId(rec.getNewFlightId());
-                     order.setCabinId(rec.getNewCabinId());
-                     order.setSeatId(newSeatId);
-                     order.setOrderStatus(1); // Back to Paid
-                     order.setChangeTime(now);
+                     LambdaUpdateWrapper<Orders> changeUpdate = Wrappers.<Orders>lambdaUpdate()
+                             .eq(Orders::getOrderId, order.getOrderId())
+                             .set(Orders::getCabinId, rec.getNewCabinId())
+                             .set(Orders::getSeatId, newSeatId)
+                             .set(Orders::getOrderStatus, 1)
+                             .set(Orders::getChangeTime, now);
+                     orderMapper.update(null, changeUpdate);
                  } catch (Exception e) {
                      throw new RuntimeException("Change failed for order " + order.getOrderId() + ": " + e.getMessage());
                  }
              }
-             orderMapper.updateById(order);
+             if (rec.getOperType() == 1) {
+                 LambdaUpdateWrapper<Orders> refundUpdate = Wrappers.<Orders>lambdaUpdate()
+                         .eq(Orders::getOrderId, order.getOrderId())
+                         .set(Orders::getOrderStatus, 5)
+                         .set(Orders::getRefundTime, now);
+                 orderMapper.update(null, refundUpdate);
+             }
         }
         
         return Result.ok(true);

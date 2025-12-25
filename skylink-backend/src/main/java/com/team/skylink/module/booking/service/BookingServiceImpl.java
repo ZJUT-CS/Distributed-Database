@@ -18,6 +18,7 @@ import com.team.skylink.module.flight.mapper.RouteMapper;
 import com.team.skylink.module.flight.service.SeatService;
 import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
+import com.team.skylink.module.order.service.PriceStrategyService;
 import com.team.skylink.module.user.mapper.UserMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,22 +41,25 @@ public class BookingServiceImpl implements BookingService {
     private final UserMapper userMapper;
     private final RouteMapper routeMapper;
     private final SeatService seatService;
+    private final PriceStrategyService priceStrategyService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public BookingServiceImpl(OrderMapper orderMapper, FlightMapper flightMapper,
             AircraftCabinConfigMapper configMapper, UserMapper userMapper,
-            RouteMapper routeMapper, SeatService seatService) {
+            RouteMapper routeMapper, SeatService seatService, PriceStrategyService priceStrategyService) {
         this.orderMapper = orderMapper;
         this.flightMapper = flightMapper;
         this.configMapper = configMapper;
         this.userMapper = userMapper;
         this.routeMapper = routeMapper;
         this.seatService = seatService;
+        this.priceStrategyService = priceStrategyService;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Map<String, Object>> submitBooking(BookingRequest req) {
+        log.info("收到预订请求 flightIds={} cabinId={} userId={} interline={}", req.getFlightIds(), req.getCabinId(), req.getUserId(), req.getIsInterline());
         if (req.getFlightIds() == null || req.getFlightIds().isEmpty()) {
             return Result.fail(400, "请至少选择一个航班");
         }
@@ -64,27 +69,43 @@ public class BookingServiceImpl implements BookingService {
 
         boolean isInterline = Boolean.TRUE.equals(req.getIsInterline()) && req.getFlightIds().size() > 1;
 
+        // 解析航班ID（处理 "ID1+ID2" 格式）
+        List<Long> parsedFlightIds = new ArrayList<>();
+        if (req.getFlightIds() != null) {
+            for (String fidStr : req.getFlightIds()) {
+                if (fidStr == null || fidStr.isBlank()) continue;
+                if (fidStr.contains("+")) {
+                    String[] parts = fidStr.split("\\+");
+                    for (String part : parts) {
+                        try { parsedFlightIds.add(Long.parseLong(part.trim())); } catch (Exception e) {}
+                    }
+                } else {
+                    try { parsedFlightIds.add(Long.parseLong(fidStr.trim())); } catch (Exception e) {}
+                }
+            }
+        }
+
         try {
             // 序列化乘客信息
             String passengersJson = objectMapper.writeValueAsString(req.getPassengers());
             Map<String, Object> result;
 
             if (isInterline) {
-                result = createInterlineOrders(req, passengersJson);
+                result = createInterlineOrders(req, parsedFlightIds, passengersJson);
             } else {
-                result = createIndependentOrders(req, passengersJson);
+                result = createIndependentOrders(req, parsedFlightIds, passengersJson);
             }
             return Result.ok(result);
         } catch (InventoryShortageException e) {
-            return Result.fail(400, e.getMessage());
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private Map<String, Object> createInterlineOrders(BookingRequest req, String passengersJson) {
+    private Map<String, Object> createInterlineOrders(BookingRequest req, List<Long> flightIds, String passengersJson) {
         long parentOrderId = IdWorker.getId();
-        List<Long> flightIds = req.getFlightIds();
+        // List<Long> flightIds = req.getFlightIds(); // 已移除，使用参数传入的 flightIds
 
         AircraftCabinConfig config = configMapper.selectById(req.getCabinId());
         if (config == null) {
@@ -113,6 +134,10 @@ public class BookingServiceImpl implements BookingService {
 
             log.info("🔍 准备锁座: flightId={}, cabinType={}, passengerCount={}, userId={}",
                     flightId, cabinType, passengerCount, userId);
+            try {
+                Integer avail = seatService.getAvailableCount(flightId, cabinType);
+                log.info("可用座位统计 flightId={} cabinType={} available={}", flightId, cabinType, avail);
+            } catch (Exception ignore) {}
 
             // 1. 先尝试锁座 (传入 UserId)
             List<Seat> lockedSeats = seatService.lockSeats(flightId, cabinType, passengerCount, userId);
@@ -127,7 +152,7 @@ public class BookingServiceImpl implements BookingService {
 
             // 4. 保存订单到数据库 (tripType: 1=去程/第一段, 2=返程/第二段)
             saveSingleOrder(userId, flightId, req.getCabinId(), parentOrderId,
-                    i == 0 ? 1 : 2, passengersJson, passengerCount, orderId);
+                    i == 0 ? 1 : 2, passengersJson, passengerCount, orderId, lockedSeats, req.getAddons());
         }
 
         Map<String, Object> res = new HashMap<>();
@@ -136,7 +161,7 @@ public class BookingServiceImpl implements BookingService {
         return res;
     }
 
-    private Map<String, Object> createIndependentOrders(BookingRequest req, String passengersJson) {
+    private Map<String, Object> createIndependentOrders(BookingRequest req, List<Long> flightIds, String passengersJson) {
         List<String> orderIds = new ArrayList<>();
 
         AircraftCabinConfig config = configMapper.selectById(req.getCabinId());
@@ -148,8 +173,12 @@ public class BookingServiceImpl implements BookingService {
         Long userId = req.getUserId();
 
         // 【修改点】 循环处理每个独立航班
-        for (Long flightId : req.getFlightIds()) {
+        for (Long flightId : flightIds) {
             // 1. 先锁座
+            try {
+                Integer avail = seatService.getAvailableCount(flightId, cabinType);
+                log.info("可用座位统计 flightId={} cabinType={} available={}", flightId, cabinType, avail);
+            } catch (Exception ignore) {}
             List<Seat> lockedSeats = seatService.lockSeats(flightId, cabinType, passengerCount, userId);
 
             // 2. 生成 ID
@@ -161,7 +190,7 @@ public class BookingServiceImpl implements BookingService {
             seatService.associateOrder(userId, seatIds, orderId);
 
             // 4. 保存 (tripType=0 单程)
-            saveSingleOrder(userId, flightId, req.getCabinId(), null, 0, passengersJson, passengerCount, orderId);
+            saveSingleOrder(userId, flightId, req.getCabinId(), null, 0, passengersJson, passengerCount, orderId, lockedSeats, req.getAddons());
         }
 
         Map<String, Object> res = new HashMap<>();
@@ -173,24 +202,49 @@ public class BookingServiceImpl implements BookingService {
      * 【修改点】只负责保存 Orders 对象，不再负责锁座
      */
     private void saveSingleOrder(Long userId, Long flightId, Long cabinId, Long parentOrderId,
-            Integer tripType, String passengersJson, int ticketNum, Long orderId) {
+            Integer tripType, String passengersJson, int ticketNum, Long orderId, List<Seat> seats, BookingRequest.Addons addons) {
         Flight flight = flightMapper.selectById(flightId);
         AircraftCabinConfig config = configMapper.selectById(cabinId);
         Route route = routeMapper.selectById(flight.getRouteId());
 
-        BigDecimal basePrice = route.getBasePrice();
-        if (config.getCabinCoefficient() != null) {
-            basePrice = basePrice.multiply(config.getCabinCoefficient());
+        boolean isInterline = parentOrderId != null;
+        BigDecimal unitPrice = priceStrategyService.calculateSegmentPrice(flight, route, config, isInterline);
+        BigDecimal totalPrice = unitPrice.multiply(new BigDecimal(ticketNum));
+        Long existing = orderMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Orders>().eq("user_id", userId));
+        boolean isNewUser = existing != null && existing == 0;
+        if (tripType == 0 || tripType == 1) {
+            totalPrice = priceStrategyService.applyUserDiscount(totalPrice, isNewUser);
         }
 
+        // Add Taxes and Fees
+        // Tax: 120 per passenger
+        BigDecimal tax = new BigDecimal("120").multiply(new BigDecimal(ticketNum));
+        totalPrice = totalPrice.add(tax);
+
+        // Addons
+        if (addons != null) {
+            if (Boolean.TRUE.equals(addons.getInsurance())) {
+                totalPrice = totalPrice.add(new BigDecimal("30").multiply(new BigDecimal(ticketNum)));
+            }
+            if (Boolean.TRUE.equals(addons.getFastTicket())) {
+                totalPrice = totalPrice.add(new BigDecimal("20").multiply(new BigDecimal(ticketNum)));
+            }
+        }
+        
+        log.info("Saving order: flightId={}, totalPrice={}, ticketNum={}", flightId, totalPrice, ticketNum);
+
         Orders order = new Orders();
+
         order.setOrderId(orderId); // 必填：使用外部生成的ID
+        if (seats != null && !seats.isEmpty()) {
+            order.setSeatId(seats.get(0).getSeatId());
+        }
         order.setUserId(userId);
         order.setFlightId(flightId);
         order.setCabinId(cabinId);
-        order.setTotalAmount(basePrice.multiply(new BigDecimal(ticketNum)));
+        order.setTotalAmount(totalPrice);
         order.setTicketNum(ticketNum);
-        order.setOrderStatus(OrderStatusEnum.PENDING_AUDIT.getCode());
+        order.setOrderStatus(OrderStatusEnum.PENDING_PAYMENT.getCode());
         order.setParentOrderId(parentOrderId);
         order.setTripType(tripType);
         order.setOrderTime(LocalDateTime.now());
@@ -207,7 +261,7 @@ public class BookingServiceImpl implements BookingService {
             snapshot.put("arrivalTime", flight.getArrivalTime() != null ? flight.getArrivalTime().toString() : "");
             snapshot.put("airlineCompany", flight.getAirlineCompany());
             snapshot.put("cabinType", config.getCabinType());
-            snapshot.put("unitPrice", basePrice);
+            snapshot.put("unitPrice", unitPrice);
             order.setFlightSnapshot(objectMapper.writeValueAsString(snapshot));
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate flight snapshot", e);
@@ -222,11 +276,31 @@ public class BookingServiceImpl implements BookingService {
         List<Orders> orders = orderMapper.selectList(new QueryWrapper<Orders>()
                 .eq("user_id", userId).orderByDesc("order_time"));
 
+        if (orders.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Optimization: Bulk Fetch
+        Set<Long> flightIds = orders.stream().map(Orders::getFlightId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> cabinIds = orders.stream().map(Orders::getCabinId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, Flight> flightMap = new HashMap<>();
+        if (!flightIds.isEmpty()) {
+            List<Flight> flights = flightMapper.selectBatchIds(flightIds);
+            flightMap = flights.stream().collect(Collectors.toMap(Flight::getFlightId, Function.identity()));
+        }
+
+        Map<Long, AircraftCabinConfig> configMap = new HashMap<>();
+        if (!cabinIds.isEmpty()) {
+            List<AircraftCabinConfig> configs = configMapper.selectBatchIds(cabinIds);
+            configMap = configs.stream().collect(Collectors.toMap(AircraftCabinConfig::getConfigId, Function.identity()));
+        }
+
         List<BookingResponse> resp = new ArrayList<>();
 
         for (Orders o : orders) {
-            Flight f = flightMapper.selectById(o.getFlightId());
-            AircraftCabinConfig c = (o.getCabinId() != null) ? configMapper.selectById(o.getCabinId()) : null;
+            Flight f = flightMap.get(o.getFlightId());
+            AircraftCabinConfig c = (o.getCabinId() != null) ? configMap.get(o.getCabinId()) : null;
 
             BookingResponse r = new BookingResponse();
             r.setId(String.valueOf(o.getOrderId()));

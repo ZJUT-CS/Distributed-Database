@@ -43,6 +43,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InventoryShortageException.class)
     public Result<Void> handleInventoryShortage(InventoryShortageException ex) {
+        log.warn("Inventory shortage: {}", ex.getMessage());
         return Result.fail(HttpStatus.CONFLICT.value(), ex.getMessage());
     }
 

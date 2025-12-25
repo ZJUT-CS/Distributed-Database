@@ -30,4 +30,7 @@ public class FlightSearchResponse {
 
     // ✅ 新增：服务项目（如 "餐食,娱乐系统"）
     private String services;
+
+    // ✅ 新增：舱位配置ID (确保预订时价格一致)
+    private Long cabinId;
 }

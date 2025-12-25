@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { UserBookings as UserBookingsComponent } from '@/features/user';
 import { useAuth } from '@/features/auth';
@@ -108,6 +108,81 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
   };
 };
 
+const mapOrdersToBooking = (orders: OrderSearchResult[]): ConfirmedBooking | null => {
+  if (!orders || orders.length === 0) return null;
+  
+  // 按出发时间排序
+  const sortedOrders = [...orders].sort((a, b) => 
+    (a.departureTime || '').localeCompare(b.departureTime || '')
+  );
+
+  const firstOrder = sortedOrders[0];
+  // 构造复合ID
+  const compositeId = sortedOrders.map(o => o.orderNo).join('+');
+  
+  // 计算总金额
+  const totalPrice = sortedOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+  
+  // 收集所有航段
+  const flights = sortedOrders.map(o => {
+      const dbFlightId = o.flightId || '';
+      return {
+          id: dbFlightId,
+          airline: '',
+          airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
+          flightNumber: o.flightNo || '',
+          cabinType: 'economy', 
+          origin: o.origin || '',
+          destination: o.destination || '',
+          departureTime: o.departureTime || '',
+          arrivalTime: o.arrivalTime || '',
+          price: Number(o.totalAmount || 0),
+          remainingSeats: 0,
+          duration: '',
+          stops: 0,
+          baggageWeight: 23,
+          amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+      };
+  });
+
+  const passengers = parsePassengersJson(firstOrder.passengersJson) ?? loadOrderPassengers(compositeId) ?? loadOrderPassengers(String(firstOrder.orderNo)) ?? [];
+
+  // 映射状态
+  let status: ConfirmedBooking['status'] = 'pending_payment';
+  if (firstOrder.orderStatus === ORDER_STATUS.CONFIRMED) status = 'confirmed';
+  else if (firstOrder.orderStatus === ORDER_STATUS.PROCESSING) status = 'refunding';
+  else if (firstOrder.orderStatus === ORDER_STATUS.REFUNDED) status = 'refunded';
+  else if (firstOrder.orderStatus === ORDER_STATUS.CANCELLED) status = 'cancelled';
+
+  return {
+    id: compositeId,
+    flight: flights[0],
+    flights: flights,
+    status,
+    bookingDate: firstOrder.orderTime || new Date().toISOString(),
+    totalPrice: totalPrice,
+    passengerName: firstOrder.passengerName || passengers[0]?.name || '',
+    passportNumber: '',
+    passengers,
+    contactEmail: firstOrder.contactEmail || '',
+    phone: firstOrder.contactPhone || '',
+  };
+};
+
+const fetchBookingDetails = async (userId: string | number, bookingId: string): Promise<ConfirmedBooking | null> => {
+    if (bookingId.includes('+')) {
+        const ids = bookingId.split('+');
+        const results = await Promise.all(ids.map(id => searchOrders({ userId, orderNo: id })));
+        const flatOrders = results.flat();
+        if (flatOrders.length === 0) return null;
+        return mapOrdersToBooking(flatOrders);
+    } else {
+        const res = await searchOrders({ userId, orderNo: bookingId });
+        if (res.length === 0) return null;
+        return mapOrderToBooking(res[0]);
+    }
+};
+
 const formatLocalYmd = (d: Date) => {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 };
@@ -204,10 +279,9 @@ export const BookingDetailsPage: React.FC = () => {
     if (!user.id) return;
     setDetailLoading(true);
     setDetailError(null);
-    searchOrders({ userId: user.id, orderNo: id })
+    fetchBookingDetails(user.id, id)
       .then((res) => {
-        if (res.length > 0) setBooking(mapOrderToBooking(res[0]));
-        else setBooking(null);
+        setBooking(res);
       })
       .catch((e: any) => {
         setDetailError(e?.message || '加载订单详情失败');
@@ -227,17 +301,16 @@ export const BookingDetailsPage: React.FC = () => {
         setPayTimeLeft('00:00');
         if (!expireTriggeredRef.current) {
           expireTriggeredRef.current = true;
-          cancelOrder(booking.id)
+          const ids = booking.id.split('+');
+          Promise.all(ids.map(id => cancelOrder(id)))
             .then(() => {
               if (user?.id) {
-                return searchOrders({ userId: user.id, orderNo: booking.id }).then((res) => {
-                  if (res.length > 0) setBooking(mapOrderToBooking(res[0]));
+                return fetchBookingDetails(user.id, booking.id).then((res) => {
+                  if (res) setBooking(res);
                 });
               }
             })
-            .catch(() => {
-              setBooking({ ...booking, status: 'cancelled' });
-            });
+            .catch(() => setBooking({ ...booking, status: 'cancelled' }));
         }
         return;
       }
@@ -316,9 +389,9 @@ export const BookingDetailsPage: React.FC = () => {
       toast.success('退票申请已提交，请前往"退改/售后"页面查看进度');
       setRefundModalOpen(false);
       if (user?.id) {
-        const latestOrders = await searchOrders({ userId: user.id, orderNo: booking.id });
-        if (latestOrders.length > 0) {
-          setBooking(mapOrderToBooking(latestOrders[0]));
+        const refreshed = await fetchBookingDetails(user.id, booking.id);
+        if (refreshed) {
+          setBooking(refreshed);
         }
       }
     } catch (e: any) {
@@ -370,9 +443,9 @@ export const BookingDetailsPage: React.FC = () => {
       // 尝试重新获取最新订单状态
       let currentBooking = booking;
       try {
-        const latestOrders = await searchOrders({ userId: user.id, orderNo: booking.id });
-        if (latestOrders.length > 0) {
-          currentBooking = mapOrderToBooking(latestOrders[0]);
+        const refreshed = await fetchBookingDetails(user.id, booking.id);
+        if (refreshed) {
+          currentBooking = refreshed;
           setBooking(currentBooking);
         }
       } catch (refreshErr) {
@@ -392,9 +465,10 @@ export const BookingDetailsPage: React.FC = () => {
       // 检查是否超时
       const expired = Date.now() >= getPaymentDeadlineMs(currentBooking.bookingDate);
       if (expired) {
-        cancelOrder(currentBooking.id)
-          .then(() => searchOrders({ userId: user.id, orderNo: currentBooking.id }).then((res) => {
-            if (res.length > 0) setBooking(mapOrderToBooking(res[0]));
+        const ids = currentBooking.id.split('+');
+        Promise.all(ids.map(id => cancelOrder(id)))
+          .then(() => fetchBookingDetails(user!.id!, currentBooking.id).then((res) => {
+            if (res) setBooking(res);
           }))
           .catch(() => setBooking({ ...currentBooking, status: 'cancelled' }));
         toast.warning('订单已超时，已自动取消');
@@ -433,15 +507,14 @@ export const BookingDetailsPage: React.FC = () => {
       method: 'CARD',
     })
       .then(() => {
+        toast.success('支付成功！');
+        setPayModalOpen(false);
+        setPayToken(null);
         if (user?.id) {
-          return searchOrders({ userId: user.id, orderNo: booking.id }).then((res) => {
-            if (res.length > 0) setBooking(mapOrderToBooking(res[0]));
+          return fetchBookingDetails(user.id, booking.id).then((res) => {
+            if (res) setBooking(res);
           });
         }
-      })
-      .then(() => {
-        closePayModal();
-        toast.success('支付成功！');
       })
       .catch((e: any) => setPayError(e?.message || '支付失败'))
       .finally(() => setPayConfirming(false));

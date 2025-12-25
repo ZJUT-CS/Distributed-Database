@@ -33,6 +33,8 @@ type UiFlight = {
   arrivalTime?: string;
   airlineCompany: string;
   totalSeats?: number;
+  layoutNo: number;
+  stopoverInfo?: string;
 };
 
 const toFlightStatus = (status: number | null | undefined): FlightStatus => {
@@ -98,15 +100,16 @@ const mapAdminFlight = (f: AdminFlightItem): UiFlight => {
     aircraft: String(f.modelId ?? ''),
     price: normalizePrice(f.lowestPrice),
     seats: Number.isFinite(totalSeats) ? totalSeats : 0,
-    sold: 0,
+    sold: 0, // 暂无销量
     status: toFlightStatus(f.status),
-
     modelId: Number(f.modelId),
     routeId: Number(f.routeId),
     departureTime: toDatetimeLocal(f.departureTime),
-    arrivalTime: toDatetimeLocal(f.arrivalTime ?? undefined) || undefined,
+    arrivalTime: toDatetimeLocal(f.arrivalTime),
     airlineCompany,
     totalSeats: Number.isFinite(totalSeats) ? totalSeats : undefined,
+    layoutNo: Number(f.layoutNo ?? 1),
+    stopoverInfo: f.stopoverInfo || undefined,
   };
 };
 
@@ -205,6 +208,8 @@ const FlightMgmt: React.FC = () => {
     const departureTime = String(formData.get('departureTime') ?? '').trim();
     const arrivalTime = String(formData.get('arrivalTime') ?? '').trim();
     const totalSeats = String(formData.get('totalSeats') ?? '').trim();
+    const layoutNo = String(formData.get('layoutNo') ?? '').trim();
+    const stopoverInfo = String(formData.get('stopoverInfo') ?? '').trim();
     const statusRaw = String(formData.get('status') ?? '').trim();
 
     const status = statusRaw === 'cancelled' ? 2 : statusRaw === 'delayed' ? 3 : 1;
@@ -221,6 +226,8 @@ const FlightMgmt: React.FC = () => {
             arrivalTime: arrivalTime || undefined,
             airlineCompany,
             totalSeats: totalSeats ? Number(totalSeats) : undefined,
+            layoutNo: layoutNo ? Number(layoutNo) : undefined,
+            stopoverInfo: stopoverInfo || undefined,
             status,
           },
         });
@@ -233,6 +240,8 @@ const FlightMgmt: React.FC = () => {
           arrivalTime: arrivalTime || undefined,
           airlineCompany,
           totalSeats: totalSeats ? Number(totalSeats) : undefined,
+          layoutNo: layoutNo ? Number(layoutNo) : undefined,
+          stopoverInfo: stopoverInfo || undefined,
           status,
         });
       }
@@ -281,6 +290,7 @@ const FlightMgmt: React.FC = () => {
           arrivalTime: flight.arrivalTime,
           airlineCompany: flight.airlineCompany,
           totalSeats: flight.totalSeats,
+          layoutNo: flight.layoutNo,
           status: 2,
         },
       });
@@ -319,6 +329,7 @@ const FlightMgmt: React.FC = () => {
             arrivalTime: flight.arrivalTime,
             airlineCompany: flight.airlineCompany,
             totalSeats: flight.totalSeats,
+            layoutNo: flight.layoutNo,
             status: 2,
           },
         });
@@ -709,26 +720,36 @@ const FlightMgmt: React.FC = () => {
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500">起飞时间</label>
-              <input type="datetime-local" name="departureTime" defaultValue={editingFlight?.departureTime ? String(editingFlight.departureTime).slice(0, 16) : ''} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              <label className="text-xs font-bold text-gray-500">计划起飞时间</label>
+              <input type="datetime-local" name="departureTime" defaultValue={editingFlight?.departureTime} required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500">到达时间(可选)</label>
-              <input type="datetime-local" name="arrivalTime" defaultValue={editingFlight?.arrivalTime ? String(editingFlight.arrivalTime).slice(0, 16) : ''} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              <label className="text-xs font-bold text-gray-500">计划到达时间 (可选)</label>
+              <input type="datetime-local" name="arrivalTime" defaultValue={editingFlight?.arrivalTime} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500">总座位数(可选)</label>
+              <label className="text-xs font-bold text-gray-500">舱位布局方案</label>
+              <input type="number" name="layoutNo" defaultValue={editingFlight?.layoutNo ?? 1} min="1" required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="默认: 1" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">总座位数 (可选)</label>
               <input type="number" name="totalSeats" defaultValue={editingFlight?.totalSeats ?? editingFlight?.seats} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500">经停信息 (可选)</label>
+              <input name="stopoverInfo" defaultValue={editingFlight?.stopoverInfo ?? ''} placeholder="例如: 西安(1h)" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
             </div>
           </div>
 
           <div className="space-y-1">
             <label className="text-xs font-bold text-gray-500">当前状态</label>
-            <select name="status" defaultValue={editingFlight?.status || 'active'} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
-              <option value="active">计划中 (Active)</option>
-              <option value="delayed">延误 (Delayed)</option>
-              <option value="cancelled">已取消 (Cancelled)</option>
-              <option value="full">满员 (Full)</option>
+            <select name="status" defaultValue={editingFlight?.status === 'active' ? 1 : editingFlight?.status === 'cancelled' ? 2 : 3} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+              <option value={1}>计划中 (Active)</option>
+              <option value={3}>延误 (Delayed)</option>
+              <option value={2}>取消 (Cancelled)</option>
             </select>
           </div>
 

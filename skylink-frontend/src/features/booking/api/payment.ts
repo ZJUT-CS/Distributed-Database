@@ -39,16 +39,14 @@ export async function createPaymentConfirmToken(body: {
   const orderNoStr = String(body.orderNo ?? '').trim();
   if (!orderNoStr) throw new Error('缺少 orderNo');
 
-  // 后端期望 orderNo 为 Long 类型（雪花ID）
-  // 使用 BigInt 确保大整数精度，然后转为字符串让 axios 的 json-bigint 正确处理
-  const orderNoNum = BigInt(orderNoStr);
+  // 移除 BigInt 转换，直接传递字符串以支持 "ID1+ID2" 格式
   const amount = normalizeAmount(body.amount);
 
   return request<PaymentConfirmToken>({
     method: 'POST',
     url: '/api/v1/payments/confirmation-tokens',
     data: {
-      orderNo: orderNoNum.toString(),  // 以字符串形式发送，后端 Jackson 会解析为 Long
+      orderNo: orderNoStr,
       amount,
     },
   });
@@ -63,7 +61,7 @@ export async function confirmPayment(body: {
 }): Promise<void> {
   const orderNoStr = String(body.orderNo ?? '').trim();
   if (!orderNoStr) throw new Error('缺少 orderNo');
-  const orderNoNum = BigInt(orderNoStr);
+  // 移除 BigInt 转换，支持 "ID1+ID2"
   const amount = normalizeAmount(body.amount);
   const token = String(body.token ?? '').trim();
   if (!token) throw new Error('缺少 token');
@@ -75,7 +73,7 @@ export async function confirmPayment(body: {
     method: 'POST',
     url: '/api/v1/payments/confirmations',
     data: {
-      orderNo: orderNoNum.toString(),  // 后端期望 Long 类型
+      orderNo: orderNoStr,
       amount,
       timestamp: body.timestamp,
       token,

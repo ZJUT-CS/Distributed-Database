@@ -72,7 +72,7 @@ public class CabinServiceImpl implements CabinService {
             Long availableCount = seatMapper.selectCount(
                     new QueryWrapper<Seat>()
                             .eq("flight_id", flightId)
-                            .eq("cabin_type", config.getCabinType()) // ✅ 使用cabinType而非cabin_id
+                            .in("cabin_type", cabinTypeVariants(config.getCabinType()))
                             .eq("status", 1) // 1=可用
             );
 
@@ -94,5 +94,16 @@ public class CabinServiceImpl implements CabinService {
         }
 
         return result;
+    }
+
+    private List<String> cabinTypeVariants(String cabinType) {
+        String t = cabinType == null ? "" : cabinType.trim().toUpperCase();
+        if ("ECONOMY".equals(t)) return java.util.Arrays.asList("ECONOMY", "Y");
+        if ("BUSINESS".equals(t)) return java.util.Arrays.asList("BUSINESS", "J");
+        if ("FIRST".equals(t)) return java.util.Arrays.asList("FIRST", "F");
+        if ("Y".equals(t)) return java.util.Arrays.asList("Y", "ECONOMY");
+        if ("J".equals(t)) return java.util.Arrays.asList("J", "BUSINESS");
+        if ("F".equals(t)) return java.util.Arrays.asList("F", "FIRST");
+        return java.util.Collections.singletonList(t);
     }
 }
