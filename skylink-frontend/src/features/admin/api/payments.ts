@@ -1,5 +1,4 @@
-import { request } from '@/lib/axios';
-import type { PageResult } from './types';
+import { request, type PageResult } from '@/lib/axios';
 
 /**
  * 支付记录类型（与后端 PaymentSearchResponse 对齐）

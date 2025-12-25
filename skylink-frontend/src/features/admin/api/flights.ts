@@ -150,3 +150,52 @@ export async function deleteAdminFlight(flightId: string | number): Promise<bool
     url: `/api/v1/admins/flights/${encodeURIComponent(id)}`,
   });
 }
+
+export interface FlightPassengerItem {
+  orderId: string | number;
+  orderNo: string | number;
+  flightId: string | number;
+  flightNo: string;
+  departureCity: string;
+  departureAirport: string;
+  arrivalCity: string;
+  arrivalAirport: string;
+  departureTime: string;
+  arrivalTime: string;
+  userId: string | number | null;
+  userRealName: string | null;
+  userPhone: string | null;
+  userEmail: string | null;
+  passengerName: string;
+  contactEmail: string;
+  contactPhone: string;
+  seatId: string | number | null;
+  totalAmount: number;
+  orderStatus: number;
+  createTime: string;
+}
+
+export async function listFlightPassengers(params: {
+  flightNo: string;
+  passengerName?: string;
+  contactPhone?: string;
+  page?: number;
+  size?: number;
+}): Promise<PageResult<FlightPassengerItem>> {
+  const flightNo = String(params.flightNo ?? '').trim();
+  if (!flightNo) throw new Error('缺少 flightNo');
+
+  const qp: Record<string, string> = {
+    flightNo,
+    page: String(params.page ?? 1),
+    size: String(params.size ?? 20),
+  };
+  if (params.passengerName != null && String(params.passengerName).trim() !== '') qp.passengerName = String(params.passengerName).trim();
+  if (params.contactPhone != null && String(params.contactPhone).trim() !== '') qp.contactPhone = String(params.contactPhone).trim();
+
+  return request<PageResult<FlightPassengerItem>>({
+    method: 'GET',
+    url: `/api/v1/admins/flights/${encodeURIComponent(flightNo)}/passengers`,
+    params: qp,
+  });
+}

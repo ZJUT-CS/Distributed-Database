@@ -28,7 +28,6 @@ public class AdminController {
         return adminManagementService.login(request.getAdminAccount(), request.getPassword());
     }
 
-    // ▼▼▼▼▼▼ 管理员列表 ▼▼▼▼▼▼
     @GetMapping("")
     @Operation(summary = "获取管理员列表")
     public Result<List<Admin>> listAdmins(@RequestParam(required = false) String keyword) {
@@ -45,7 +44,6 @@ public class AdminController {
         return adminManagementService.listAdminsPage(keyword, page, size);
     }
 
-    // ▼▼▼▼▼▼ 创建管理员 ▼▼▼▼▼▼
     @PostMapping("")
     @Operation(summary = "创建管理员（仅超级管理员）")
     @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
@@ -61,7 +59,6 @@ public class AdminController {
         );
     }
 
-    // ▼▼▼▼▼▼ 删除管理员 ▼▼▼▼▼▼
     @DeleteMapping("/{adminId}")
     @Operation(summary = "删除管理员（仅超级管理员）")
     public Result<Void> deleteAdmin(HttpServletRequest request, @PathVariable Long adminId) {
@@ -70,13 +67,22 @@ public class AdminController {
         return adminManagementService.deleteAdmin(adminId);
     }
 
-    // ▼▼▼▼▼▼ 重置密码 ▼▼▼▼▼▼
     @PostMapping("/{adminId}/reset-password")
     @Operation(summary = "重置管理员密码（仅超级管理员）")
     public Result<Void> resetPassword(HttpServletRequest request, @PathVariable Long adminId, @RequestBody ResetPasswordRequest body) {
         Result<?> guard = ensureSuperAdmin(request);
         if (guard != null) return (Result<Void>) guard;
         return adminManagementService.resetAdminPassword(adminId, body.getNewPassword());
+    }
+
+    @PutMapping("/{adminId}")
+    @Operation(summary = "更新管理员信息（仅超级管理员）")
+    @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
+    @Parameter(name = "X-Admin-Role", description = "管理员角色：1=普通管理员，2=超级管理员", required = true)
+    public Result<Admin> updateAdmin(HttpServletRequest request, @PathVariable Long adminId, @RequestBody AdminUpdateRequest body) {
+        Result<?> guard = ensureSuperAdmin(request);
+        if (guard != null) return (Result<Admin>) guard;
+        return adminManagementService.updateAdmin(adminId, body.getAdminAccount(), body.getRole(), body.getPassword());
     }
 
     @GetMapping("/count")
@@ -93,20 +99,19 @@ public class AdminController {
     @GetMapping("/refund-change-requests/count")
     public Result<Long> changeRequestCount() { return adminManagementService.changeRequestCount(); }
 
-    // ▼▼▼▼▼▼ 系统日志列表 ▼▼▼▼▼▼
     @GetMapping("/system-logs")
     @Operation(summary = "获取系统操作日志列表")
     public Result<PageResult<SystemLog>> listSystemLogs(
+            @RequestParam(required = false) Long adminId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String module,
             @RequestParam(required = false) Integer operResult,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size
     ) {
-        return adminManagementService.listSystemLogs(keyword, module, operResult, page, size);
+        return adminManagementService.listSystemLogs(adminId, keyword, module, operResult, page, size);
     }
 
-    // DTO 定义
     @Data
     public static class AdminCreateRequest {
         private String adminAccount;
@@ -117,6 +122,13 @@ public class AdminController {
     @Data
     public static class ResetPasswordRequest {
         private String newPassword;
+    }
+
+    @Data
+    public static class AdminUpdateRequest {
+        private String adminAccount;
+        private Integer role;
+        private String password;
     }
 
     private static Result<?> ensureSuperAdmin(HttpServletRequest request) {

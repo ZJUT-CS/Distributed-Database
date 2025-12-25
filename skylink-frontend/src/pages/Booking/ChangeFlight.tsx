@@ -7,7 +7,7 @@ import { request } from '@/lib/axios';
 import { applyRefundChange } from '@/features/user/api/refund';
 import { useAuth } from '@/features/auth';
 import { searchOrders, type OrderSearchResult } from '@/features/booking/api/order';
-import { ORDER_STATUS } from '@/features/admin/constants';
+import { ORDER_STATUS } from '@/config/features/admin/constants';
 
 type Step = 1 | 2 | 3;
 type CabinType = 'economy' | 'business' | 'first';

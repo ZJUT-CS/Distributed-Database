@@ -1,5 +1,4 @@
-import { request } from '@/lib/axios';
-import type { PageResult } from './types';
+import { request, type PageResult } from '@/lib/axios';
 
 /**
  * 管理员类型（与后端 Admin 实体对齐）
@@ -54,6 +53,23 @@ export async function createAdmin(req: CreateAdminRequest): Promise<AdminItem> {
 }
 
 /**
+ * 更新管理员
+ */
+export interface UpdateAdminRequest {
+  adminAccount?: string;
+  password?: string;
+  role?: number;
+}
+
+export async function updateAdmin(adminId: string, req: UpdateAdminRequest): Promise<AdminItem> {
+  return request<AdminItem>({
+    method: 'PUT',
+    url: `/api/v1/admins/${encodeURIComponent(String(adminId))}`,
+    data: req,
+  });
+}
+
+/**
  * 删除管理员
  */
 export async function deleteAdmin(adminId: string): Promise<void> {
@@ -96,6 +112,7 @@ export interface SystemLogItem {
  * 获取系统日志列表
  */
 export async function listSystemLogs(params: {
+  adminId?: number;
   keyword?: string;
   module?: string;
   operResult?: number;
@@ -106,6 +123,7 @@ export async function listSystemLogs(params: {
     method: 'GET',
     url: '/api/v1/admins/system-logs',
     params: {
+      adminId: params.adminId ?? undefined,
       keyword: params.keyword || undefined,
       module: params.module || undefined,
       operResult: params.operResult ?? undefined,

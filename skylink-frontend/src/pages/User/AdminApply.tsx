@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Lock, ArrowRight, ShieldAlert } from 'lucide-react';
 import { adminRegisterApi } from '../../features/auth/api/auth';
 import { useToast } from '@/features/admin/components/Toast';
+import { PageLayout } from '@/features/auth';
 
 const AdminApplyPage: React.FC = () => {
   const navigate = useNavigate();
@@ -45,22 +46,9 @@ const AdminApplyPage: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden">
-      {/* Background Image with Overlay */}
-      <div
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transform scale-105"
-        style={{
-          backgroundImage:
-            'url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?ixlib=rb-4.0.3&auto=format&fit=crop&w=2074&q=80")',
-        }}
-      >
-        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"></div>
-      </div>
-
-      {/* Content */}
-      <div className="relative z-10 w-full max-w-md px-4">
-        <div className="min-h-[600px] flex items-center justify-center p-4 animate-fade-in-up">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+    <PageLayout>
+      <div className="min-h-[600px] flex items-center justify-center p-4 animate-fade-in-up">
+        <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
             {/* Header */}
             <div className="p-8 text-center relative overflow-hidden transition-colors duration-500 bg-gradient-to-br from-blue-700 to-indigo-800">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-8 -mt-8 blur-2xl"></div>
@@ -178,9 +166,8 @@ const AdminApplyPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
       </div>
-    </div>
+      </PageLayout>
   );
 };
 

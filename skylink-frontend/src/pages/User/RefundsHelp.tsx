@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth';
-import { type RefundChangeRecord, type AuditStatus } from '@/features/user';
+import { type RefundChangeRecord, type AuditStatus } from '@/features/refund/types';
 import { listRefundChanges, revokeRefundChange, updateRefundChange } from '@/features/user/api/refund';
 import { ArrowLeft, CheckCircle2, Filter, RefreshCw, Search, Ticket, XCircle, AlertCircle, Trash2, Edit } from 'lucide-react';
 import { useToast } from '@/features/admin/components/Toast';

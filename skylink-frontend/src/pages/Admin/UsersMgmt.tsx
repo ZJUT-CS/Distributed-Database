@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download, Phone, CreditCard, Eye, CheckSquare, Square, X } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download, Phone, CreditCard, Eye, CheckSquare, Square, X, RefreshCw } from 'lucide-react';
 import { listAdminUsers, type AdminUserItem } from '../../features/admin/api/users';
 import {
   Pagination,
@@ -15,9 +15,8 @@ import {
   useConfirm,
   useToast,
   useSensitiveAudit,
-  GENDER_MAP,
-  GENDER_OPTIONS,
 } from '@/features/admin';
+import { GENDER_MAP, GENDER_OPTIONS, type SelectOption } from '@/config/features/admin/constants';
 import EntityCell from '@/components/common/EntityCell';
 import { exportToCSV } from '@/utils/export';
 import { useAdminUsers, useCreateAdminUser, useUpdateAdminUser, useResetAdminUserPassword, useDeleteAdminUser } from '@/features/admin/hooks/useAdminUsers';
@@ -301,6 +300,30 @@ const UsersMgmt: React.FC = () => {
     }
   };
 
+  const handleBatchExport = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要导出的用户');
+      return;
+    }
+    try {
+      toast.info(`正在导出 ${ids.length} 条数据...`);
+      const selectedData = items.filter(u => ids.includes(String(u.userId)));
+      exportToCSV(selectedData, '用户列表-选中', [
+        { key: 'userId', label: '用户ID' },
+        { key: 'phoneNumber', label: '手机号', formatter: (item) => maskPhone(item.phoneNumber) },
+        { key: 'realName', label: '姓名', formatter: (item) => item.realName || '' },
+        { key: 'email', label: '邮箱', formatter: (item) => item.email || '' },
+        { key: 'gender', label: '性别', formatter: (item) => item.gender != null && item.gender in GENDER_MAP ? GENDER_MAP[item.gender as keyof typeof GENDER_MAP] : '' },
+        { key: 'userStatus', label: '状态', formatter: (item) => item.userStatus === 1 ? '正常' : item.userStatus === 2 ? '锁定' : item.userStatus === 3 ? '注销' : '异常' },
+        { key: 'createTime', label: '创建时间', formatter: (item) => item.createTime ? String(item.createTime).replace('T', ' ').slice(0, 19) : '' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
@@ -352,6 +375,14 @@ const UsersMgmt: React.FC = () => {
             >
               搜索
             </button>
+            <button
+              onClick={() => refetch()}
+              disabled={isLoading}
+              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+              title="刷新"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
             <div className="text-xs text-gray-500">{isLoading ? '加载中...' : `共 ${total} 条`}</div>
           </div>
         }
@@ -382,6 +413,12 @@ const UsersMgmt: React.FC = () => {
                 className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
               >
                 <Trash2 className="w-3.5 h-3.5" /> 批量删除
+              </button>
+              <button
+                onClick={handleBatchExport}
+                className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1"
+              >
+                <Download className="w-3.5 h-3.5" /> 批量导出
               </button>
               <button
                 onClick={() => setSelectedIds(new Set())}
@@ -572,7 +609,7 @@ const UsersMgmt: React.FC = () => {
               onChange={(e) => setFormGender(e.target.value === '' ? '' : Number(e.target.value))}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
             >
-              {GENDER_OPTIONS.map((opt) => (
+              {GENDER_OPTIONS.map((opt: SelectOption) => (
                 <option key={String(opt.value)} value={opt.value}>{opt.label}</option>
               ))}
             </select>

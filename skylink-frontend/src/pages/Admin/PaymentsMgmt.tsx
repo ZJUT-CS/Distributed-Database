@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Eye, FileText, CreditCard, Wallet, Search, RefreshCw, CheckSquare, Square, X, RotateCcw } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, AdminDrawer, PAYMENT_STATUS_OPTIONS, PAYMENT_STATUS_MAP, PAYMENT_METHOD_MAP, useToast, useConfirm } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, AdminDrawer, useToast, useConfirm } from '@/features/admin';
+import { PAYMENT_STATUS_OPTIONS, PAYMENT_STATUS_MAP, PAYMENT_METHOD_MAP, type SelectOption } from '@/config/features/admin/constants';
 import { useAdminPayments } from '@/features/payment/hooks/usePayments';
 import { type PaymentItem } from '@/features/admin/api/payments';
 import EntityCell from '@/components/common/EntityCell';
@@ -141,6 +142,30 @@ const PaymentsMgmt: React.FC = () => {
     }
   };
 
+  const handleBatchExport = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要导出的支付记录');
+      return;
+    }
+    try {
+      toast.info(`正在导出 ${ids.length} 条数据...`);
+      const selectedData = payments.filter((p: PaymentItem) => ids.includes(String(p.paymentId)));
+      exportToCSV(selectedData, '支付记录-选中', [
+        { key: 'paymentId', label: '支付ID' },
+        { key: 'orderNo', label: '订单号' },
+        { key: 'tradeNo', label: '流水号', formatter: (item) => item.tradeNo || '' },
+        { key: 'paymentMethod', label: '支付方式', formatter: (item) => PAYMENT_METHOD_MAP[item.paymentMethod]?.label || String(item.paymentMethod) },
+        { key: 'paymentAmount', label: '金额' },
+        { key: 'paymentStatus', label: '状态', formatter: (item) => PAYMENT_STATUS_MAP[item.paymentStatus]?.label || '' },
+        { key: 'paymentTime', label: '支付时间', formatter: (item) => formatDateTimeZhCN(item.paymentTime) || '' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
@@ -186,7 +211,7 @@ const PaymentsMgmt: React.FC = () => {
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
             <div className="flex bg-gray-100 p-1 rounded-lg">
-              {PAYMENT_STATUS_OPTIONS.map(opt => (
+              {PAYMENT_STATUS_OPTIONS.map((opt: SelectOption) => (
                 <button
                   key={String(opt.value)}
                   onClick={() => {
@@ -216,6 +241,12 @@ const PaymentsMgmt: React.FC = () => {
                 className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> 批量退款
+              </button>
+              <button
+                onClick={handleBatchExport}
+                className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1"
+              >
+                <Download className="w-3.5 h-3.5" /> 批量导出
               </button>
               <button
                 onClick={() => setSelectedIds(new Set())}

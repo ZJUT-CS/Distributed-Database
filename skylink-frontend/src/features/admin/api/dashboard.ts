@@ -20,6 +20,32 @@ export interface RouteTopItem {
   orders: number;
 }
 
+export interface RouteDictItem {
+  routeId: number;
+  departureCity: string;
+  departureAirport: string;
+  arrivalCity: string;
+  arrivalAirport: string;
+  estimatedDuration: number;
+  distanceKm: number;
+  updateTime: string;
+  orderCount?: number;
+  gmv?: number;
+  onTimeRate?: number;
+  avgPrice?: number;
+  activeFlights?: number;
+  routeLevel?: 'MAIN' | 'REGIONAL' | 'LOCAL';
+}
+
+export interface CityDictItem {
+  cityName: string;
+  mainAirport: string;
+  dailyDepartures: number;
+  weeklyGmv: number;
+  currentLoad: number;
+  alertLevel: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+}
+
 export interface AdminDashboardMetrics {
   flightCount: number;
   orderCount: number;
@@ -40,7 +66,6 @@ export interface AdminDashboardMetrics {
   flightStatusCancelledCount: number;
   flightStatusDelayedCount: number;
   flightStatusDivertedCount: number;
-  // 趋势数据
   gmvTrend7d?: DailyAmount[];
   ordersTrend7d?: DailyCount[];
   topRoutes7d?: RouteTopItem[];
@@ -50,6 +75,30 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
   return request<AdminDashboardMetrics>({
     method: 'GET',
     url: '/api/v1/admins/dashboards/metrics',
+  });
+}
+
+export interface RouteDictResponse {
+  version: string;
+  routes: RouteDictItem[];
+}
+
+export async function getRouteDict(): Promise<RouteDictResponse> {
+  return request<RouteDictResponse>({
+    method: 'GET',
+    url: '/api/v1/routes/dict',
+  });
+}
+
+export interface CityDictResponse {
+  version: string;
+  cities: CityDictItem[];
+}
+
+export async function getCityDict(): Promise<CityDictResponse> {
+  return request<CityDictResponse>({
+    method: 'GET',
+    url: '/api/v1/routes/cities/dict',
   });
 }
 

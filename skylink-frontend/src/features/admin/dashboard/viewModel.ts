@@ -1,6 +1,6 @@
 import type { AdminDashboardMetrics, RouteTopItem } from '../api/dashboard';
 import { buildDashboardMap } from './map';
-import type { DashboardMap } from './map';
+import type { DashboardMap, RouteDictItem, CityDictItem } from './map';
 
 export type DashboardTrendCountItem = { date: string; count: number };
 export type DashboardTrendAmountItem = { date: string; amount: number };
@@ -85,11 +85,15 @@ export function buildAdminDashboardViewModel(
   opts: {
     airportCoords: Record<string, { lat: number; lng: number }>;
     routeDict?: RouteDictLike[] | null;
+    routeDictFull?: RouteDictItem[] | null;
+    cityDict?: CityDictItem[] | null;
   },
 ): DashboardViewModel {
   const now = new Date();
   const airportCoords = opts.airportCoords;
   const routeDict = opts.routeDict ?? null;
+  const routeDictFull = opts.routeDictFull ?? null;
+  const cityDict = opts.cityDict ?? null;
 
   const ordersRaw = metrics?.ordersTrend7d ?? [];
   const gmvRaw = metrics?.gmvTrend7d ?? [];
@@ -144,7 +148,11 @@ export function buildAdminDashboardViewModel(
     });
   })();
 
-  const map = buildDashboardMap(topRoutes7d, airportCoords);
+  const map = (() => {
+    const routeIds = new Set(topRoutes7d.map(r => r.routeId));
+    const filteredRoutes = (routeDictFull ?? []).filter(r => routeIds.has(r.routeId));
+    return buildDashboardMap(filteredRoutes, cityDict ?? [], airportCoords, 10);
+  })();
 
   const active = toNumber(metrics?.flightStatusNormalCount);
   const delayed = toNumber(metrics?.flightStatusDelayedCount);

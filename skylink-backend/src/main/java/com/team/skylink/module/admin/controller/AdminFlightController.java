@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.common.PageResult;
 import com.team.skylink.common.Result;
+import com.team.skylink.module.admin.dto.FlightPassengerDto;
+import com.team.skylink.module.admin.dto.FlightPassengerQuery;
+import com.team.skylink.module.admin.service.AdminFlightService;
 import com.team.skylink.module.flight.dto.FlightCreateRequest;
 import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.mapper.FlightMapper;
@@ -21,10 +24,12 @@ public class AdminFlightController {
 
     private final FlightMapper flightMapper;
     private final FlightService flightService;
+    private final AdminFlightService adminFlightService;
 
-    public AdminFlightController(FlightMapper flightMapper, FlightService flightService) {
+    public AdminFlightController(FlightMapper flightMapper, FlightService flightService, AdminFlightService adminFlightService) {
         this.flightMapper = flightMapper;
         this.flightService = flightService;
+        this.adminFlightService = adminFlightService;
     }
 
     // 1. 航班列表
@@ -95,9 +100,29 @@ public class AdminFlightController {
     public Result<Boolean> delete(HttpServletRequest request, @PathVariable Long flightId) {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<Boolean>) adminGuard;
-        
+
         // 调用 Service，先删座位，后删航班
         return flightService.deleteFlight(flightId);
+    }
+
+    // 5. 查看航班乘客列表
+    @GetMapping("/{flightNo}/passengers")
+    public Result<PageResult<FlightPassengerDto>> listPassengers(HttpServletRequest request, @PathVariable String flightNo,
+                                                                 @RequestParam(required = false) String passengerName,
+                                                                 @RequestParam(required = false) String contactPhone,
+                                                                 @RequestParam(defaultValue = "1") Integer page,
+                                                                 @RequestParam(defaultValue = "20") Integer size) {
+        Result<?> adminGuard = ensureAdmin(request);
+        if (adminGuard != null) return (Result<PageResult<FlightPassengerDto>>) adminGuard;
+
+        FlightPassengerQuery query = new FlightPassengerQuery();
+        query.setFlightNo(flightNo);
+        query.setPassengerName(passengerName);
+        query.setContactPhone(contactPhone);
+        query.setPage(page);
+        query.setSize(size);
+
+        return adminFlightService.listFlightPassengers(query);
     }
 
     private static Result<?> ensureAdmin(HttpServletRequest request) {

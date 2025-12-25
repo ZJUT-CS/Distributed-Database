@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, Loader2, AlertCircle, RefreshCw, Plane, Clock, Calendar, User, X } from 'lucide-react';
 import { useAuth } from '@/features/auth';
-import SeatMap, { type SeatData } from '@/components/booking/SeatMap';
+import { SeatMap, type SeatData } from '@/features/booking/components/booking-ui';
 import { getFlightSeats, changeSeat } from '@/features/booking/api/seat';
 import { request } from '@/lib/axios';
 import type { OrderSearchResult } from '@/features/booking/api/order';

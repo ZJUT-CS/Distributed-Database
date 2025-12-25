@@ -10,17 +10,14 @@ import {
   approveRefundChangeRequest,
   listRefundChangeRequests,
   rejectRefundChangeRequest,
-  CHANGE_REQUEST_STATUS_MAP,
-  ORDER_STATUS,
   useToast,
   useConfirm,
 } from '@/features/admin';
-import type { RefundChangeRecord } from '@/features/user';
+import { CHANGE_REQUEST_STATUS_MAP, ORDER_STATUS } from '@/config/features/admin/constants';
+import type { RefundChangeRecord, AuditStatus } from '@/features/refund/types';
 import EntityCell from '@/components/common/EntityCell';
 import { auditAdminOrder, listAdminOrders, type AdminOrderItem } from '@/features/admin/api/orders';
 import { exportToCSV } from '@/utils/export';
-
-type AuditStatus = 'all' | 'pending' | 'approved' | 'rejected';
 type AuditTab = 'orders' | 'refund-change';
 
 const ITEMS_PER_PAGE = 8;
@@ -36,7 +33,7 @@ const OrderAudit: React.FC = () => {
   const { confirm } = useConfirm();
   const [tab, setTab] = useState<AuditTab>('orders');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<AuditStatus>('pending');
+  const [statusFilter, setStatusFilter] = useState<AuditStatus | 'all'>('pending');
 
   const normalizedSearch = useMemo(() => searchTerm.trim(), [searchTerm]);
 
@@ -367,6 +364,53 @@ const OrderAudit: React.FC = () => {
     }
   };
 
+  const handleBatchOrderExport = async () => {
+    const ids = Array.from(selectedOrderIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要导出的订单');
+      return;
+    }
+    try {
+      toast.info(`正在导出 ${ids.length} 条数据...`);
+      const selectedData = orderItems.filter(o => ids.includes(String(o.orderNo)));
+      exportToCSV(selectedData, '待审核订单-选中', [
+        { key: 'orderNo', label: '订单号' },
+        { key: 'passengerName', label: '乘客', formatter: (i) => i.passengerName || '' },
+        { key: 'flightNo', label: '航班号', formatter: (i) => i.flightNo || '' },
+        { key: 'totalAmount', label: '金额' },
+        { key: 'orderTime', label: '下单时间', formatter: (i) => formatDateTime(i.orderTime) },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
+  const handleBatchAuditExport = async () => {
+    const ids = Array.from(selectedAuditIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要导出的申请');
+      return;
+    }
+    try {
+      toast.info(`正在导出 ${ids.length} 条数据...`);
+      const selectedData = filteredAudits.filter(a => ids.includes(String(a.id)));
+      exportToCSV(selectedData, '退改签审核-选中', [
+        { key: 'id', label: '申请单号' },
+        { key: 'orderId', label: '订单号' },
+        { key: 'passenger', label: '乘客' },
+        { key: 'type', label: '类型' },
+        { key: 'oldFlight', label: '原航班' },
+        { key: 'newFlight', label: '新航班' },
+        { key: 'applyTime', label: '申请时间' },
+        { key: 'status', label: '状态' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <AdminPageHeader
@@ -399,6 +443,14 @@ const OrderAudit: React.FC = () => {
         }
         right={
           <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+            <button
+              onClick={tab === 'orders' ? () => refreshOrders(orderPage) : refresh}
+              disabled={orderLoading || loading}
+              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+              title="刷新"
+            >
+              <RefreshCw className={`w-4 h-4 ${orderLoading || loading ? 'animate-spin' : ''}`} />
+            </button>
             <div className="flex bg-gray-100 p-1 rounded-lg">
               {[
                 { id: 'orders', label: '订单审核' },
@@ -462,6 +514,12 @@ const OrderAudit: React.FC = () => {
                   className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
                 >
                   <XCircle className="w-3.5 h-3.5" /> 批量拒绝
+                </button>
+                <button
+                  onClick={handleBatchOrderExport}
+                  className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1"
+                >
+                  <Download className="w-3.5 h-3.5" /> 批量导出
                 </button>
                 <button
                   onClick={() => setSelectedOrderIds(new Set())}
@@ -601,6 +659,12 @@ const OrderAudit: React.FC = () => {
                   className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
                 >
                   <XCircle className="w-3.5 h-3.5" /> 批量拒绝
+                </button>
+                <button
+                  onClick={handleBatchAuditExport}
+                  className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1"
+                >
+                  <Download className="w-3.5 h-3.5" /> 批量导出
                 </button>
                 <button
                   onClick={() => setSelectedAuditIds(new Set())}

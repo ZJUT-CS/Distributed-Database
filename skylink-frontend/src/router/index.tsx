@@ -90,10 +90,10 @@ const PageLoading: React.FC = () => (
 // =====================
 const Home = React.lazy(() => import('@/pages/Home'));
 const FlightResult = React.lazy(() => import('@/pages/FlightResult'));
-const Booking = React.lazy(() => import('@/pages/Booking'));
-const Confirmation = React.lazy(() => import('@/pages/Booking/Confirmation'));
-const ChangeFlight = React.lazy(() => import('@/pages/Booking/ChangeFlight'));
-const SeatSelection = React.lazy(() => import('@/pages/Booking/SeatSelection'));
+const Booking = React.lazy(() => import('@/features/booking/pages/BookingPage'));
+const Confirmation = React.lazy(() => import('@/features/booking/pages/ConfirmationPage'));
+const ChangeFlight = React.lazy(() => import('@/features/booking/pages/ChangeFlightPage'));
+const SeatSelection = React.lazy(() => import('@/features/booking/pages/SeatSelectionPage'));
 
 // =====================
 // 懒加载组件 - 用户页面
@@ -105,11 +105,8 @@ const Settings = React.lazy(() => import('@/pages/User/Settings'));
 const UserCenter = React.lazy(() => import('@/pages/User/UserCenter'));
 const RefundsHelp = React.lazy(() => import('@/pages/User/RefundsHelp'));
 
-// UserBookings 需要特殊处理 (有命名导出)
-const UserBookingsModule = React.lazy(() => import('@/pages/User/Bookings'));
-const BookingDetailsModule = React.lazy(() =>
-  import('@/pages/User/Bookings').then(m => ({ default: m.BookingDetailsPage }))
-);
+const UserBookingsPage = React.lazy(() => import('@/features/user/pages/BookingsPage'));
+const BookingDetailsPage = React.lazy(() => import('@/features/user/pages/BookingDetailsPage').then(m => ({ default: m.BookingDetailsPage })));
 
 // =====================
 // 懒加载组件 - 管理后台
@@ -156,8 +153,8 @@ export const router = createBrowserRouter([
       { path: 'booking/seat-selection', element: withSuspense(SeatSelection) },
       { path: 'profile', element: withSuspense(Profile) },
       { path: 'settings', element: withSuspense(Settings) },
-      { path: 'my-bookings', element: withSuspense(UserBookingsModule) },
-      { path: 'my-bookings/:bookingId', element: withSuspense(BookingDetailsModule) },
+      { path: 'my-bookings', element: withSuspense(UserBookingsPage) },
+      { path: 'my-bookings/:bookingId', element: withSuspense(BookingDetailsPage) },
       { path: 'user-center', element: withSuspense(UserCenter) },
       { path: 'refunds-help', element: withSuspense(RefundsHelp) },
     ]
