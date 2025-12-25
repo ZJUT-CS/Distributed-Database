@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Global font */
 :root {
   --font-family: 'Noto Sans SC', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
@@ -124,6 +128,43 @@ body {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ========== Admin Dashboard Aurora/Glow ========== */
+@keyframes aurora {
+  0%, 100% {
+    transform: translateX(-10%) translateY(0) rotate(0deg);
+    opacity: 0.4;
+  }
+  25% {
+    transform: translateX(5%) translateY(-5%) rotate(2deg);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateX(10%) translateY(5%) rotate(-1deg);
+    opacity: 0.5;
+  }
+  75% {
+    transform: translateX(-5%) translateY(2%) rotate(1deg);
+    opacity: 0.55;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+}
+
+.aurora-bg {
+  animation: aurora 20s ease-in-out infinite;
+}
+
+.glow-card {
+  animation: glow-pulse 4s ease-in-out infinite;
 }
 
 .skeleton {

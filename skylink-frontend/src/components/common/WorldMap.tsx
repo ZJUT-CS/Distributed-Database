@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Minus, Plus, RotateCcw } from 'lucide-react';
 import type { MapPoint } from '@/features/flight';
 import { WorldMapRender } from './world-map/WorldMapRender';
 import { useWorldMapControls } from './world-map/useWorldMapControls';
+import type { WorldMapView } from './world-map/geometry';
+import { computeAutoFitView } from './world-map/geometry';
 
 export interface HeatPoint {
   id: string;
@@ -33,6 +35,8 @@ interface WorldMapProps {
   theme?: 'light' | 'dark';
   preserveAspectRatio?: string;
   enableControls?: boolean;
+  autoFit?: boolean;
+  autoFitPaddingPx?: number;
   onReset?: () => void;
   onViewChange?: (view: { scale: number; offset: { x: number; y: number } }) => void;
   minScale?: number;
@@ -53,6 +57,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
   theme = 'light',
   preserveAspectRatio,
   enableControls = false,
+  autoFit = false,
+  autoFitPaddingPx,
   onReset,
   onViewChange,
   minScale,
@@ -62,8 +68,19 @@ const WorldMap: React.FC<WorldMapProps> = ({
   const [hoveredPoint, setHoveredPoint] = useState<MapPoint | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
+  const [defaultView, setDefaultView] = useState<WorldMapView | undefined>(undefined);
+  const appliedKeyRef = useRef<string | null>(null);
+
   const isDark = theme === 'dark';
   const effectivePreserveAspectRatio = preserveAspectRatio ?? (enableControls ? 'xMidYMid meet' : 'xMidYMid slice');
+
+  const autoFitKey = useMemo(() => {
+    if (!autoFit) return '';
+    const ids = points.map((p) => p.id).slice().sort();
+    const routeCount = routes?.length ?? 0;
+    return `${effectivePreserveAspectRatio}|${ids.join('|')}|routes:${routeCount}`;
+  }, [autoFit, points, routes, effectivePreserveAspectRatio]);
+
   const {
     containerRef,
     offset,
@@ -85,6 +102,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
     minScale,
     maxScale,
     defaultScale,
+    defaultView,
     onReset: () => {
       setHoveredPoint(null);
       setTooltipPos({ x: 0, y: 0 });
@@ -92,6 +110,27 @@ const WorldMap: React.FC<WorldMapProps> = ({
     },
     onViewChange,
   });
+
+  useEffect(() => {
+    if (!autoFit) return;
+    if (!autoFitKey) return;
+    if (appliedKeyRef.current === autoFitKey) return;
+
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const next = computeAutoFitView({
+      points,
+      viewport: { width: rect.width, height: rect.height },
+      preserveAspectRatio: effectivePreserveAspectRatio,
+      paddingPx: autoFitPaddingPx,
+    });
+
+    setDefaultView(next);
+    appliedKeyRef.current = autoFitKey;
+  }, [autoFit, autoFitKey, points, effectivePreserveAspectRatio, autoFitPaddingPx, containerRef]);
 
   const getPointColor = (type: string) => {
     if (type === 'hub') return '#ef4444';

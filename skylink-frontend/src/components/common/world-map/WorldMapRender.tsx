@@ -1,6 +1,7 @@
 import React from 'react';
 import type { MapPoint } from '@/features/flight';
 import WorldMapSvg from '../../../assets/images/Simplified_World_Map.svg?react';
+import { MAP_HEIGHT, MAP_WIDTH, VIEWBOX, project } from './geometry';
 
 export type HeatPoint = {
   id: string;
@@ -32,24 +33,7 @@ export interface WorldMapRenderProps {
   onPointMouseLeave: () => void;
 }
 
-// 地图原始尺寸常量
-const MAP_WIDTH = 1016;
-const MAP_HEIGHT = 560;
-
-// 这里的偏移量用于手动校准标点位置
-const mapOffsetX = -30;
-const mapOffsetY = 66;
-
-// 投影算法 (基于 1016x514)
-const project = (lat: number, lng: number) => {
-  // X轴: -180 ~ 180 => 0 ~ 1009
-  const x = ((lng + 180) * MAP_WIDTH) / 360 + mapOffsetX;
-
-  // Y轴: 90 ~ -90 => 0 ~ 665
-  const y = ((-lat + 90) * MAP_HEIGHT) / 180 + mapOffsetY;
-
-  return { x, y };
-};
+// 投影算法：来自 ./geometry，与自动聚焦计算保持一致
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
@@ -118,7 +102,77 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
   onPointMouseEnter,
   onPointMouseLeave,
 }) => {
+  const svgRef = React.useRef<SVGSVGElement | null>(null);
+  const [viewport, setViewport] = React.useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  React.useLayoutEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      setViewport({ width: rect.width, height: rect.height });
+    };
+
+    update();
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const isDark = theme === 'dark';
+
+  const getPreserveMode = (v: string): 'meet' | 'slice' | 'none' => {
+    const s = v.toLowerCase();
+    if (s.includes('none')) return 'none';
+    if (s.includes('slice')) return 'slice';
+    return 'meet';
+  };
+
+  const baseMapping = React.useMemo(() => {
+    const w = viewport.width;
+    const h = viewport.height;
+    if (!w || !h) return { sx: 0, sy: 0, tx: 0, ty: 0 };
+
+    const mode = getPreserveMode(preserveAspectRatio);
+
+    if (mode === 'none') {
+      const sx = w / VIEWBOX.width;
+      const sy = h / VIEWBOX.height;
+      return {
+        sx,
+        sy,
+        tx: -VIEWBOX.minX * sx,
+        ty: -VIEWBOX.minY * sy,
+      };
+    }
+
+    const s0 =
+      mode === 'slice'
+        ? Math.max(w / VIEWBOX.width, h / VIEWBOX.height)
+        : Math.min(w / VIEWBOX.width, h / VIEWBOX.height);
+
+    return {
+      sx: s0,
+      sy: s0,
+      tx: (w - VIEWBOX.width * s0) / 2 - VIEWBOX.minX * s0,
+      ty: (h - VIEWBOX.height * s0) / 2 - VIEWBOX.minY * s0,
+    };
+  }, [viewport.width, viewport.height, preserveAspectRatio]);
+
+  const cameraTransform = React.useMemo(() => {
+    const { sx, sy, tx, ty } = baseMapping;
+    if (!sx || !sy || !Number.isFinite(scale)) return '';
+
+    // Mirror the old CSS transform: px' = px * scale + offset.
+    // Base mapping: px = user * s + t.
+    // Solve user' = user * scale + b  such that (user' * s + t) == (user * s + t) * scale + offset.
+    const bx = ((scale - 1) * tx + offset.x) / sx;
+    const by = ((scale - 1) * ty + offset.y) / sy;
+
+    return `matrix(${scale} 0 0 ${scale} ${bx} ${by})`;
+  }, [baseMapping, offset.x, offset.y, scale]);
 
   // Colors based on theme
   const colors = {
@@ -129,8 +183,15 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
     routeStroke: isDark ? 'url(#routeGradientDark)' : '#3b82f6',
     planeFill: isDark ? '#60a5fa' : '#2563eb',
     mapOpacity: isDark ? 0.4 : 0.3,
-    mapFilter: isDark ? 'invert(1) brightness(2) contrast(0.6) hue-rotate(180deg)' : 'none',
   };
+
+  const landmassStyle = React.useMemo(() => {
+    // Avoid CSS filter to prevent browser rasterizing the map layer.
+    // In dark mode, recolor the SVG paths via CSS variables.
+    return {
+      '--wm-land-fill': isDark ? '#94a3b8' : '#64748b',
+    } as React.CSSProperties;
+  }, [isDark]);
 
   const getPointColor = (type: string) => {
     if (type === 'hub') return colors.hub;
@@ -144,11 +205,7 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
       viewBox="-150 -20 1250 800"
       className="w-full h-full block"
       preserveAspectRatio={preserveAspectRatio}
-      style={{
-        transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`,
-        transformOrigin: '0 0',
-        willChange: 'transform',
-      }}
+      ref={svgRef}
     >
       <defs>
         <linearGradient id="routeGradientDark" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -197,105 +254,111 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
             0% { stroke-dashoffset: 1000; }
             100% { stroke-dashoffset: 0; }
           }
+
+          /* Recolor the imported world SVG without expensive CSS filters. */
+          .world-map-landmass svg :is(path, polygon, rect, circle, ellipse) {
+            fill: var(--wm-land-fill) !important;
+          }
         `}
       </style>
 
-      {/* Background Grid */}
-      {showGrid && <rect x="-500" y="-300" width="2100" height="1500" fill="url(#grid-pattern)" />}
+      <g transform={cameraTransform || undefined}>
+        {/* Background Grid */}
+        {showGrid && <rect x="-500" y="-300" width="2100" height="1500" fill="url(#grid-pattern)" />}
 
-      {/* World Map (Vector SVG for crisp rendering at any zoom) */}
-      <g className="world-map-landmass pointer-events-none" opacity={colors.mapOpacity} style={{ filter: colors.mapFilter }}>
-        <WorldMapSvg width={MAP_WIDTH} height={MAP_HEIGHT} />
-      </g>
+        {/* World Map (Vector SVG for crisp rendering at any zoom) */}
+        <g className="world-map-landmass pointer-events-none" opacity={colors.mapOpacity} style={landmassStyle}>
+          <WorldMapSvg width={MAP_WIDTH} height={MAP_HEIGHT} />
+        </g>
 
-      {/* Heat Points (Price Heatmap) */}
-      {heatPoints && heatPoints.length > 0 && (() => {
-        const vals = heatPoints.map((p) => Number(p.value)).filter((x) => Number.isFinite(x));
-        const min = vals.length ? Math.min(...vals) : 0;
-        const max = vals.length ? Math.max(...vals) : 0;
-
-        return (
-          <g aria-label="价格热力" opacity={isDragging ? 0.5 : 1}>
-            {heatPoints.map((p) => {
-              const { x, y } = project(p.lat, p.lng);
-              const { fill, opacity } = getHeatColor(p.value, min, max);
-              return (
-                <g key={`heat-${p.id}`}>
-                  <circle cx={x} cy={y} r={22} fill={fill} opacity={opacity * 0.35} />
-                  <circle cx={x} cy={y} r={12} fill={fill} opacity={opacity * 0.65} filter={isDark ? 'url(#glow)' : ''} />
-                </g>
-              );
-            })}
-          </g>
-        );
-      })()}
-
-      {/* Routes Rendering */}
-      {routes &&
-        routes.map((route, idx) => {
-          const startPoint = points.find((p) => p.id === route.from);
-          const endPoint = points.find((p) => p.id === route.to);
-          if (!startPoint || !endPoint) return null;
-
-          const start = project(startPoint.lat, startPoint.lng);
-          const end = project(endPoint.lat, endPoint.lng);
-
-          const pathD = buildArcPath(start, end);
-
-          const isActive = route.active === true;
-          const strokeOpacity = isActive ? 0.35 : 0.2;
-          const dashOpacity = isActive ? 1 : 0.8;
-          const strokeWidthBase = isActive ? 3 : 2;
-          const dashWidth = isActive ? 4 : 3;
+        {/* Heat Points (Price Heatmap) */}
+        {heatPoints && heatPoints.length > 0 && (() => {
+          const vals = heatPoints.map((p) => Number(p.value)).filter((x) => Number.isFinite(x));
+          const min = vals.length ? Math.min(...vals) : 0;
+          const max = vals.length ? Math.max(...vals) : 0;
 
           return (
-            <g key={`route-special-${idx}`}>
-              <path
-                d={pathD}
-                fill="none"
-                stroke={colors.routeStroke}
-                strokeWidth={strokeWidthBase}
-                strokeLinecap="round"
-                opacity={strokeOpacity}
-              />
-
-              <path
-                d={pathD}
-                fill="none"
-                stroke={colors.routeStroke}
-                strokeWidth={dashWidth}
-                strokeLinecap="round"
-                strokeDasharray="10, 300"
-                opacity={dashOpacity}
-                filter={isDark ? 'url(#glow)' : ''}
-                style={{
-                  animation: 'dash-flow 3s linear infinite',
-                  animationPlayState: isDragging ? 'paused' : 'running',
-                }}
-              />
-
-              <g
-                style={{
-                  offsetPath: `path("${pathD}")`,
-                  animation: 'fly-path 6s ease-in-out infinite',
-                  animationPlayState: isDragging ? 'paused' : 'running',
-                  offsetRotate: 'auto',
-                }}
-              >
-                <g transform="translate(-6,-6)">
-                  <path
-                    d="M2 8 L10 2 L9 7 L14 8 L9 9 L10 14 Z"
-                    fill={colors.planeFill}
-                    opacity={0.95}
-                    filter={isDark ? 'url(#glow)' : ''}
-                  />
-                </g>
-              </g>
-
-              <path id={`routePath-${idx}`} d={pathD} fill="none" stroke="none" />
+            <g aria-label="价格热力" opacity={isDragging ? 0.5 : 1}>
+              {heatPoints.map((p) => {
+                const { x, y } = project(p.lat, p.lng);
+                const { fill, opacity } = getHeatColor(p.value, min, max);
+                return (
+                  <g key={`heat-${p.id}`}>
+                    <circle cx={x} cy={y} r={22} fill={fill} opacity={opacity * 0.35} />
+                    <circle cx={x} cy={y} r={12} fill={fill} opacity={opacity * 0.65} filter={isDark ? 'url(#glow)' : ''} />
+                  </g>
+                );
+              })}
             </g>
           );
-        })}
+        })()}
+
+        {/* Routes Rendering */}
+        {routes &&
+          routes.map((route, idx) => {
+            const startPoint = points.find((p) => p.id === route.from);
+            const endPoint = points.find((p) => p.id === route.to);
+            if (!startPoint || !endPoint) return null;
+
+            const start = project(startPoint.lat, startPoint.lng);
+            const end = project(endPoint.lat, endPoint.lng);
+
+            const pathD = buildArcPath(start, end);
+
+            const isActive = route.active === true;
+            const strokeOpacity = isActive ? 0.35 : 0.2;
+            const dashOpacity = isActive ? 1 : 0.8;
+            const strokeWidthBase = isActive ? 3 : 2;
+            const dashWidth = isActive ? 4 : 3;
+
+            return (
+              <g key={`route-special-${idx}`}>
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke={colors.routeStroke}
+                  strokeWidth={strokeWidthBase}
+                  strokeLinecap="round"
+                  opacity={strokeOpacity}
+                />
+
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke={colors.routeStroke}
+                  strokeWidth={dashWidth}
+                  strokeLinecap="round"
+                  strokeDasharray="10, 300"
+                  opacity={dashOpacity}
+                  filter={isDark ? 'url(#glow)' : ''}
+                  style={{
+                    animation: 'dash-flow 3s linear infinite',
+                    animationPlayState: isDragging ? 'paused' : 'running',
+                  }}
+                />
+
+                <g
+                  style={{
+                    offsetPath: `path("${pathD}")`,
+                    animation: 'fly-path 6s ease-in-out infinite',
+                    animationPlayState: isDragging ? 'paused' : 'running',
+                    offsetRotate: 'auto',
+                  }}
+                >
+                  <g transform="translate(-6,-6)">
+                    <path
+                      d="M2 8 L10 2 L9 7 L14 8 L9 9 L10 14 Z"
+                      fill={colors.planeFill}
+                      opacity={0.95}
+                      filter={isDark ? 'url(#glow)' : ''}
+                    />
+                  </g>
+                </g>
+
+                <path id={`routePath-${idx}`} d={pathD} fill="none" stroke="none" />
+              </g>
+            );
+          })}
 
       {/* Normal Mode Radiation Lines */}
       {!routes &&
@@ -378,6 +441,8 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
           </g>
         );
       })}
+
+      </g>
     </svg>
   );
 };

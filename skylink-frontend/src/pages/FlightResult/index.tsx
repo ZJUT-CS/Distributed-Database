@@ -389,6 +389,7 @@ const FlightResultPage: React.FC = () => {
           showGrid={true}
           theme="dark"
           enableControls={true}
+          maxScale={4}
           minZoomLevel={3}
           maxZoomLevel={18}
           defaultZoomLevel={10}

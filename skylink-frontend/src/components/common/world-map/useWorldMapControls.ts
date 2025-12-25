@@ -9,6 +9,7 @@ export interface UseWorldMapControlsParams {
   minScale?: number;
   maxScale?: number;
   defaultScale?: number;
+  defaultView?: WorldMapView;
   onReset?: () => void;
   onViewChange?: (view: WorldMapView) => void;
 }
@@ -36,6 +37,7 @@ export function useWorldMapControls({
   minScale,
   maxScale,
   defaultScale,
+  defaultView,
   onReset,
   onViewChange,
 }: UseWorldMapControlsParams): UseWorldMapControlsResult {
@@ -136,12 +138,22 @@ export function useWorldMapControls({
 
   // Sync scale defaults.
   useEffect(() => {
+    if (defaultView) return;
     const next = clampScale(effectiveDefaultScale);
     scaleRef.current = next;
     setScale(next);
     setOffset((prev) => clampOffset(prev, next));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveDefaultScale, effectiveMinScale, effectiveMaxScale]);
+  }, [effectiveDefaultScale, effectiveMinScale, effectiveMaxScale, defaultView]);
+
+  // Apply provided default view (camera) if present.
+  useEffect(() => {
+    if (!defaultView) return;
+    const nextScale = clampScale(defaultView.scale);
+    const nextOffset = clampOffset(defaultView.offset, nextScale);
+    applyView(nextScale, nextOffset);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultView]);
 
   const inertiaRafRef = useRef<number | null>(null);
   const inertiaVelRef = useRef<{ vx: number; vy: number }>({ vx: 0, vy: 0 });
@@ -193,6 +205,7 @@ export function useWorldMapControls({
     baseScale: number;
     baseOffset: WorldMapOffset;
     baseDistance: number;
+    baseCenter?: { x: number; y: number };
   } | null>(null);
 
   const dragRef = useRef<{
@@ -233,8 +246,9 @@ export function useWorldMapControls({
     const el = containerRef.current;
     if (!el) return;
     stopInertia();
-    const nextScale = clampScale(1);
-    const centered = clampOffset(getCenteredOffset(nextScale), nextScale);
+    const nextScale = defaultView ? clampScale(defaultView.scale) : clampScale(1);
+    const baseOffset = defaultView ? defaultView.offset : getCenteredOffset(nextScale);
+    const centered = clampOffset(baseOffset, nextScale);
     pointersRef.current.clear();
     pinchBaseRef.current = null;
     dragRef.current = null;
@@ -287,10 +301,20 @@ export function useWorldMapControls({
       const arr = Array.from(pointersRef.current.values());
       const dx = arr[0].x - arr[1].x;
       const dy = arr[0].y - arr[1].y;
+
+      const rect = el.getBoundingClientRect();
+      const mx = (arr[0].x + arr[1].x) / 2;
+      const my = (arr[0].y + arr[1].y) / 2;
+      const baseCenter = {
+        x: mx - rect.left,
+        y: my - rect.top,
+      };
+
       pinchBaseRef.current = {
         baseScale: scaleRef.current,
         baseOffset: offsetRef.current,
         baseDistance: Math.max(1, Math.hypot(dx, dy)),
+        baseCenter,
       };
       dragRef.current = null;
       setDragIndicator({ active: false, angle: 0, strength: 0 });
@@ -334,8 +358,11 @@ export function useWorldMapControls({
       if (!el) return;
       const rect = el.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
-      const px = rect.width / 2;
-      const py = rect.height / 2;
+
+      const mx = (arr[0].x + arr[1].x) / 2;
+      const my = (arr[0].y + arr[1].y) / 2;
+      const px = mx - rect.left;
+      const py = my - rect.top;
       const k = base.baseScale > 0 ? nextScale / base.baseScale : 1;
 
       const nextOffset = {
