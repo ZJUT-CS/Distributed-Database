@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID; // 导入 UUID
+import java.util.UUID;
 
 @Service
 public class AdminManagementServiceImpl implements AdminManagementService {
@@ -51,7 +51,6 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         Admin admin = new Admin();
         admin.setAdminAccount(adminAccount);
         admin.setPasswordHash(passwordEncoder.encode(password));
-        // role 如果没传则默认为 1 (普通管理员)
         admin.setRole(role != null ? role : 1);
         admin.setCreateTime(System.currentTimeMillis());
 
@@ -59,26 +58,20 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return Result.ok(admin);
     }
 
-    // ▼▼▼▼▼▼ 新增：登录逻辑实现 ▼▼▼▼▼▼
     @Override
     public Result<com.team.skylink.module.admin.dto.AdminLoginResponse> login(String adminAccount, String password) {
-        // 1. 查数据库
         Admin admin = adminMapper.selectOne(new QueryWrapper<Admin>().eq("admin_account", adminAccount));
         
-        // 2. 账号不存在
         if (admin == null) {
             return Result.fail(401, "账号或密码错误");
         }
 
-        // 3. 验证密码 (加密比对)
         if (!passwordEncoder.matches(password, admin.getPasswordHash())) {
             return Result.fail(401, "账号或密码错误");
         }
 
-        // 4. 生成 Token (这里生成一个带前缀的 Mock Token)
         String token = "admin-token-" + UUID.randomUUID().toString();
         
-        // (可选) 更新最后登录时间
         admin.setLastLoginTime(System.currentTimeMillis());
         adminMapper.updateById(admin);
 
@@ -91,7 +84,6 @@ public class AdminManagementServiceImpl implements AdminManagementService {
                 admin.getRole()
         ));
     }
-    // ▲▲▲▲▲▲ 新增结束 ▲▲▲▲▲▲
 
     @Override
     public Result<Long> adminCount() { return Result.ok(adminMapper.selectCount(null)); }
@@ -104,7 +96,6 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     @Override
     public Result<Long> changeRequestCount() { return Result.ok(refundChangeRecordMapper.selectCount(null)); }
 
-    // ▼▼▼▼▼▼ 新增：管理员列表 ▼▼▼▼▼▼
     @Override
     public Result<java.util.List<Admin>> listAdmins(String keyword) {
         QueryWrapper<Admin> qw = new QueryWrapper<>();
@@ -149,9 +140,6 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         if (admin == null) {
             return Result.fail(404, "管理员不存在");
         }
-        // 这里假设 Admin 表有 status 字段，如果没有需要添加
-        // admin.setStatus(status);
-        // adminMapper.updateById(admin);
         return Result.ok(null);
     }
 
@@ -161,7 +149,6 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         if (admin == null) {
             return Result.fail(404, "管理员不存在");
         }
-        // 不能删除超级管理员
         if (admin.getRole() != null && admin.getRole() == 2) {
             return Result.fail(403, "不能删除超级管理员");
         }
@@ -179,11 +166,39 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         adminMapper.updateById(admin);
         return Result.ok(null);
     }
-    // ▲▲▲▲▲▲ 新增结束 ▲▲▲▲▲▲
 
-    // ▼▼▼▼▼▼ 新增：系统日志列表 ▼▼▼▼▼▼
+    @Override
+    public Result<Admin> updateAdmin(Long adminId, String adminAccount, Integer role, String password) {
+        Admin admin = adminMapper.selectById(adminId);
+        if (admin == null) {
+            return Result.fail(404, "管理员不存在");
+        }
+        
+        if (adminAccount != null && !adminAccount.trim().isEmpty()) {
+            Admin existing = adminMapper.selectOne(new QueryWrapper<Admin>()
+                .eq("admin_account", adminAccount.trim())
+                .ne("admin_id", adminId));
+            if (existing != null) {
+                return Result.fail(409, "账号已存在");
+            }
+            admin.setAdminAccount(adminAccount.trim());
+        }
+        
+        if (role != null) {
+            admin.setRole(role);
+        }
+        
+        if (password != null && !password.trim().isEmpty()) {
+            admin.setPasswordHash(passwordEncoder.encode(password.trim()));
+        }
+        
+        adminMapper.updateById(admin);
+        return Result.ok(admin);
+    }
+
     @Override
     public Result<PageResult<com.team.skylink.module.system.entity.SystemLog>> listSystemLogs(
+            Long adminId,
             String keyword,
             String module,
             Integer operResult,
@@ -195,6 +210,9 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         int offset = (p - 1) * s;
 
         QueryWrapper<com.team.skylink.module.system.entity.SystemLog> countQw = new QueryWrapper<>();
+        if (adminId != null) {
+            countQw.eq("oper_user_id", adminId);
+        }
         if (keyword != null && !keyword.trim().isEmpty()) {
             String kw = keyword.trim();
             countQw.and(w -> w.like("oper_content", kw).or().like("oper_ip", kw));
@@ -209,6 +227,9 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         Long total = operationLogMapper.selectCount(countQw);
 
         QueryWrapper<com.team.skylink.module.system.entity.SystemLog> listQw = new QueryWrapper<>();
+        if (adminId != null) {
+            listQw.eq("oper_user_id", adminId);
+        }
         if (keyword != null && !keyword.trim().isEmpty()) {
             String kw = keyword.trim();
             listQw.and(w -> w.like("oper_content", kw).or().like("oper_ip", kw));
@@ -225,5 +246,4 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         java.util.List<com.team.skylink.module.system.entity.SystemLog> rows = operationLogMapper.selectList(listQw);
         return Result.ok(new PageResult<>(total != null ? total : 0, rows));
     }
-    // ▲▲▲▲▲▲ 新增结束 ▲▲▲▲▲▲
 }

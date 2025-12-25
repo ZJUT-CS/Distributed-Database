@@ -166,15 +166,13 @@ const AdminsMgmt: React.FC = () => {
     setActiveActionId(null);
     try {
       const res = await listSystemLogs({
+        adminId: Number(admin.adminId),
         module: 'admin',
         page: 1,
         size: 100,
       });
-      const filteredLogs = (res.data ?? []).filter(
-        log => log.operUserId === Number(admin.adminId) && log.operUserType === 2
-      );
       setAuditLogs(
-        filteredLogs.map(log => ({
+        (res.data ?? []).map(log => ({
           id: log.logId,
           operatorId: String(log.operUserId),
           operatorName: `管理员#${log.operUserId}`,
