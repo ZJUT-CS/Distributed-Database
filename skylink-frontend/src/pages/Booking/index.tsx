@@ -62,7 +62,16 @@ const BookingPage: React.FC = () => {
         addons: details.addons
       });
 
-      const id = String(created?.parentOrderId || created?.orderIds?.[0] || '').trim();
+      // 如果是联程订单且没有返回 parentOrderId，则将所有子订单ID拼接作为组合ID
+      let id = String(created?.parentOrderId || '').trim();
+      if (!id && created?.orderIds && created.orderIds.length > 0) {
+        id = created.orderIds.join('+');
+      }
+      // 如果还是没有ID（单程情况），尝试取第一个
+      if (!id) {
+        id = String(created?.orderIds?.[0] || '').trim();
+      }
+
       if (!id) throw new Error('创建预订失败：缺少订单号');
       saveOrderPassengers(id, details.passengers);
 
