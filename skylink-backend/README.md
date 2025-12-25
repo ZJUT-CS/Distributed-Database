@@ -194,26 +194,27 @@ stateDiagram-v2
   - **关键校验**: 确保第二程的起飞时间晚于第一程的到达时间（后端已过滤，前端可二次确认）。
 
 **Step 2: 提交下单 (Booking)**
-- **API**: `POST /api/v1/orders`
+- **API**: `POST /api/v1/bookings`
 - **Payload 构造**:
-  - 将所有航段的 `flightId` 按顺序放入 `flightIds` 数组（推荐）。
-  - `flightNo` 仅用于展示或查询入口兼容；当作为查询条件时必须能唯一解析，否则后端会返回 400 并提示改用 `flightId`。
+  - 将所有航段的 `flightId` 按顺序放入 `flightIds` 数组（使用字符串承载长整型ID，避免前端精度丢失）。
+  - 传递所选舱位配置的 `cabinId`（来自 `AircraftCabinConfig.config_id`）。
   - 示例:
     ```json
     {
-      "userId": 1001,
-      "flightIds": ["200000000000000001", "200000000000000002"], // 核心：传递多段航班ID（雪花ID，前端用 string 承载）
-      "cabinType": "ECONOMY",
-      "ticketNum": 1,
-      "passengerName": "Alice",
-      "contactPhone": "13900000000"
+      "userId": "1001",
+      "flightIds": ["2002770789090316290"],
+      "cabinId": "10",
+      "passengers": [
+        { "name": "Alice", "idCard": "ID123456", "phone": "13900000000" }
+      ],
+      "isInterline": false
     }
     ```
 
   - 可选：混合舱位联程，传 `cabinTypes` 数组，与 `flightNos` 一一对应。
 
 **Step 3: 结果处理**
-- **成功**: 返回 `200`，`data` 中包含 `orderNo`（首个子订单的 `orderId`，后续支付/取消/选座等操作均以该值作为路径参数）与 `orderStatus: 1`（待支付）。
+- **成功**: 返回 `200`，`data` 中包含 `parentOrderId`（联程时）或 `orderIds`（单程时），创建的订单状态为 `1`（待支付）。
   - 若为联程/多乘客场景：`data.parentOrderId` 会提供联程关联用的 `parent_order_id`。
 - **注意**: 请提示用户在 **1分钟** 内完成支付，否则订单将自动取消。
 - **失败**: 
@@ -258,22 +259,13 @@ stateDiagram-v2
 - 说明: 使用 Redis BitMap 存储座位状态（`0=空`, `1=占`），并通过 Pipeline 批量读取，显著降低数据库压力。
 
 #### 📦 订单 (Orders)
-- **创建订单 (支持单程/联程)**: `POST /api/v1/orders`
-  - **支持多航段**：通过 `flightIds` 数组传递多个航班ID（推荐）。
-  - Body:
-    ```json
-    {
-      "userId": 1001,
-      "flightIds": ["200000000000000001", "200000000000000002"], // 联程时传多个，单程传一个
-      "cabinType": "ECONOMY",
-      "passengerName": "John Doe",
-      "contactPhone": "13800138000"
-    }
-    ```
+- **创建订单入口**: `POST /api/v1/bookings`
+  - 使用 Booking 服务作为唯一入口，支持单程与联程。
+  - Body 参考上文“联程/转机业务对接”的示例。
 - **查询订单**: `GET /api/v1/orders`
   - Params: `userId`, `orderNo`, `orderStatus`, `createTimeStart`, `createTimeEnd`, `flightId`, `flightNo`, `cabinType`, `page`(默认1), `size`(默认20)
   - 说明：`flightNo` 仅作为兼容查询条件，必须能唯一解析为 `flightId`，否则返回 400。
-  - Response: `PageResult<OrderSearchResponse>`
+  - Response: `PageResult<OrderSearchResponse)`
 - **订单选座**: `PUT /api/v1/orders/{orderId}/seat`
   - Path: `orderId`
   - Body:

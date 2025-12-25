@@ -28,27 +28,31 @@ public class AdminOrderController {
             HttpServletRequest request,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size,
-            @RequestParam(required = false) Long orderNo,
+            @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Integer orderStatus,
-            @RequestParam(required = false) Long flightId,
+            @RequestParam(required = false) String flightId,
             @RequestParam(required = false) String flightNo
     ) {
+        Long oid = parseId(orderNo);
+        Long fid = parseId(flightId);
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<PageResult<AdminOrderItem>>) adminGuard;
-        return adminOrderService.list(page, size, orderNo, userId, orderStatus, flightId, flightNo);
+        return adminOrderService.list(page, size, oid, userId, orderStatus, fid, flightNo);
     }
 
     // 2. 更新订单状态 (通用)
     @PutMapping("/{orderId}/status")
     public Result<Boolean> updateStatus(
             HttpServletRequest request,
-            @PathVariable("orderId") Long orderId,
+            @PathVariable("orderId") String orderId,
             @Valid @RequestBody AdminOrderStatusRequest body
     ) {
+        Long id = parseId(orderId);
+        if (id == null) return Result.fail(400, "Invalid orderId");
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<Boolean>) adminGuard;
-        return adminOrderService.updateStatus(orderId, body.getOrderStatus());
+        return adminOrderService.updateStatus(id, body.getOrderStatus());
     }
 
     // 3. 取消订单
@@ -68,14 +72,28 @@ public class AdminOrderController {
     }
 
     @PostMapping("/{orderId}/audits")
-    public Result<Boolean> auditOrder(HttpServletRequest request, @PathVariable("orderId") Long orderId, @Valid @RequestBody AuditRequest body) {
+    public Result<Boolean> auditOrder(HttpServletRequest request, @PathVariable("orderId") String orderId, @Valid @RequestBody AuditRequest body) {
+        Long id = parseId(orderId);
+        if (id == null) return Result.fail(400, "Invalid orderId");
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<Boolean>) adminGuard;
 
-        return adminOrderService.auditOrder(orderId, body.getPass());
+        return adminOrderService.auditOrder(id, body.getPass());
     }
 
     // --- 辅助方法 ---
+    private Long parseId(String id) {
+        if (id == null || id.isBlank()) return null;
+        try {
+            if (id.contains("+")) {
+                return Long.parseLong(id.split("\\+")[0].trim());
+            }
+            return Long.parseLong(id.trim());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static Result<?> ensureAdmin(HttpServletRequest request) {
         String t = request.getHeader("X-User-Type");
         // 假设 2 代表管理员

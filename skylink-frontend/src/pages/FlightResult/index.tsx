@@ -56,7 +56,7 @@ const FlightResultPage: React.FC = () => {
   const [userMapPoints, setUserMapPoints] = useState<MapPoint[]>([]);
   const [userMapRoutes, setUserMapRoutes] = useState<Array<{ from: string; to: string }>>([]);
 
-  const fetchFlights = async (orig: string, dest: string, dt: string) => {
+  const fetchFlights = async (orig: string, dest: string, dt: string, cabin?: string) => {
     const o = (orig || '').trim();
     const d = (dest || '').trim();
     const dateStr = (dt || '').trim();
@@ -64,7 +64,12 @@ const FlightResultPage: React.FC = () => {
     setLoadingFlights(true);
     setFlightError(null);
     try {
-      const mapped = await searchFlights({ origin: o, destination: d, departureDate: dateStr });
+      const mapped = await searchFlights({ 
+        origin: o, 
+        destination: d, 
+        departureDate: dateStr,
+        cabinClass: cabin 
+      });
       setFlights(mapped);
     } catch (e: any) {
       setFlights([]);
@@ -86,12 +91,12 @@ const FlightResultPage: React.FC = () => {
       setOrigin(firstLeg.origin);
       setDestination(firstLeg.destination);
       setDate(firstLeg.date);
-      fetchFlights(firstLeg.origin, firstLeg.destination, firstLeg.date);
+      fetchFlights(firstLeg.origin, firstLeg.destination, firstLeg.date, stateParams.cabinClass || 'economy');
     } else {
       // Fallback to URL params for single leg
       const segs = [{ origin, destination, date }];
       setTripSegments(segs);
-      fetchFlights(origin, destination, date);
+      fetchFlights(origin, destination, date, cabinClass);
     }
   }, [location.state, urlParams]); // Re-run if URL changes (e.g. from Navbar search)
 
@@ -107,7 +112,7 @@ const FlightResultPage: React.FC = () => {
     setOrigin(firstLeg.origin);
     setDestination(firstLeg.destination);
     setDate(firstLeg.date);
-    fetchFlights(firstLeg.origin, firstLeg.destination, firstLeg.date);
+    fetchFlights(firstLeg.origin, firstLeg.destination, firstLeg.date, params.cabinClass || 'economy');
 
     // Update URL without reload
     const newParams = new URLSearchParams();
@@ -132,9 +137,19 @@ const FlightResultPage: React.FC = () => {
         'first': 'F'
       };
       const targetCabinType = cabinTypeMap[cabinClass];
+      const targetCabinTypes = (() => {
+        const t = (targetCabinType || '').toUpperCase();
+        if (t === 'Y') return ['Y', 'ECONOMY'];
+        if (t === 'J') return ['J', 'BUSINESS'];
+        if (t === 'F') return ['F', 'FIRST'];
+        return [t];
+      })();
 
       // 查找匹配的舱位配置
-      const matchedCabin = availableCabins.find(c => c.cabinType === targetCabinType);
+      const matchedCabin = availableCabins.find(c => {
+        const ct = (c.cabinType || '').toUpperCase();
+        return targetCabinTypes.includes(ct);
+      });
 
       if (!matchedCabin) {
         // 如果没有找到匹配的舱位,使用第一个可用舱位
@@ -159,7 +174,7 @@ const FlightResultPage: React.FC = () => {
         setOrigin(nextLeg.origin);
         setDestination(nextLeg.destination);
         setDate(nextLeg.date);
-        fetchFlights(nextLeg.origin, nextLeg.destination, nextLeg.date);
+        fetchFlights(nextLeg.origin, nextLeg.destination, nextLeg.date, cabinClass);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         // Complete
@@ -181,10 +196,11 @@ const FlightResultPage: React.FC = () => {
       setOrigin(leg.origin);
       setDestination(leg.destination);
       setDate(leg.date);
-      fetchFlights(leg.origin, leg.destination, leg.date);
+      fetchFlights(leg.origin, leg.destination, leg.date, cabinClass);
 
       // Truncate selection
       setSelectedFlights(prev => prev.slice(0, index));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -207,8 +223,6 @@ const FlightResultPage: React.FC = () => {
 
   // Filter Logic
   const filteredFlights = useMemo(() => {
-    const cabinMultiplier = cabinClass === 'first' ? 2.1 : cabinClass === 'business' ? 1.6 : 1;
-
     // 时段判断辅助函数
     const getTimeSlot = (timeStr: string): string => {
       if (!timeStr) return '';
@@ -221,7 +235,7 @@ const FlightResultPage: React.FC = () => {
 
     return flights
       .filter((flight) => {
-        const effectivePrice = flight.price * cabinMultiplier;
+        const effectivePrice = flight.price;
         if (effectivePrice > filters.priceMax) return false;
         if (typeof flight.remainingSeats === 'number' && flight.remainingSeats < passengers) return false;
         if (filters.stops === 'direct' && flight.stops > 0) return false;
@@ -255,9 +269,10 @@ const FlightResultPage: React.FC = () => {
       })
       .map((flight) => ({
         ...flight,
-        price: Math.round(flight.price * cabinMultiplier),
+        // Remove client-side multiplier since backend already returns price for selected cabin
+        price: flight.price,
       }));
-  }, [flights, filters, cabinClass, passengers]);
+  }, [flights, filters, passengers, cabinClass]);
 
   // Map Data
   const getCityName = (code: string) => AIRPORTS_CONST.find(a => a.code === code)?.city || code;

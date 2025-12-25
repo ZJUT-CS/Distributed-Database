@@ -83,6 +83,11 @@ public class Flight {
     private String stopoverInfo;
 
     /**
+     * 舱位布局方案号 (冗余，用于搜索时确定舱位配置)
+     */
+    private Integer layoutNo;
+
+    /**
      * 状态：1-计划中，2-取消，3-延误，4-已起飞，5-已到达
      */
     private Integer status;

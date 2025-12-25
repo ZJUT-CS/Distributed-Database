@@ -19,6 +19,7 @@ import com.team.skylink.module.flight.mapper.SeatMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
+import com.team.skylink.module.order.service.PriceStrategyService;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +54,7 @@ public class FlightServiceImpl implements FlightService {
     private final SeatService seatService;
     private final SeatMapper seatMapper;
     private final OrderMapper orderMapper;
+    private final PriceStrategyService priceStrategyService;
 
     public FlightServiceImpl(FlightMapper flightMapper,
             AircraftModelMapper aircraftModelMapper,
@@ -60,7 +62,8 @@ public class FlightServiceImpl implements FlightService {
             AircraftCabinConfigMapper cabinConfigMapper,
             SeatService seatService,
             SeatMapper seatMapper,
-            OrderMapper orderMapper) {
+            OrderMapper orderMapper,
+            PriceStrategyService priceStrategyService) {
         this.flightMapper = flightMapper;
         this.aircraftModelMapper = aircraftModelMapper;
         this.routeMapper = routeMapper;
@@ -68,10 +71,11 @@ public class FlightServiceImpl implements FlightService {
         this.seatService = seatService;
         this.seatMapper = seatMapper;
         this.orderMapper = orderMapper;
+        this.priceStrategyService = priceStrategyService;
     }
 
     @Override
-    @Cacheable(value = "flightSearch", key = "#departurePlace + #destination + #departureDate + #page + #size", unless = "#result.data.directFlights.total == 0")
+    @Cacheable(value = "flightSearchV2", key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo, #page, #size)", unless = "#result.data.directFlights.total == 0")
     public Result<FlightSearchResult> search(String departurePlace, String destination, String flightNo,
             String airlineCompany, String cabinType, Integer status, LocalDate departureDate,
             LocalDateTime departureTimeFrom, LocalDateTime departureTimeTo, int page, int size) {
@@ -104,10 +108,43 @@ public class FlightServiceImpl implements FlightService {
         IPage<Flight> flightPage = flightMapper.selectPage(pageParam, qw);
         List<FlightSearchResponse> directFlights = new ArrayList<>();
 
-        for (Flight f : flightPage.getRecords()) {
-            FlightSearchResponse res = convertToResponse(f, cabinType);
-            if (res != null) {
-                directFlights.add(res);
+        // Optimization: Bulk Fetch for Direct Flights
+        List<Flight> records = flightPage.getRecords();
+        if (!records.isEmpty()) {
+            Set<Long> allFlightIds = records.stream().map(Flight::getFlightId).collect(Collectors.toSet());
+            Set<Long> allRouteIds = records.stream().map(Flight::getRouteId).collect(Collectors.toSet());
+            Set<Long> allModelIds = records.stream().map(Flight::getModelId).collect(Collectors.toSet());
+
+            // Bulk fetch Routes
+            Map<Long, Route> routeMap = new HashMap<>();
+            if (!allRouteIds.isEmpty()) {
+                List<Route> routes = routeMapper.selectBatchIds(allRouteIds);
+                routeMap = routes.stream().collect(Collectors.toMap(Route::getRouteId, Function.identity()));
+            }
+
+            // Bulk fetch Aircraft Models
+            Map<Long, AircraftModel> modelMap = new HashMap<>();
+            if (!allModelIds.isEmpty()) {
+                List<AircraftModel> models = aircraftModelMapper.selectBatchIds(allModelIds);
+                modelMap = models.stream().collect(Collectors.toMap(AircraftModel::getModelId, Function.identity()));
+            }
+
+            // Bulk fetch Configs
+            Map<Long, List<AircraftCabinConfig>> configMap = new HashMap<>();
+            if (!allModelIds.isEmpty()) {
+                List<AircraftCabinConfig> allConfigs = cabinConfigMapper.selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
+                        .in(AircraftCabinConfig::getModelId, allModelIds));
+                configMap = allConfigs.stream().collect(Collectors.groupingBy(AircraftCabinConfig::getModelId));
+            }
+
+            // Bulk fetch Seats
+            Map<Long, Map<String, Integer>> seatMap = seatService.getAvailableCountBatch(new ArrayList<>(allFlightIds));
+
+            for (Flight f : records) {
+                FlightSearchResponse res = convertToResponseOptimized(f, cabinType, routeMap, configMap, seatMap, modelMap, false);
+                if (res != null) {
+                    directFlights.add(res);
+                }
             }
         }
 
@@ -183,9 +220,9 @@ public class FlightServiceImpl implements FlightService {
                             Duration transferTime = Duration.between(leg1.getArrivalTime(), leg2.getDepartureTime());
                             if (transferTime.toMinutes() >= 120 && transferTime.toHours() <= 24) {
                                 FlightSearchResponse r1 = convertToResponseOptimized(leg1, cabinType, routeMap,
-                                        configMap, seatMap, modelMap);
+                                        configMap, seatMap, modelMap, true);
                                 FlightSearchResponse r2 = convertToResponseOptimized(leg2, cabinType, routeMap,
-                                        configMap, seatMap, modelMap);
+                                        configMap, seatMap, modelMap, true);
 
                                 if (r1 != null && r2 != null) {
                                     InterlineFlightResponse i = new InterlineFlightResponse();
@@ -224,23 +261,46 @@ public class FlightServiceImpl implements FlightService {
         return Result.ok(result);
     }
 
+    private List<String> resolveCabinTypes(String cabinType) {
+        if (!StringUtils.hasText(cabinType)) return Collections.emptyList();
+        String upper = cabinType.toUpperCase();
+        if ("Y".equals(upper) || "ECONOMY".equals(upper)) {
+            return Arrays.asList("Y", "ECONOMY", "Economy");
+        }
+        if ("J".equals(upper) || "BUSINESS".equals(upper)) {
+            return Arrays.asList("J", "BUSINESS", "Business");
+        }
+        if ("F".equals(upper) || "FIRST".equals(upper)) {
+            return Arrays.asList("F", "FIRST", "First");
+        }
+        return Collections.singletonList(cabinType);
+    }
+
     private FlightSearchResponse convertToResponseOptimized(
             Flight f,
             String cabinType,
             Map<Long, Route> routeMap,
             Map<Long, List<AircraftCabinConfig>> configMap,
             Map<Long, Map<String, Integer>> seatMap,
-            Map<Long, AircraftModel> modelMap) {
+            Map<Long, AircraftModel> modelMap,
+            boolean isInterline) {
 
         Route route = routeMap.get(f.getRouteId());
         if (route == null)
             return null;
 
         List<AircraftCabinConfig> configs = configMap.getOrDefault(f.getModelId(), Collections.emptyList());
+        
+        // Filter by LayoutNo
+        Integer layoutNo = f.getLayoutNo() != null ? f.getLayoutNo() : 1;
+        configs = configs.stream()
+                .filter(c -> c.getCabinLayoutNo() != null && c.getCabinLayoutNo().equals(layoutNo))
+                .collect(Collectors.toList());
+
         if (StringUtils.hasText(cabinType)) {
-            String searchType = cabinType.toLowerCase();
+            List<String> targetTypes = resolveCabinTypes(cabinType);
             configs = configs.stream()
-                    .filter(c -> c.getCabinType() != null && c.getCabinType().toLowerCase().contains(searchType))
+                    .filter(c -> c.getCabinType() != null && targetTypes.contains(c.getCabinType()))
                     .collect(Collectors.toList());
         }
 
@@ -255,10 +315,7 @@ public class FlightServiceImpl implements FlightService {
         Map<String, Integer> flightSeats = seatMap.getOrDefault(f.getFlightId(), Collections.emptyMap());
 
         for (AircraftCabinConfig cfg : configs) {
-            BigDecimal price = route.getBasePrice();
-            if (cfg.getCabinCoefficient() != null) {
-                price = price.multiply(cfg.getCabinCoefficient());
-            }
+            BigDecimal price = priceStrategyService.calculateSegmentPrice(f, route, cfg, isInterline);
 
             // Check inventory using pre-fetched map
             Integer availableCount = flightSeats.getOrDefault(cfg.getCabinType(), 0);
@@ -300,82 +357,14 @@ public class FlightServiceImpl implements FlightService {
         if (bestConfig != null) {
             dto.setBaggageAllowance(bestConfig.getDefaultChecked());
             dto.setServices(bestConfig.getDefaultServices());
+            dto.setCabinId(bestConfig.getConfigId());
         }
 
         return dto;
     }
 
-    private FlightSearchResponse convertToResponse(Flight f, String cabinType) {
-        Route route = routeMapper.selectById(f.getRouteId());
-        if (route == null)
-            return null;
+    // Delete convertToResponse as it is no longer used
 
-        List<AircraftCabinConfig> configs = cabinConfigMapper.selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
-                .eq(AircraftCabinConfig::getModelId, f.getModelId())
-                .eq(StringUtils.hasText(cabinType), AircraftCabinConfig::getCabinType, cabinType));
-
-        if (configs.isEmpty())
-            return null;
-
-        BigDecimal bestPrice = null;
-        Integer bestSeats = 0;
-        String bestCabin = null;
-        AircraftCabinConfig bestConfig = null; // ✅ 记录最佳舱位配置
-
-        for (AircraftCabinConfig cfg : configs) {
-            BigDecimal price = route.getBasePrice();
-            if (cfg.getCabinCoefficient() != null) {
-                price = price.multiply(cfg.getCabinCoefficient());
-            }
-
-            // Check inventory using SeatService
-            // Count seats with status=1 (Available) for this flight and cabin
-            long availableCount = seatService.count(Wrappers.<Seat>lambdaQuery()
-                    .eq(Seat::getFlightId, f.getFlightId())
-                    .eq(Seat::getCabinType, cfg.getCabinType())
-                    .eq(Seat::getStatus, 1)); // 1=Available
-
-            if (bestPrice == null || price.compareTo(bestPrice) < 0) {
-                bestPrice = price;
-                bestSeats = (int) availableCount;
-                bestCabin = cfg.getCabinType();
-                bestConfig = cfg; // ✅ 保存配置
-            }
-        }
-
-        if (bestPrice == null)
-            return null;
-
-        FlightSearchResponse dto = new FlightSearchResponse();
-        dto.setFlightId(f.getFlightId()); // ✅ 设置数据库主键ID
-        dto.setFlightNo(f.getFlightNo());
-        dto.setDeparturePlace(f.getDepartureCity());
-        dto.setDestination(f.getArrivalCity());
-        dto.setDepartureTime(f.getDepartureTime());
-        dto.setArrivalTime(f.getArrivalTime());
-
-        Duration duration = Duration.between(f.getDepartureTime(), f.getArrivalTime());
-        long hours = duration.toHours();
-        long minutes = duration.toMinutesPart();
-        dto.setDuration(hours + "h " + minutes + "m");
-
-        dto.setPrice(bestPrice);
-        dto.setRemainingSeats(bestSeats);
-        dto.setAirlineCompany(f.getAirlineCompany());
-        dto.setCabinType(bestCabin);
-
-        // ✅ 填充机型名称（直飞航班）
-        AircraftModel model = aircraftModelMapper.selectById(f.getModelId());
-        dto.setAircraftModel(model != null ? model.getModelName() : "Unknown");
-
-        // ✅ 填充行李额度和服务信息
-        if (bestConfig != null) {
-            dto.setBaggageAllowance(bestConfig.getDefaultChecked());
-            dto.setServices(bestConfig.getDefaultServices());
-        }
-
-        return dto;
-    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -417,22 +406,30 @@ public class FlightServiceImpl implements FlightService {
         }
 
         f.setAirlineCompany(req.getAirlineCompany());
-
-        Integer total = req.getTotalSeats();
-        if (total == null) {
-            total = model.getTotalPhysicalSeats();
-        }
-        f.setTotalSeats(total);
         f.setStatus(req.getStatus() != null ? req.getStatus() : 1);
         f.setCreateTime(LocalDateTime.now());
         f.setUpdateTime(LocalDateTime.now());
         f.setStopoverInfo(req.getStopoverInfo());
-
-        // 3. 计算最低票价 (改用 AircraftCabinConfig)
+        
         Integer layoutNo = req.getLayoutNo() != null ? req.getLayoutNo() : 1;
+        f.setLayoutNo(layoutNo);
+
+        // 3. 计算最低票价 & 确定总座位数 (改用 AircraftCabinConfig)
         List<AircraftCabinConfig> configs = cabinConfigMapper.selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
                 .eq(AircraftCabinConfig::getModelId, model.getModelId())
                 .eq(AircraftCabinConfig::getCabinLayoutNo, layoutNo));
+
+        // 计算布局总座位数
+        int calculatedTotalSeats = configs.stream()
+                .mapToInt(c -> c.getCapacity() != null ? c.getCapacity() : 0)
+                .sum();
+
+        Integer total = req.getTotalSeats();
+        if (total == null) {
+            // 优先使用布局配置的座位数，如果没配置则回退到机型物理座位数
+            total = calculatedTotalSeats > 0 ? calculatedTotalSeats : model.getTotalPhysicalSeats();
+        }
+        f.setTotalSeats(total);
 
         BigDecimal minCoeff = null; // 注意 config 里的系数通常是 Double
         for (AircraftCabinConfig cfg : configs) {
@@ -480,8 +477,11 @@ public class FlightServiceImpl implements FlightService {
         if (f == null)
             return Result.fail(404, "flight not found");
 
-        // 1. 检查是否修改了关键字段 (机型)
+        // 1. 检查是否修改了关键字段 (机型或布局)
         boolean modelChanged = !f.getModelId().equals(req.getModelId());
+        Integer oldLayoutNo = f.getLayoutNo() != null ? f.getLayoutNo() : 1;
+        Integer newLayoutNo = req.getLayoutNo() != null ? req.getLayoutNo() : 1;
+        boolean layoutChanged = !oldLayoutNo.equals(newLayoutNo);
 
         // 2. 更新基础信息
         f.setFlightNo(req.getFlightNo());
@@ -492,6 +492,7 @@ public class FlightServiceImpl implements FlightService {
         f.setStatus(req.getStatus() != null ? req.getStatus() : 1);
         f.setUpdateTime(LocalDateTime.now());
         f.setStopoverInfo(req.getStopoverInfo());
+        f.setLayoutNo(newLayoutNo);
 
         // 3. 同步航线信息
         Route route = routeMapper.selectById(req.getRouteId());
@@ -516,24 +517,32 @@ public class FlightServiceImpl implements FlightService {
         // 5. 更新航班表
         flightMapper.updateById(f);
 
-        // 6. 【核心逻辑】如果换了机型，必须重置座位！
-        if (modelChanged) {
+        // 6. 【核心逻辑】如果换了机型或布局，必须重置座位！
+        if (modelChanged || layoutChanged) {
             // A. 先删掉所有旧座位
             seatService.remove(Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, flightId));
 
             // B. 重新获取新机型的配置
             AircraftModel model = aircraftModelMapper.selectById(req.getModelId());
             if (model != null) {
-                // 更新总座位数
-                f.setTotalSeats(req.getTotalSeats() != null ? req.getTotalSeats() : model.getTotalPhysicalSeats());
-                flightMapper.updateById(f); // 再次更新航班的总座位数
-
                 // C. 获取新机型的舱位配置
                 Integer layoutNo = req.getLayoutNo() != null ? req.getLayoutNo() : 1;
                 List<AircraftCabinConfig> configs = cabinConfigMapper
                         .selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
                                 .eq(AircraftCabinConfig::getModelId, model.getModelId())
                                 .eq(AircraftCabinConfig::getCabinLayoutNo, layoutNo));
+
+                // 更新总座位数
+                int calculatedTotalSeats = configs.stream()
+                        .mapToInt(c -> c.getCapacity() != null ? c.getCapacity() : 0)
+                        .sum();
+                
+                Integer total = req.getTotalSeats();
+                if (total == null) {
+                    total = calculatedTotalSeats > 0 ? calculatedTotalSeats : model.getTotalPhysicalSeats();
+                }
+                f.setTotalSeats(total);
+                flightMapper.updateById(f); // 再次更新航班的总座位数
 
                 // D. 重新生成座位
                 List<Seat> allSeats = new ArrayList<>();
