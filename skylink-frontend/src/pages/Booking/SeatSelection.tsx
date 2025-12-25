@@ -27,11 +27,7 @@ const SeatSelectionPage: React.FC = () => {
     // 为兼容旧链接，仍支持从 orderNo 读取。
     const orderId = searchParams.get('orderId') || searchParams.get('orderNo') || '';
     const flightId = searchParams.get('flightId') || '';
-<<<<<<< HEAD
-    const cabinTypeFromQuery = searchParams.get('cabinType') || '';
-=======
     const [cabinType, setCabinType] = useState<string>(searchParams.get('cabinType') || '');
->>>>>>> feat/backend-admin
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -44,8 +40,8 @@ const SeatSelectionPage: React.FC = () => {
 
     const [orderCabinType, setOrderCabinType] = useState<string>('');
     const effectiveCabinType = useMemo(
-        () => (cabinTypeFromQuery || orderCabinType || '').trim(),
-        [cabinTypeFromQuery, orderCabinType],
+        () => (cabinType || orderCabinType || '').trim(),
+        [cabinType, orderCabinType],
     );
 
     const lastRefreshAtRef = useRef<number>(0);
@@ -92,8 +88,6 @@ const SeatSelectionPage: React.FC = () => {
             setLoading(true);
             setError(null);
             try {
-<<<<<<< HEAD
-=======
                 const seatRes = await getFlightSeats(flightId, cabinType || undefined);
                 const seatData: SeatData[] = seatRes.seats.map((s) => ({
                     seatId: s.seatId,
@@ -105,7 +99,6 @@ const SeatSelectionPage: React.FC = () => {
                 setSeats(seatData);
                 setLayout(seatRes.layout);
 
->>>>>>> feat/backend-admin
                 // 获取当前订单座位信息：直查订单详情，避免 searchOrders 取第一个的不确定性
                 const order = await request<OrderSearchResult>({
                     method: 'GET',
@@ -114,17 +107,6 @@ const SeatSelectionPage: React.FC = () => {
                 if (order?.seatId) {
                     setCurrentSeatId(String(order.seatId));
                 }
-<<<<<<< HEAD
-
-                // cabinType 兜底：优先 URL，其次订单详情返回
-                if (order?.cabinType) {
-                    setOrderCabinType(String(order.cabinType));
-                }
-
-                // 获取座位布局（仅当前舱位）
-                const cab = (cabinTypeFromQuery || order?.cabinType || '').trim();
-                await fetchSeatsForCabin(cab);
-=======
                 if (order?.cabinType && order.cabinType !== cabinType) {
                     setCabinType(order.cabinType);
                     const seatRes2 = await getFlightSeats(flightId, order.cabinType);
@@ -138,7 +120,6 @@ const SeatSelectionPage: React.FC = () => {
                     setSeats(seatData2);
                     setLayout(seatRes2.layout);
                 }
->>>>>>> feat/backend-admin
             } catch (e: any) {
                 setError(e?.message || '加载座位信息失败');
             } finally {
@@ -147,7 +128,7 @@ const SeatSelectionPage: React.FC = () => {
         };
 
         fetchData();
-    }, [user, navigate, orderId, flightId, cabinTypeFromQuery]);
+    }, [user, navigate, orderId, flightId, cabinType]);
 
     // 仅刷新“当前舱位”座位：页面可见 + 非提交中
     useEffect(() => {
