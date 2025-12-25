@@ -10,8 +10,11 @@ const FlightListSkeleton: React.FC<FlightListSkeletonProps> = ({ count = 3 }) =>
             {Array.from({ length: count }).map((_, index) => (
                 <div
                     key={index}
-                    className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse"
+                    className="bg-gradient-to-br from-white via-white to-gray-50 rounded-2xl p-6 shadow-lg border border-gray-200 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative"
                 >
+                    {/* 流光动画背景 */}
+                    <div className="absolute inset-0 skeleton opacity-50"></div>
+                    <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-6">
                     {/* Airline Info */}
                     <div className="flex items-start gap-4 min-w-[200px]">
                         <div className="w-12 h-12 bg-gray-200 rounded-full" />
@@ -47,6 +50,7 @@ const FlightListSkeleton: React.FC<FlightListSkeletonProps> = ({ count = 3 }) =>
                             <div className="h-3 w-12 bg-gray-200 rounded" />
                         </div>
                         <div className="h-10 w-24 bg-gray-200 rounded-lg" />
+                    </div>
                     </div>
                 </div>
             ))}

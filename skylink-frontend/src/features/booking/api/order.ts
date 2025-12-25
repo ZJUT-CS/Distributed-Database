@@ -3,6 +3,8 @@ import { request } from '../../../lib/axios';
 export interface OrderSearchResult {
   orderNo: string;
   flightNo?: string | null;
+  /** 舱位类型（如 Y/J/F 或 economy/business/first，具体以后端为准） */
+  cabinType?: string | null;
   passengerName?: string | null;
   contactEmail?: string | null;
   contactPhone?: string | null;

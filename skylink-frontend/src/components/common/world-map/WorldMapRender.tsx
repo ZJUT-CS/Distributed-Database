@@ -2,9 +2,26 @@ import React from 'react';
 import type { MapPoint } from '@/features/flight';
 import WorldMapSvg from '../../../assets/images/Simplified_World_Map.svg?react';
 
+export type HeatPoint = {
+  id: string;
+  name?: string;
+  lat: number;
+  lng: number;
+  value: number;
+  unit?: string;
+};
+
+export type MapRoute = {
+  from: string;
+  to: string;
+  id?: string;
+  active?: boolean;
+};
+
 export interface WorldMapRenderProps {
   points: MapPoint[];
-  routes?: { from: string; to: string }[];
+  routes?: MapRoute[];
+  heatPoints?: HeatPoint[];
   showGrid: boolean;
   theme: 'light' | 'dark';
   preserveAspectRatio: string;
@@ -34,9 +51,64 @@ const project = (lat: number, lng: number) => {
   return { x, y };
 };
 
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+const hexToRgb = (hex: string) => {
+  const m = hex.replace('#', '').trim();
+  const full = m.length === 3 ? m.split('').map((c) => c + c).join('') : m;
+  const n = parseInt(full, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+};
+
+const rgbToHex = (r: number, g: number, b: number) => {
+  const to2 = (x: number) => Math.round(x).toString(16).padStart(2, '0');
+  return `#${to2(r)}${to2(g)}${to2(b)}`;
+};
+
+const lerpColor = (a: string, b: string, t: number) => {
+  const ca = hexToRgb(a);
+  const cb = hexToRgb(b);
+  return rgbToHex(lerp(ca.r, cb.r, t), lerp(ca.g, cb.g, t), lerp(ca.b, cb.b, t));
+};
+
+const getHeatColor = (value: number, min: number, max: number) => {
+  if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+    return { fill: '#10b981', opacity: 0.65 };
+  }
+
+  // 低价更绿，高价更红
+  const t = clamp01((value - min) / (max - min));
+  const green = '#10b981';
+  const yellow = '#eab308';
+  const red = '#ef4444';
+  const fill = t < 0.55 ? lerpColor(green, yellow, t / 0.55) : lerpColor(yellow, red, (t - 0.55) / 0.45);
+  const opacity = 0.25 + 0.55 * (1 - Math.abs(t - 0.5) * 2);
+  return { fill, opacity };
+};
+
+const buildArcPath = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const midX = (start.x + end.x) / 2;
+  const midY = (start.y + end.y) / 2;
+
+  // 曲率随距离变化：长航线弧更高
+  const lift = Math.min(220, Math.max(70, dist * 0.35));
+  // 垂直法向
+  const nx = dist === 0 ? 0 : -dy / dist;
+  const ny = dist === 0 ? -1 : dx / dist;
+  const cx = midX + nx * lift;
+  const cy = midY + ny * lift;
+  return `M${start.x} ${start.y} Q ${cx} ${cy} ${end.x} ${end.y}`;
+};
+
 export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
   points,
   routes,
+  heatPoints,
   showGrid,
   theme,
   preserveAspectRatio,
@@ -136,6 +208,28 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
         <WorldMapSvg width={MAP_WIDTH} height={MAP_HEIGHT} />
       </g>
 
+      {/* Heat Points (Price Heatmap) */}
+      {heatPoints && heatPoints.length > 0 && (() => {
+        const vals = heatPoints.map((p) => Number(p.value)).filter((x) => Number.isFinite(x));
+        const min = vals.length ? Math.min(...vals) : 0;
+        const max = vals.length ? Math.max(...vals) : 0;
+
+        return (
+          <g aria-label="价格热力" opacity={isDragging ? 0.5 : 1}>
+            {heatPoints.map((p) => {
+              const { x, y } = project(p.lat, p.lng);
+              const { fill, opacity } = getHeatColor(p.value, min, max);
+              return (
+                <g key={`heat-${p.id}`}>
+                  <circle cx={x} cy={y} r={22} fill={fill} opacity={opacity * 0.35} />
+                  <circle cx={x} cy={y} r={12} fill={fill} opacity={opacity * 0.65} filter={isDark ? 'url(#glow)' : ''} />
+                </g>
+              );
+            })}
+          </g>
+        );
+      })()}
+
       {/* Routes Rendering */}
       {routes &&
         routes.map((route, idx) => {
@@ -146,10 +240,13 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
           const start = project(startPoint.lat, startPoint.lng);
           const end = project(endPoint.lat, endPoint.lng);
 
-          const midX = (start.x + end.x) / 2;
-          const midY = Math.min(start.y, end.y) - 150;
+          const pathD = buildArcPath(start, end);
 
-          const pathD = `M${start.x} ${start.y} Q ${midX} ${midY} ${end.x} ${end.y}`;
+          const isActive = route.active === true;
+          const strokeOpacity = isActive ? 0.35 : 0.2;
+          const dashOpacity = isActive ? 1 : 0.8;
+          const strokeWidthBase = isActive ? 3 : 2;
+          const dashWidth = isActive ? 4 : 3;
 
           return (
             <g key={`route-special-${idx}`}>
@@ -157,19 +254,19 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
                 d={pathD}
                 fill="none"
                 stroke={colors.routeStroke}
-                strokeWidth="2"
+                strokeWidth={strokeWidthBase}
                 strokeLinecap="round"
-                opacity="0.2"
+                opacity={strokeOpacity}
               />
 
               <path
                 d={pathD}
                 fill="none"
                 stroke={colors.routeStroke}
-                strokeWidth="3"
+                strokeWidth={dashWidth}
                 strokeLinecap="round"
                 strokeDasharray="10, 300"
-                opacity="0.8"
+                opacity={dashOpacity}
                 filter={isDark ? 'url(#glow)' : ''}
                 style={{
                   animation: 'dash-flow 3s linear infinite',
@@ -185,7 +282,14 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
                   offsetRotate: 'auto',
                 }}
               >
-                <circle r="4" fill={colors.planeFill} filter={isDark ? 'url(#glow)' : ''} />
+                <g transform="translate(-6,-6)">
+                  <path
+                    d="M2 8 L10 2 L9 7 L14 8 L9 9 L10 14 Z"
+                    fill={colors.planeFill}
+                    opacity={0.95}
+                    filter={isDark ? 'url(#glow)' : ''}
+                  />
+                </g>
               </g>
 
               <path id={`routePath-${idx}`} d={pathD} fill="none" stroke="none" />
@@ -201,7 +305,7 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
             const hub = points.find((p) => p.type === 'hub') || points[0];
             const start = project(hub.lat, hub.lng);
             const end = project(target.lat, target.lng);
-            const pathD = `M${start.x} ${start.y} Q ${(start.x + end.x) / 2} ${Math.min(start.y, end.y) - 50} ${end.x} ${end.y}`;
+            const pathD = buildArcPath(start, end);
             return (
               <path
                 key={`line-${idx}`}

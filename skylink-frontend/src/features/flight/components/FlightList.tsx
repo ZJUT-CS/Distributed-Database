@@ -51,10 +51,11 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
 
   return (
     <div className="space-y-4">
-      {flights.map((flight) => (
+      {flights.map((flight, idx) => (
         <div
           key={flight.id}
-          className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6"
+          className="bg-gradient-to-br from-white via-white to-blue-50/30 rounded-2xl p-4 md:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200/50 backdrop-blur-sm flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 group hover:-translate-y-1 animate-fade-in"
+          style={{ animationDelay: `${idx * 100}ms` }}
         >
           <div className="flex items-start gap-4 min-w-[200px] self-stretch md:self-auto">
             <div className="w-12 h-12 mt-1 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">
@@ -146,13 +147,13 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
             </div>
           </div>
 
-          <div className="flex items-center gap-6 border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6 w-full md:w-auto justify-between md:justify-end">
+          <div className="flex items-center gap-6 border-t md:border-t-0 md:border-l border-gray-200/50 pt-4 md:pt-0 md:pl-6 w-full md:w-auto justify-between md:justify-end">
             {renderPrice ? (
               renderPrice(flight)
             ) : (
               <div className="text-right">
-                <p className="text-2xl font-bold text-orange-600">¥{flight.price.toLocaleString()}</p>
-                <p className="text-xs text-gray-400">含税总价</p>
+                <p className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">¥{flight.price.toLocaleString()}</p>
+                <p className="text-xs text-gray-500 font-medium">含税总价</p>
               </div>
             )}
 
@@ -161,9 +162,9 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
             ) : (
               <button
                 onClick={() => onSelect(flight)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-7 py-3 rounded-xl font-bold transition-all duration-300 flex items-center gap-2 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-105 active:scale-95 group-hover:translate-x-1"
               >
-                预订 <ArrowRight className="w-4 h-4" />
+                预订 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             )}
           </div>
@@ -172,5 +173,30 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
     </div>
   );
 };
+
+// 添加淡入动画CSS
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.5s ease-out forwards;
+      opacity: 0;
+    }
+  `;
+  if (!document.head.querySelector('style[data-flight-list-animations]')) {
+    style.setAttribute('data-flight-list-animations', '');
+    document.head.appendChild(style);
+  }
+}
 
 export default FlightList;

@@ -86,7 +86,13 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         r.setAdminCount(adminMapper.selectCount(null));
         r.setConfigCount(configMapper.selectCount(null));
         r.setOperationLogCount(operationLogMapper.selectCount(null));
-        r.setUserBehaviorStatCount(userBehaviorStatMapper.selectCount(null));
+        
+        // 容错处理：如果 user_behavior_stats 表不存在，返回 0
+        try {
+            r.setUserBehaviorStatCount(userBehaviorStatMapper.selectCount(null));
+        } catch (Exception e) {
+            r.setUserBehaviorStatCount(0L);
+        }
 
         r.setUserCount(userMapper.selectCount(null));
 

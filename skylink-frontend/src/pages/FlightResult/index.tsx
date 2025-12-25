@@ -262,6 +262,78 @@ const FlightResultPage: React.FC = () => {
   // Map Data
   const getCityName = (code: string) => AIRPORTS_CONST.find(a => a.code === code)?.city || code;
 
+  const findAirport = (codeOrCity: string) => {
+    const s = (codeOrCity || '').trim();
+    if (!s) return undefined;
+    return AIRPORTS_CONST.find((a) => a.code === s) || AIRPORTS_CONST.find((a) => a.city === s);
+  };
+
+  const getBestItineraryRoutes = () => {
+    if (!filteredFlights || filteredFlights.length === 0) return [] as Array<{ from: string; to: string; active?: boolean }>;
+
+    // 取当前筛选结果中“最低价”的一条，若为联程则画多段
+    const cheapest = [...filteredFlights].sort((a, b) => a.price - b.price)[0];
+    const segs = (cheapest as any).segments as any[] | undefined;
+    if (cheapest.isInterline && Array.isArray(segs) && segs.length > 0) {
+      return segs
+        .map((seg, idx) => ({
+          from: String(seg.origin),
+          to: String(seg.destination),
+          active: true,
+          id: `${idx}-${String(seg.origin)}-${String(seg.destination)}`,
+        }))
+        .filter((x) => x.from && x.to);
+    }
+
+    // 直飞：单段
+    return [{ from: origin, to: destination, active: true, id: `${origin}-${destination}` }];
+  };
+
+  const getHeatPoints = () => {
+    // 仅对当前结果涉及到的“目的地/中转”做热力点（最小改动，不额外打接口）
+    const airportMinPrice = new Map<string, number>();
+
+    filteredFlights.forEach((f: any) => {
+      const price = Number(f.price);
+      if (!Number.isFinite(price)) return;
+
+      const segs = Array.isArray(f.segments) ? f.segments : [];
+      // 目的地：联程取最后一段目的地，否则用 flight.destination
+      const destCode = segs.length > 0 ? String(segs[segs.length - 1].destination) : String(f.destination);
+      if (destCode) {
+        const prev = airportMinPrice.get(destCode);
+        if (prev == null || price < prev) airportMinPrice.set(destCode, price);
+      }
+
+      // 中转点：segments 的中间 destination 作为 transfer
+      if (segs.length > 1) {
+        for (let i = 0; i < segs.length - 1; i++) {
+          const mid = String(segs[i].destination);
+          if (!mid) continue;
+          const prev = airportMinPrice.get(mid);
+          if (prev == null || price < prev) airportMinPrice.set(mid, price);
+        }
+      }
+    });
+
+    const pts = Array.from(airportMinPrice.entries())
+      .map(([code, price]) => {
+        const a = findAirport(code);
+        if (!a) return null;
+        return {
+          id: a.code,
+          name: a.city,
+          lat: a.lat,
+          lng: a.lng,
+          value: price,
+          unit: '¥',
+        };
+      })
+      .filter(Boolean) as any[];
+
+    return pts;
+  };
+
   const getRouteMapData = () => {
     const originAirport = AIRPORTS_CONST.find(a => a.code === origin) || AIRPORTS_CONST.find(a => a.city === origin);
     const destAirport = AIRPORTS_CONST.find(a => a.code === destination) || AIRPORTS_CONST.find(a => a.city === destination);
@@ -273,13 +345,29 @@ const FlightResultPage: React.FC = () => {
       { id: destAirport.code, name: destAirport.name, lat: destAirport.lat, lng: destAirport.lng, type: 'destination', value: 100, info: '目的地' }
     ];
 
-    const routes = [{ from: originAirport.code, to: destAirport.code }];
+    const routes = getBestItineraryRoutes().length > 0
+      ? getBestItineraryRoutes().map(r => ({ from: r.from, to: r.to, id: (r as any).id, active: (r as any).active }))
+      : [{ from: originAirport.code, to: destAirport.code, active: true, id: `${originAirport.code}-${destAirport.code}` }];
+
+    // 若路线包含中转点，把中转点也加入 points（用于展示/tooltip）
+    const extraCodes = routes
+      .map((r) => r.from)
+      .concat(routes.map((r) => r.to))
+      .filter((x) => x && x !== originAirport.code && x !== destAirport.code);
+
+    extraCodes.forEach((code) => {
+      const a = findAirport(code);
+      if (!a) return;
+      if (points.some((p) => p.id === a.code)) return;
+      points.push({ id: a.code, name: a.name, lat: a.lat, lng: a.lng, type: 'normal', value: 60, info: '中转/航点' });
+    });
     return { points, routes };
   };
 
   const mapData = useMemo(() => getRouteMapData(), [origin, destination]);
   const mergedMapPoints = useMemo(() => [...mapData.points, ...userMapPoints], [mapData.points, userMapPoints]);
   const mergedMapRoutes = useMemo(() => [...mapData.routes, ...userMapRoutes], [mapData.routes, userMapRoutes]);
+  const heatPoints = useMemo(() => getHeatPoints(), [filteredFlights]);
 
   const handleAiRequest = () => {
     if (!user) navigate('/login');
@@ -295,6 +383,8 @@ const FlightResultPage: React.FC = () => {
         <WorldMap
           points={mergedMapPoints}
           routes={mergedMapRoutes}
+          heatPoints={heatPoints}
+          showHeatLegend={true}
           className="h-full w-full rounded-none border-none opacity-100"
           showGrid={true}
           theme="dark"

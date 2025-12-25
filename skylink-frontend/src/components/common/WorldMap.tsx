@@ -4,9 +4,30 @@ import type { MapPoint } from '@/features/flight';
 import { WorldMapRender } from './world-map/WorldMapRender';
 import { useWorldMapControls } from './world-map/useWorldMapControls';
 
+export interface HeatPoint {
+  id: string;
+  name?: string;
+  lat: number;
+  lng: number;
+  /** 数值越低越“冷”（更便宜），越高越“热”（更贵） */
+  value: number;
+  unit?: string;
+}
+
+export interface MapRoute {
+  from: string;
+  to: string;
+  /** 可选：用于高亮/识别 */
+  id?: string;
+  /** 可选：用于强调某条路线 */
+  active?: boolean;
+}
+
 interface WorldMapProps {
   points: MapPoint[];
-  routes?: { from: string; to: string }[];
+  routes?: MapRoute[];
+  heatPoints?: HeatPoint[];
+  showHeatLegend?: boolean;
   className?: string;
   showGrid?: boolean;
   theme?: 'light' | 'dark';
@@ -25,6 +46,8 @@ interface WorldMapProps {
 const WorldMap: React.FC<WorldMapProps> = ({
   points,
   routes,
+  heatPoints,
+  showHeatLegend = false,
   className = '',
   showGrid = true,
   theme = 'light',
@@ -77,6 +100,14 @@ const WorldMap: React.FC<WorldMapProps> = ({
     return '#eab308';
   };
 
+  const hasHeat = Array.isArray(heatPoints) && heatPoints.length > 0;
+  const heatDomain = (() => {
+    if (!hasHeat) return { min: 0, max: 0 };
+    const vals = heatPoints!.map((p) => Number(p.value)).filter((x) => Number.isFinite(x));
+    if (vals.length === 0) return { min: 0, max: 0 };
+    return { min: Math.min(...vals), max: Math.max(...vals) };
+  })();
+
   return (
     <div
       ref={containerRef}
@@ -93,6 +124,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
       <WorldMapRender
         points={points}
         routes={routes}
+        heatPoints={heatPoints}
         showGrid={showGrid}
         theme={theme}
         preserveAspectRatio={effectivePreserveAspectRatio}
@@ -166,6 +198,28 @@ const WorldMap: React.FC<WorldMapProps> = ({
           >
             <RotateCcw className="w-5 h-5" />
           </button>
+        </div>
+      )}
+
+      {hasHeat && showHeatLegend && (
+        <div className="absolute top-4 right-4 z-20 pointer-events-none">
+          <div
+            className={`rounded-2xl border shadow-xl backdrop-blur-md px-4 py-3 ${isDark ? 'bg-slate-900/60 border-slate-700 text-slate-100' : 'bg-white/70 border-gray-200 text-gray-700'}`}
+          >
+            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-200' : 'text-gray-700'}`}>价格热力</div>
+            <div className="mt-2 flex items-center gap-2">
+              <div
+                className="h-2.5 w-28 rounded-full"
+                style={{
+                  background:
+                    'linear-gradient(90deg, rgba(16,185,129,0.9) 0%, rgba(234,179,8,0.9) 55%, rgba(239,68,68,0.9) 100%)',
+                }}
+              />
+              <div className={`text-[10px] font-mono ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
+                {Math.round(heatDomain.min)} - {Math.round(heatDomain.max)}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
