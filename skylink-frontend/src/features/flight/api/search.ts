@@ -13,11 +13,25 @@ export async function searchFlights(params: {
   origin: string;
   destination: string;
   departureDate: string;
+  cabinClass?: string;
 }): Promise<Flight[]> {
   const o = (params.origin || '').trim();
   const d = (params.destination || '').trim();
   const dateStr = (params.departureDate || '').trim();
   if (!o || !d || !dateStr) throw new Error('查询参数不完整');
+
+  // Map cabinClass to backend cabinType code
+  const cabinMap: Record<string, string> = {
+    'economy': 'Y',
+    'business': 'J',
+    'first': 'F'
+  };
+  
+  let cabinType: string | undefined = undefined;
+  if (params.cabinClass) {
+    const key = params.cabinClass.toLowerCase();
+    cabinType = cabinMap[key] || 'Y';
+  }
 
   const data = await request<{
     directFlights?: {
@@ -67,6 +81,7 @@ export async function searchFlights(params: {
       departurePlace: toCity(o),
       destination: toCity(d),
       departureDate: dateStr,
+      cabinType: cabinType, // Pass mapped cabin type
       page: '1',
       size: '50',
     },

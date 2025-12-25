@@ -48,7 +48,7 @@ public class PaymentController {
      */
     @GetMapping("/page")
     public Result<PageResult<PaymentSearchResponse>> searchPage(
-            @RequestParam(required = false) Long orderNo,
+            @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Integer paymentStatus,
             @RequestParam(required = false) String paymentMethod,
@@ -57,7 +57,8 @@ public class PaymentController {
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "10") Integer size
     ) {
-        return paymentService.searchPage(orderNo, userId, paymentStatus, paymentMethod, paymentTimeStart, paymentTimeEnd, page, size);
+        Long oid = parseId(orderNo);
+        return paymentService.searchPage(oid, userId, paymentStatus, paymentMethod, paymentTimeStart, paymentTimeEnd, page, size);
     }
 
     @PostMapping("/confirmation-tokens")
@@ -73,5 +74,17 @@ public class PaymentController {
     @PostMapping("")
     public Result<PaymentSearchResponse> pay(@Valid @RequestBody CreatePaymentRequest req) {
         return paymentService.pay(req);
+    }
+
+    private Long parseId(String id) {
+        if (id == null || id.isBlank()) return null;
+        try {
+            if (id.contains("+")) {
+                return Long.parseLong(id.split("\\+")[0].trim());
+            }
+            return Long.parseLong(id.trim());
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

@@ -37,13 +37,25 @@ public class OrderController {
             @RequestParam(required = false) Integer orderStatus,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createTimeStart,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createTimeEnd,
-            @RequestParam(required = false) Long flightId,
+            @RequestParam(required = false) String flightId,
             @RequestParam(required = false) String flightNo,
             @RequestParam(required = false) String cabinType,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return orderService.search(userId, orderNo, orderStatus, createTimeStart, createTimeEnd, flightId, flightNo, cabinType, page, size);
+        Long fId = null;
+        if (flightId != null && !flightId.isBlank()) {
+            try {
+                if (flightId.contains("+")) {
+                    fId = Long.parseLong(flightId.split("\\+")[0].trim());
+                } else {
+                    fId = Long.parseLong(flightId.trim());
+                }
+            } catch (NumberFormatException e) {
+                // Ignore invalid format, treat as null
+            }
+        }
+        return orderService.search(userId, orderNo, orderStatus, createTimeStart, createTimeEnd, fId, flightNo, cabinType, page, size);
     }
 
     @GetMapping("/my")
@@ -72,10 +84,12 @@ public class OrderController {
     }
 
     @PostMapping("/{orderId}/audit")
-    public Result<Boolean> audit(HttpServletRequest request, @PathVariable("orderId") Long orderId, @RequestParam boolean approved) {
+    public Result<Boolean> audit(HttpServletRequest request, @PathVariable("orderId") String orderId, @RequestParam boolean approved) {
+        Long id = parseId(orderId);
+        if (id == null) return Result.fail(400, "Invalid orderId");
         Result<?> guard = ensureAdmin(request);
         if (guard != null) return (Result<Boolean>) guard;
-        return orderService.audit(orderId, approved);
+        return orderService.audit(id, approved);
     }
 
     private static Result<?> ensureAdmin(HttpServletRequest request) {
@@ -92,5 +106,17 @@ public class OrderController {
             return Result.fail(403, "需要用户权限");
         }
         return null;
+    }
+
+    private Long parseId(String id) {
+        if (id == null || id.isBlank()) return null;
+        try {
+            if (id.contains("+")) {
+                return Long.parseLong(id.split("\\+")[0].trim());
+            }
+            return Long.parseLong(id.trim());
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

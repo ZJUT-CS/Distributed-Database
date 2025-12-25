@@ -73,7 +73,7 @@ public class BookingServiceImplTest {
 
         BookingRequest req = new BookingRequest();
         req.setUserId(999L);
-        req.setFlightIds(List.of(1L));
+        req.setFlightIds(List.of("1"));
         req.setCabinId(10L);
         BookingRequest.PassengerInfo pi = new BookingRequest.PassengerInfo();
         pi.setName("Alice");

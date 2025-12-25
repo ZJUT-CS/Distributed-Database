@@ -59,7 +59,7 @@ public class FlightController {
     }
 
     @GetMapping("")
-    @Cacheable(cacheNames = "flightSearch", key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo, #page, #size)")
+    @Cacheable(cacheNames = "flightSearchV2", key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo, #page, #size)")
     public Result<FlightSearchResult> search(
             @RequestParam(required = false) String departurePlace,
             @RequestParam(required = false) String destination,
@@ -96,9 +96,12 @@ public class FlightController {
      * Replaces the heavy DB query in listSeats
      */
     @GetMapping("/{flightId}/seat-map")
-    public Result<List<Map<String, Object>>> getSeatMap(@PathVariable Long flightId) {
+    public Result<List<Map<String, Object>>> getSeatMap(@PathVariable String flightId) {
+        Long id = parseFlightId(flightId);
+        if (id == null) return Result.fail(400, "Invalid flight ID");
+
         // 1. Get from Redis (Structure + BitMap Status)
-        List<Seat> seats = seatService.getSeatMap(flightId);
+        List<Seat> seats = seatService.getSeatMap(id);
         
         // 2. Map to Frontend Format
         List<Map<String, Object>> data = new ArrayList<>();
@@ -132,15 +135,18 @@ public class FlightController {
 
     @GetMapping("/{flightId}/seats")
     public Result<List<Map<String, Object>>> listSeats(
-            @PathVariable Long flightId,
+            @PathVariable String flightId,
             @RequestParam(required = false) String cabinType) {
-        Flight flight = flightMapper.selectById(flightId);
+        Long id = parseFlightId(flightId);
+        if (id == null) return Result.fail(400, "Invalid flight ID");
+
+        Flight flight = flightMapper.selectById(id);
         if (flight == null) {
             return Result.fail(404, "航班不存在");
         }
         Route route = routeMapper.selectById(flight.getRouteId());
         BigDecimal base = route != null ? route.getBasePrice() : null;
-        var seatQ = Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, flightId);
+        var seatQ = Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, id);
         if (cabinType != null && !cabinType.isBlank()) {
             seatQ.in(Seat::getCabinType, cabinTypeVariants(cabinType));
         }
@@ -212,6 +218,21 @@ public class FlightController {
             data.add(it);
         }
         return Result.ok(data);
+    }
+
+    private Long parseFlightId(String flightId) {
+        try {
+            if (flightId == null) return null;
+            if (flightId.contains("+")) {
+                // 如果是联程航班ID (e.g. "123+456")，取第一段用于显示座位图
+                // TODO: 前端应该分别请求每一段的座位图
+                String[] parts = flightId.split("\\+");
+                return Long.parseLong(parts[0].trim());
+            }
+            return Long.parseLong(flightId.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private List<String> cabinTypeVariants(String cabinType) {

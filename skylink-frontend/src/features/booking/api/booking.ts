@@ -5,6 +5,7 @@ import { request } from '../../../lib/axios';
  * 对应后端 BookingRequest DTO
  */
 export interface BookingRequest {
+    addons: any;
     /**
      * 航班ID列表
      * 单程: [1001]
@@ -82,6 +83,7 @@ export async function createBooking(body: BookingRequest): Promise<BookingRespon
             cabinId: body.cabinId ? String(body.cabinId) : undefined,
             passengers: body.passengers,
             isInterline: body.isInterline ?? (body.flightIds.length > 1),
+            addons: body.addons,
         },
     });
 

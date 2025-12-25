@@ -36,5 +36,7 @@ public class OrderSearchResponse {
     private String destination;
     private LocalDateTime departureTime;
     private LocalDateTime arrivalTime;
+
+    private String cabinType;
 }
 

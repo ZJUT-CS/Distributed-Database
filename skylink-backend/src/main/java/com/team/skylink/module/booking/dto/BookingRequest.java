@@ -7,10 +7,10 @@ import java.util.List;
 public class BookingRequest {
     /**
      * 航班ID列表
-     * 单程: [1001]
-     * 联程/多程: [1001, 1002]
+     * 单程: ["1001"]
+     * 联程/多程: ["1001", "1002"] 或 ["1001+1002"]
      */
-    private List<Long> flightIds; 
+    private List<String> flightIds; 
     
     /**
      * 所选舱位配置ID (对应 aircraft_cabin_configs.config_id)
@@ -31,6 +31,17 @@ public class BookingRequest {
      * false = 拼凑 (生成独立单)
      */
     private Boolean isInterline; 
+
+    /**
+     * 增值服务
+     */
+    private Addons addons;
+
+    @Data
+    public static class Addons {
+        private Boolean insurance;
+        private Boolean fastTicket;
+    }
 
     @Data
     public static class PassengerInfo {

@@ -30,14 +30,25 @@ public class CabinController {
      * @return 可用舱位列表
      */
     @GetMapping("/available")
-    public Result<List<AvailableCabinDto>> getAvailableCabins(@RequestParam Long flightId) {
+    public Result<List<AvailableCabinDto>> getAvailableCabins(@RequestParam String flightId) {
         log.info("查询可用舱位 flightId={}", flightId);
 
-        if (flightId == null) {
+        if (flightId == null || flightId.isBlank()) {
             return Result.fail(400, "缺少航班ID参数");
         }
 
-        List<AvailableCabinDto> cabins = cabinService.getAvailableCabins(flightId);
+        Long id;
+        try {
+            if (flightId.contains("+")) {
+                id = Long.parseLong(flightId.split("\\+")[0].trim());
+            } else {
+                id = Long.parseLong(flightId.trim());
+            }
+        } catch (NumberFormatException e) {
+            return Result.fail(400, "无效的航班ID格式");
+        }
+
+        List<AvailableCabinDto> cabins = cabinService.getAvailableCabins(id);
         return Result.ok(cabins);
     }
 }

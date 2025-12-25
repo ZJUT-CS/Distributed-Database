@@ -288,7 +288,9 @@ public class OrderServiceImpl implements OrderService {
         List<OrderSearchResponse> resp = new ArrayList<>();
         for (Orders o : orders) {
             Flight f = flightMapper.selectById(o.getFlightId());
+            AircraftCabinConfig c = (o.getCabinId() != null) ? configMapper.selectById(o.getCabinId()) : null;
             User u = userMapper.selectById(o.getUserId());
+
             OrderSearchResponse r = new OrderSearchResponse();
             r.setOrderNo(String.valueOf(o.getOrderId()));
             r.setFlightId(o.getFlightId());
@@ -305,6 +307,9 @@ public class OrderServiceImpl implements OrderService {
             r.setPayTime(o.getPayTime());
             r.setRefundTime(o.getRefundTime());
             r.setChangeTime(o.getChangeTime());
+            if (c != null) {
+                r.setCabinType(c.getCabinType());
+            }
             if (f != null) {
                 r.setOrigin(f.getDeparturePlace());
                 r.setDestination(f.getDestination());
@@ -324,6 +329,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Flight f = flightMapper.selectById(o.getFlightId());
+        AircraftCabinConfig c = (o.getCabinId() != null) ? configMapper.selectById(o.getCabinId()) : null;
         User u = userMapper.selectById(o.getUserId());
 
         OrderSearchResponse r = new OrderSearchResponse();
@@ -342,6 +348,9 @@ public class OrderServiceImpl implements OrderService {
         r.setPayTime(o.getPayTime());
         r.setRefundTime(o.getRefundTime());
         r.setChangeTime(o.getChangeTime());
+        if (c != null) {
+            r.setCabinType(c.getCabinType());
+        }
 
         if (f != null) {
             r.setOrigin(f.getDeparturePlace());

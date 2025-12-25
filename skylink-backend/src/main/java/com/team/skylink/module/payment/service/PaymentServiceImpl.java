@@ -214,7 +214,12 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public Result<CreatePaymentTokenResponse> createConfirmToken(CreatePaymentTokenRequest req) {
-        Orders o = orderMapper.selectById(req.getOrderNo());
+        Long orderId = parseOrderId(req.getOrderNo());
+        if (orderId == null) {
+            return Result.fail(400, "invalid orderNo format");
+        }
+
+        Orders o = orderMapper.selectById(orderId);
         if (o == null) {
             return Result.fail(404, "order not found");
         }
@@ -228,13 +233,18 @@ public class PaymentServiceImpl implements PaymentService {
         long now = System.currentTimeMillis();
         long expiresAt = now + PAYMENT_TOKEN_TTL_MS;
         String token = UUID.randomUUID().toString();
-        PAYMENT_TOKENS.put(token, new PaymentTokenRecord(req.getOrderNo(), req.getAmount(), now, expiresAt));
-        return Result.ok(new CreatePaymentTokenResponse(String.valueOf(req.getOrderNo()), req.getAmount(), now, token, expiresAt));
+        PAYMENT_TOKENS.put(token, new PaymentTokenRecord(orderId, req.getAmount(), now, expiresAt));
+        return Result.ok(new CreatePaymentTokenResponse(String.valueOf(orderId), req.getAmount(), now, token, expiresAt));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<PaymentSearchResponse> confirmPay(ConfirmPaymentRequest req) {
+        Long orderId = parseOrderId(req.getOrderNo());
+        if (orderId == null) {
+            return Result.fail(400, "invalid orderNo format");
+        }
+
         PaymentTokenRecord record = PAYMENT_TOKENS.get(req.getToken());
         if (record == null) {
             return Result.fail(400, "invalid token");
@@ -244,7 +254,7 @@ public class PaymentServiceImpl implements PaymentService {
             PAYMENT_TOKENS.remove(req.getToken());
             return Result.fail(400, "token expired");
         }
-        if (!record.orderNo.equals(req.getOrderNo())) {
+        if (!record.orderNo.equals(orderId)) {
             return Result.fail(400, "orderNo mismatch");
         }
         if (record.amount != null && req.getAmount() != null && record.amount.compareTo(req.getAmount()) != 0) {
@@ -262,7 +272,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
         PAYMENT_TOKENS.remove(req.getToken());
 
-        Orders o = orderMapper.selectById(req.getOrderNo());
+        Orders o = orderMapper.selectById(orderId);
         if (o == null) {
             return Result.fail(404, "order not found");
         }
@@ -363,7 +373,12 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<PaymentSearchResponse> pay(CreatePaymentRequest req) {
-        Orders o = orderMapper.selectById(req.getOrderNo());
+        Long orderId = parseOrderId(req.getOrderNo());
+        if (orderId == null) {
+            return Result.fail(400, "invalid orderNo format");
+        }
+
+        Orders o = orderMapper.selectById(orderId);
         if (o == null) {
             return Result.fail(404, "order not found");
         }
@@ -409,6 +424,19 @@ public class PaymentServiceImpl implements PaymentService {
         r.setPaymentTime(p.getPaymentTime());
         r.setRefundTime(p.getRefundTime());
         return Result.ok(r);
+    }
+
+    private Long parseOrderId(String orderNo) {
+        if (orderNo == null || orderNo.isBlank()) return null;
+        try {
+            if (orderNo.contains("+")) {
+                // Return first ID for interline composite IDs
+                return Long.parseLong(orderNo.split("\\+")[0].trim());
+            }
+            return Long.parseLong(orderNo.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }
 

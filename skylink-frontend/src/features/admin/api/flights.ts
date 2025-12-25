@@ -13,6 +13,7 @@ export interface AdminFlightItem {
   arrivalAirport?: string | null;
   airlineCompany: string;
   totalSeats?: number | null;
+  layoutNo?: number | null;
   stopoverInfo?: string | null;
   status?: number | null;
   lowestPrice?: number | string | null;
@@ -109,9 +110,6 @@ export async function createAdminFlight(body: AdminFlightUpsertRequest): Promise
 }
 
 export async function updateAdminFlight(flightId: string | number, body: AdminFlightUpsertRequest): Promise<boolean> {
-  const id = String(flightId ?? '').trim();
-  if (!id) throw new Error('缺少 flightId');
-
   const flightNo = String(body.flightNo ?? '').trim();
   const airlineCompany = String(body.airlineCompany ?? '').trim();
   const modelId = Number(body.modelId);
@@ -127,7 +125,7 @@ export async function updateAdminFlight(flightId: string | number, body: AdminFl
 
   return request<boolean>({
     method: 'PUT',
-    url: `/api/v1/admins/flights/${encodeURIComponent(id)}`,
+    url: `/api/v1/admins/flights/${encodeURIComponent(String(flightId))}`,
     data: {
       flightNo,
       modelId,

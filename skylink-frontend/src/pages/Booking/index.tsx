@@ -58,7 +58,8 @@ const BookingPage: React.FC = () => {
         flightIds: flights.map(f => f.id),
         cabinId,
         passengers,
-        isInterline: flights.length > 1
+        isInterline: flights.length > 1,
+        addons: details.addons
       });
 
       const id = String(created?.parentOrderId || created?.orderIds?.[0] || '').trim();

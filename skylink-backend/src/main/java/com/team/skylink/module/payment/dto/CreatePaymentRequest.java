@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 @Data
 public class CreatePaymentRequest {
     @NotNull(message = "orderNo is required")
-    private Long orderNo;
+    private String orderNo;
 
     @NotNull(message = "amount is required")
     @Positive(message = "amount must be > 0")
