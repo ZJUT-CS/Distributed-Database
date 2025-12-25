@@ -16,6 +16,7 @@ import com.team.skylink.module.payment.dto.CreatePaymentTokenResponse;
 import com.team.skylink.module.payment.dto.PaymentSearchResponse;
 import com.team.skylink.module.payment.entity.Payment;
 import com.team.skylink.module.payment.mapper.PaymentMapper;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentMapper paymentMapper;
     private final OrderMapper orderMapper;
     private final SeatService seatService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     private static final long PAYMENT_TOKEN_TTL_MS = 30L * 60L * 1000L;
 
@@ -53,10 +55,11 @@ public class PaymentServiceImpl implements PaymentService {
 
     private static final ConcurrentHashMap<String, PaymentTokenRecord> PAYMENT_TOKENS = new ConcurrentHashMap<>();
 
-    public PaymentServiceImpl(PaymentMapper paymentMapper, OrderMapper orderMapper, SeatService seatService) {
+    public PaymentServiceImpl(PaymentMapper paymentMapper, OrderMapper orderMapper, SeatService seatService, SimpMessagingTemplate messagingTemplate) {
         this.paymentMapper = paymentMapper;
         this.orderMapper = orderMapper;
         this.seatService = seatService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Override
@@ -334,9 +337,16 @@ public class PaymentServiceImpl implements PaymentService {
                     } else {
                         seatService.confirmSeats(sib.getOrderId());
                     }
+                    try {
+                        messagingTemplate.convertAndSend("/topic/orders/" + sib.getOrderId(), "PAID");
+                    } catch (Exception ignore) {}
                 }
             }
         }
+
+        try {
+            messagingTemplate.convertAndSend("/topic/orders/" + o.getOrderId(), "PAID");
+        } catch (Exception ignore) {}
 
         PaymentSearchResponse r = new PaymentSearchResponse();
         r.setPaymentId(String.valueOf(p.getPaymentId()));
@@ -382,6 +392,10 @@ public class PaymentServiceImpl implements PaymentService {
         } else {
             seatService.confirmSeats(o.getOrderId());
         }
+
+        try {
+            messagingTemplate.convertAndSend("/topic/orders/" + o.getOrderId(), "PAID");
+        } catch (Exception ignore) {}
         
         PaymentSearchResponse r = new PaymentSearchResponse();
         r.setPaymentId(String.valueOf(p.getPaymentId()));
