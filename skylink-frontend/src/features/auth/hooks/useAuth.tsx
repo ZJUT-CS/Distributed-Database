@@ -1,6 +1,7 @@
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import type { User } from '../types';
 import { TOKEN_KEY, USER_KEY, normalizeUserRole, readStoredToken, readStoredUserRaw } from '@/lib/authStorage';
+import { logger } from '@/lib/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -37,7 +38,7 @@ const parseStoredUser = (): { user: User | null; token: string | null } => {
 
     return { user, token };
   } catch (e) {
-    console.error('Failed to parse user from local storage', e);
+    logger.error('Failed to parse user from local storage', e);
     return { user: null, token: null };
   }
 };
@@ -118,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
       }
     } catch (error) {
-      console.error('Failed to refresh user from server, falling back to localStorage', error);
+        logger.error('Failed to refresh user from server, falling back to localStorage', error);
       // 降级：从 localStorage 读取
       const { user: storedUser, token: storedToken } = parseStoredUser();
       setUser(storedUser);

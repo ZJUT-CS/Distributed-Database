@@ -3,6 +3,8 @@
  * @description 将数据数组导出为 CSV 格式并下载
  */
 
+import { logger } from '@/lib/logger';
+
 export interface ExportColumn<T = Record<string, unknown>> {
     /** 数据字段 key */
     key: string;
@@ -25,7 +27,7 @@ export function exportToCSV<T extends Record<string, any>>(
     columns: ExportColumn<T>[]
 ): void {
     if (!data.length) {
-        console.warn('exportToCSV: 数据为空，无法导出');
+        logger.warn('exportToCSV: 数据为空，无法导出');
         return;
     }
 

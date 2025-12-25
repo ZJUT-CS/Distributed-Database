@@ -9,6 +9,7 @@ import { Countdown } from '@/components';
 import { API_CONFIG } from '@/config/constants';
 import InterlineOrderBadge from '@/components/booking/InterlineOrderBadge';
 import { useToast } from '@/features/admin/components/Toast';
+import { useConfirm } from '@/features/admin';
 
 interface UserBookingsProps {
   bookings: ConfirmedBooking[];
@@ -19,6 +20,7 @@ interface UserBookingsProps {
 const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateBooking }) => {
   const navigate = useNavigate();
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'cancelled' | 'pending_payment' | 'refunding'>('all');
 
@@ -114,8 +116,15 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
       .finally(() => setPayConfirming(false));
   };
 
-  const handleCancelOrder = (booking: ConfirmedBooking) => {
-    if (!window.confirm('确定要取消这个订单吗？取消后无法恢复。')) return;
+  const handleCancelOrder = async (booking: ConfirmedBooking) => {
+    const ok = await confirm({
+      title: '确认取消订单',
+      message: '确定要取消这个订单吗？取消后无法恢复。',
+      variant: 'danger',
+      confirmText: '确认取消',
+      cancelText: '暂不取消',
+    });
+    if (!ok) return;
 
     setActionError(null);
     setActionLoading(true);

@@ -39,9 +39,7 @@ const BookingPage: React.FC = () => {
       return;
     }
 
-    const cabinType =
-      String(flights[0]?.cabinType || '').trim() ||
-      (cabinClass === 'first' ? 'F' : cabinClass === 'business' ? 'J' : 'Y');
+    const cabinType = cabinClass === 'first' ? 'F' : cabinClass === 'business' ? 'J' : 'Y';
 
     try {
       const passengersJson = JSON.stringify(Array.isArray(details.passengers) ? details.passengers : []);

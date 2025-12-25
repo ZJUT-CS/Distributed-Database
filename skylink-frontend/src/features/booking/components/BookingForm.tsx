@@ -5,6 +5,8 @@ import type { BookingDetails, PassengerInfo } from '../types';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { CreditCard, User, ShieldCheck, Plane, Clock, Mail, Phone, ChevronRight, CheckCircle2, QrCode, Smartphone, Wallet, ArrowLeft, AlertCircle, Lock, BadgeCheck } from 'lucide-react';
 import { JourneyTimeline } from '@/components/booking';
+import { logger } from '@/lib/logger';
+import { useConfirm } from '@/features/admin';
 
 
 interface BookingFormProps {
@@ -41,6 +43,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   const { user, refreshUser } = useAuth();  // ✅ 获取 refreshUser
   const navigate = useNavigate();
   const location = useLocation();
+  const { confirm } = useConfirm();
   const [step, setStep] = useState<BookingStep>(1);
   const [attemptedNext, setAttemptedNext] = useState(false);
 
@@ -66,7 +69,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
     const token = localStorage.getItem('skylink_token');
     if (token && refreshUser) {
       refreshUser().catch(err => {
-        console.warn('Failed to refresh user data:', err);
+        logger.warn('Failed to refresh user data:', err);
       });
     }
   }, [refreshUser]);
@@ -174,8 +177,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
 
   const canUseSelfFill = !!user?.realName && !!user?.idCard && isIdCardValid(user.idCard);
 
-  const promptVerifyAccount = () => {
-    const ok = window.confirm('购票前请先完成实名认证，是否前往个人中心认证？');
+  const promptVerifyAccount = async () => {
+    const ok = await confirm({
+      title: '提示',
+      message: '购票前请先完成实名认证，是否前往个人中心认证？',
+      variant: 'info',
+      confirmText: '去认证',
+      cancelText: '暂不',
+    });
     if (!ok) return;
     try {
       sessionStorage.setItem(
@@ -213,7 +222,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   const handleNextStep = () => {
     setAttemptedNext(true);
     if (!canUseSelfFill) {
-      promptVerifyAccount();
+      void promptVerifyAccount();
       return;
     }
     if (validation.hasErrors) {

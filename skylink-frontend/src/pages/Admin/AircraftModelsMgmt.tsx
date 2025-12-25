@@ -6,6 +6,7 @@ import { listAircraftModels, createAircraftModel, updateAircraftModel, deleteAir
 import { listCabinConfigs } from '@/features/admin/api/cabinConfigs';
 import EntityCell from '@/components/common/EntityCell';
 import { exportToCSV } from '@/utils/export';
+import { logger } from '@/lib/logger';
 
 interface ModelFilters {
   keyword: string;
@@ -101,7 +102,7 @@ const AircraftModelsMgmt: React.FC = () => {
       setCabinCounts(counts);
       setCabinCountsLoaded(true);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       setCabinCountsLoaded(false);
     } finally {
       setCabinCountsLoading(false);

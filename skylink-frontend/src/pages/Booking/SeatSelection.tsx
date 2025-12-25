@@ -6,6 +6,7 @@ import SeatMap, { type SeatData } from '@/components/booking/SeatMap';
 import { getFlightSeats, changeSeat } from '@/features/booking/api/seat';
 import { request } from '@/lib/axios';
 import type { OrderSearchResult } from '@/features/booking/api/order';
+import { logger } from '@/lib/logger';
 
 const SeatSelectionPage: React.FC = () => {
     const { user } = useAuth();
@@ -99,7 +100,7 @@ const SeatSelectionPage: React.FC = () => {
                 }));
                 setSeats(seatData);
             } catch (err) {
-                console.error("刷新座位失败", err);
+                logger.error('刷新座位失败', err);
             }
         };
 

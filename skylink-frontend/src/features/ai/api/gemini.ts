@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
+import { logger } from '@/lib/logger';
 
 export interface AIRecommendation {
   city: string;
@@ -10,7 +11,7 @@ const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
 
 const createClient = () => {
   if (!apiKey) {
-    console.error('Gemini API key is not configured. Please set VITE_GEMINI_API_KEY in .env.local.');
+    logger.error('Gemini API key is not configured. Please set VITE_GEMINI_API_KEY in .env.local.');
     throw new Error('Gemini API key is not configured');
   }
   return new GoogleGenAI({ apiKey });
@@ -46,7 +47,7 @@ export const getSmartRecommendations = async (query: string): Promise<AIRecommen
     }
     return JSON.parse(response.text) as AIRecommendation[];
   } catch (error) {
-    console.error('Gemini API Error:', error);
+    logger.error('Gemini API Error:', error);
     throw error;
   }
 };
@@ -65,7 +66,7 @@ export const getDestinationGuide = async (city: string): Promise<string> => {
     }
     return response.text;
   } catch (error) {
-    console.error('Gemini API Error:', error);
+    logger.error('Gemini API Error:', error);
     return '获取目的地指南失败，请稍后重试。';
   }
 };

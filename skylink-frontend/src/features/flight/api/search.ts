@@ -182,7 +182,13 @@ export async function searchFlights(params: {
     } satisfies Flight;
   });
 
-  return [...direct, ...interline];
+  // 🔧 去重：避免后端返回重复数据导致前端显示多个相同航班
+  const allFlights = [...direct, ...interline];
+  const uniqueFlights = Array.from(
+    new Map(allFlights.map(flight => [flight.id, flight])).values()
+  );
+
+  return uniqueFlights;
 }
 
 // 解析中转时长字符串为分钟数

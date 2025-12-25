@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './features/auth/hooks/useAuth';
-import { ToastProvider } from './features/admin/components/Toast';
+import { ConfirmProvider, ToastProvider } from './features/admin';
 import { queryClient } from './lib/queryClient';
 import { router } from './router';
 import '@/assets/index.css';
@@ -13,7 +13,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
-          <RouterProvider router={router} />
+          <ConfirmProvider>
+            <RouterProvider router={router} />
+          </ConfirmProvider>
         </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>

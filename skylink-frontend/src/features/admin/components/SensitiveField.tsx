@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Eye, EyeOff, Copy, Check, Lock } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 export type SensitiveFieldType = 'phone' | 'idCard' | 'email' | 'bankCard' | 'custom';
 
@@ -111,7 +112,7 @@ const SensitiveField: React.FC<SensitiveFieldProps> = ({
       onCopyAudit?.(rawValue);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('复制失败:', err);
+      logger.error('复制失败:', err);
     }
   }, [rawValue, onCopyAudit]);
 

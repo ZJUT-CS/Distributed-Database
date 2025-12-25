@@ -208,9 +208,19 @@ public class OrderServiceImpl implements OrderService {
                     .eq(AircraftCabinConfig::getCabinLayoutNo, 1) // 默认布局1
                     .last("LIMIT 1"));
 
+            // 🔧 容错：如果布局1不存在，尝试查询该机型该舱位的任意布局
             if (config == null) {
-                return Result.fail(404, "找不到舱位配置: " + fNo + " (" + currentCabinType + ")");
+                config = configMapper.selectOne(Wrappers.<AircraftCabinConfig>lambdaQuery()
+                        .eq(AircraftCabinConfig::getModelId, f.getModelId())
+                        .eq(AircraftCabinConfig::getCabinType, req.getCabinType())
+                        .orderByAsc(AircraftCabinConfig::getCabinLayoutNo)
+                        .last("LIMIT 1"));
             }
+
+            if (config == null) {
+                return Result.fail(404,                   "找不到舱位配置: " + fNo + " (机型:" + f.getModelId() + ", 舱位:" + req.getCabinType() + ")" + " (" + currentCabinType + ")");
+
+                 }
 
             int ticketCount = req.getTicketNum() != null ? req.getTicketNum()
                     : (passengers != null ? passengers.size() : 1);
@@ -442,10 +452,10 @@ public class OrderServiceImpl implements OrderService {
         if (o == null) {
             return Result.fail(404, "订单不存在");
         }
-        
+
         Flight f = flightMapper.selectById(o.getFlightId());
         User u = userMapper.selectById(o.getUserId());
-        
+
         OrderSearchResponse r = new OrderSearchResponse();
         r.setOrderNo(String.valueOf(o.getOrderId()));
         r.setFlightId(o.getFlightId());
@@ -469,7 +479,7 @@ public class OrderServiceImpl implements OrderService {
             r.setDepartureTime(f.getDepartureTime());
             r.setArrivalTime(f.getArrivalTime());
         }
-        
+
         return Result.ok(r);
     }
 
