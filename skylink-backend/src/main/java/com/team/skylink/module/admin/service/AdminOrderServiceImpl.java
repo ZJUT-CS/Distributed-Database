@@ -21,8 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AdminOrderServiceImpl implements AdminOrderService {
@@ -93,8 +93,28 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         listQw.orderByDesc("order_time");
         listQw.last("limit " + offset + "," + s);
         List<Orders> orders = orderMapper.selectList(listQw);
-
         List<AdminOrderController.AdminOrderItem> items = new ArrayList<>();
+        
+        if (orders.isEmpty()) {
+            return Result.ok(new PageResult<>(total != null ? total : 0, items));
+        }
+
+        // 批量查询优化
+        Set<Long> flightIds = orders.stream().map(Orders::getFlightId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> userIds = orders.stream().map(Orders::getUserId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, Flight> flightMap = new HashMap<>();
+        if (!flightIds.isEmpty()) {
+            flightMap = flightMapper.selectBatchIds(flightIds).stream()
+                    .collect(Collectors.toMap(Flight::getFlightId, f -> f));
+        }
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            userMap = userMapper.selectBatchIds(userIds).stream()
+                    .collect(Collectors.toMap(User::getUserId, u -> u));
+        }
+
         for (Orders o : orders) {
             AdminOrderController.AdminOrderItem it = new AdminOrderController.AdminOrderItem();
             it.setOrderNo(o.getOrderId());
@@ -107,12 +127,12 @@ public class AdminOrderServiceImpl implements AdminOrderService {
             it.setRefundTime(o.getRefundTime());
             it.setChangeTime(o.getChangeTime());
 
-            User u = o.getUserId() != null ? userMapper.selectById(o.getUserId()) : null;
+            User u = userMap.get(o.getUserId());
             it.setPassengerName(u != null ? u.getRealName() : null);
             it.setEmail(u != null ? u.getEmail() : null);
             it.setPhoneNumber(u != null ? u.getPhoneNumber() : null);
 
-            Flight f = o.getFlightId() != null ? flightMapper.selectById(o.getFlightId()) : null;
+            Flight f = flightMap.get(o.getFlightId());
             if (f != null) {
                 it.setFlightNo(f.getFlightNo());
                 it.setOrigin(f.getDeparturePlace());

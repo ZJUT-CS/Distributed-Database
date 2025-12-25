@@ -117,9 +117,30 @@ public class OrderServiceImpl implements OrderService {
 
         List<Orders> orders = orderMapper.selectList(qw);
         List<OrderSearchResponse> resp = new ArrayList<>();
+        
+        if (orders.isEmpty()) {
+            return Result.ok(new PageResult<>(total, resp));
+        }
+
+        // 批量查询优化
+        Set<Long> flightIds = orders.stream().map(Orders::getFlightId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> userIds = orders.stream().map(Orders::getUserId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, Flight> flightMap = new HashMap<>();
+        if (!flightIds.isEmpty()) {
+            flightMap = flightMapper.selectBatchIds(flightIds).stream()
+                    .collect(Collectors.toMap(Flight::getFlightId, f -> f));
+        }
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            userMap = userMapper.selectBatchIds(userIds).stream()
+                    .collect(Collectors.toMap(User::getUserId, u -> u));
+        }
+
         for (Orders o : orders) {
-            Flight f = flightMapper.selectById(o.getFlightId());
-            User u = userMapper.selectById(o.getUserId());
+            Flight f = flightMap.get(o.getFlightId());
+            User u = userMap.get(o.getUserId());
             OrderSearchResponse r = new OrderSearchResponse();
             r.setOrderNo(String.valueOf(o.getOrderId()));
             r.setFlightId(o.getFlightId());
