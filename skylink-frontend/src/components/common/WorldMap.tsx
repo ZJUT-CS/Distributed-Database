@@ -5,6 +5,8 @@ import { WorldMapRender } from './world-map/WorldMapRender';
 import { useWorldMapControls } from './world-map/useWorldMapControls';
 import type { WorldMapView } from './world-map/geometry';
 import { computeAutoFitView } from './world-map/geometry';
+import { useMapDataIncremental } from '@/hooks/useMapDataIncremental';
+import type { RouteDictItem, CityDictItem } from '@/features/admin/dashboard/map';
 
 export interface HeatPoint {
   id: string;
@@ -23,6 +25,11 @@ export interface MapRoute {
   id?: string;
   /** 可选：用于强调某条路线 */
   active?: boolean;
+  orderCount?: number;
+  gmv?: number;
+  avgPrice?: number;
+  activeFlights?: number;
+  routeLevel?: 'MAIN' | 'REGIONAL' | 'LOCAL';
 }
 
 interface WorldMapProps {
@@ -45,6 +52,11 @@ interface WorldMapProps {
   minZoomLevel?: number;
   maxZoomLevel?: number;
   defaultZoomLevel?: number;
+  routeDict?: RouteDictItem[];
+  cityDict?: CityDictItem[];
+  onDataChange?: (diff: { routes: RouteDictItem[]; cities: CityDictItem[] }) => void;
+  enableIncrementalUpdates?: boolean;
+  refreshInterval?: number;
 }
 
 const WorldMap: React.FC<WorldMapProps> = ({
@@ -64,12 +76,28 @@ const WorldMap: React.FC<WorldMapProps> = ({
   minScale,
   maxScale,
   defaultScale,
+  routeDict,
+  cityDict,
+  onDataChange,
+  enableIncrementalUpdates = false,
+  refreshInterval = 30000,
 }) => {
+  const incrementalData = useMapDataIncremental(enableIncrementalUpdates ? refreshInterval : 0);
+
+  React.useEffect(() => {
+    if (!enableIncrementalUpdates || !incrementalData.diff) return;
+    onDataChange?.({
+      routes: incrementalData.routes,
+      cities: incrementalData.cities,
+    });
+  }, [incrementalData.diff, enableIncrementalUpdates, onDataChange, incrementalData.routes, incrementalData.cities]);
   const [hoveredPoint, setHoveredPoint] = useState<MapPoint | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const [defaultView, setDefaultView] = useState<WorldMapView | undefined>(undefined);
   const appliedKeyRef = useRef<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
 
   const isDark = theme === 'dark';
   const effectivePreserveAspectRatio = preserveAspectRatio ?? (enableControls ? 'xMidYMid meet' : 'xMidYMid slice');
@@ -87,11 +115,14 @@ const WorldMap: React.FC<WorldMapProps> = ({
     scale,
     isDragging,
     dragIndicator,
+    elastic,
     effectiveMinScale,
     effectiveMaxScale,
     resetView,
     zoomIn,
     zoomOut,
+    triggerHoverScale,
+    focusOnPoint,
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -120,6 +151,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
     if (!el) return;
     const rect = el.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
+
+    setCanvasSize({ width: rect.width, height: rect.height });
 
     const next = computeAutoFitView({
       points,
@@ -170,12 +203,31 @@ const WorldMap: React.FC<WorldMapProps> = ({
         offset={offset}
         scale={scale}
         isDragging={isDragging}
+        hoveredPoint={hoveredPoint}
+        elastic={elastic}
         onPointMouseEnter={(point, rect) => {
           setTooltipPos({ x: rect.left + window.scrollX, y: rect.top + window.scrollY - 10 });
           setHoveredPoint(point);
+          triggerHoverScale(1.5);
         }}
-        onPointMouseLeave={() => setHoveredPoint(null)}
+        onPointMouseLeave={() => {
+          setHoveredPoint(null);
+          triggerHoverScale(1);
+        }}
+        onPointDoubleClick={(point, projected) => {
+          focusOnPoint(projected.x, projected.y, 2);
+        }}
+        canvasRef={canvasRef}
       />
+
+      {routes && routes.length > 0 && (
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 pointer-events-none"
+          width={canvasSize.width}
+          height={canvasSize.height}
+        />
+      )}
 
       {enableControls && dragIndicator.active && dragIndicator.strength > 0.01 && (
         <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">

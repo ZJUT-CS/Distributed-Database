@@ -4,6 +4,7 @@ import { useAdminDashboardMetrics } from '../../features/admin/hooks/useAdminDas
 import { buildAdminDashboardViewModel } from '../../features/admin/dashboard/viewModel';
 import { AIRPORT_COORDS } from '../../features/admin/dashboard/airports';
 import { useRouteDict } from '../../features/flight/hooks/useRouteDict';
+import { useCityDict } from '../../features/admin/hooks/useCityDict';
 import { DashboardErrorBanner } from './Dashboard/components/DashboardErrorBanner';
 import { DashboardHeaderSection } from './Dashboard/components/DashboardHeaderSection';
 import { OrdersTrendPanel } from './Dashboard/components/OrdersTrendPanel';
@@ -52,7 +53,9 @@ function useCountUp(target: number, duration: number = 1000) {
 const Dashboard: React.FC = () => {
   const { data, isLoading, error } = useAdminDashboardMetrics(true);
   const routeDictQuery = useRouteDict(true);
+  const cityDictQuery = useCityDict(true);
   const routeDictRoutes = routeDictQuery.data?.routes ?? null;
+  const cityDictItems = cityDictQuery.data?.cities ?? null;
   const metrics = data ?? null;
   const loading = isLoading;
   const errorMessage =
@@ -69,8 +72,10 @@ const Dashboard: React.FC = () => {
       buildAdminDashboardViewModel(metrics, {
         airportCoords: AIRPORT_COORDS,
         routeDict: routeDictRoutes,
+        routeDictFull: routeDictRoutes,
+        cityDict: cityDictItems,
       }),
-    [metrics, routeDictRoutes],
+    [metrics, routeDictRoutes, cityDictItems],
   );
 
   const todayOrderCount = vm.kpis.todayOrderCount;
