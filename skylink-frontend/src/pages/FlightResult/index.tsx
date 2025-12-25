@@ -208,7 +208,7 @@ const FlightResultPage: React.FC = () => {
 
         // 🔧 出发机场筛选（兼容联程航班：取第一段出发机场）
         if (filters.originAirports.length > 0) {
-          const originCode = (flight as any).segments?.[0]?.originCode || flight.originCode;
+          const originCode = (flight as any).segments?.[0]?.origin || flight.origin;
           if (originCode && !filters.originAirports.includes(originCode)) return false;
         }
 
@@ -216,8 +216,8 @@ const FlightResultPage: React.FC = () => {
         if (filters.destinationAirports.length > 0) {
           const segments = (flight as any).segments || [];
           const destCode = segments.length > 0
-            ? segments[segments.length - 1].destinationCode
-            : flight.destinationCode;
+            ? segments[segments.length - 1].destination
+            : flight.destination;
           if (destCode && !filters.destinationAirports.includes(destCode)) return false;
         }
 
