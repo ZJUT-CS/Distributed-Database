@@ -6,7 +6,7 @@
     - L1 基础层：航线基准价 × 舱位系数
     - L2 组合层：联程航班打包 9 折 (Interline Bundle Discount)
     - L3 动态层：早鸟/临期浮动 + 红眼航班优惠(0.85) + 拥挤度动态调价
-    - L4 用户层：新用户首单立减 50 元
+    - L4 用户层：新用户首单 9 折
   - **联程退改签增强**：
     - 强制捆绑：联程订单必须整单退票或整单改签
     - 费率标准化：改签手续费 10%，退票手续费 20%
@@ -51,7 +51,7 @@ SkyLink 是一个基于 **Spring Boot 4** 和 **MyBatis-Plus** 构建的高性�
      - **时间**：早鸟(>30天) 9折，临期(<3天) 1.2倍。
      - **时段**：红眼航班(23:00-06:00) 8.5折。
      - **供需**：热销(余票<20%) 1.15倍，滞销(余票>80%) 0.95倍。
-  4. **用户层**：新用户首单立减 50 元。
+  4. **用户层**：新用户首单 9 折。
 - **自动座位生成**：根据机型配置自动生成 `行号+列字母` (如 1A, 12F) 的座位布局。
 
 ### � 智能中转机制 (Smart Interline)
@@ -67,6 +67,7 @@ SkyLink 是一个基于 **Spring Boot 4** 和 **MyBatis-Plus** 构建的高性�
 - **分布式事务**：保障联程订单（多航段）的数据一致性，任一段失败自动回滚。
 - **并发控制**：基于 Redis/DB 锁机制防止库存超卖。
 - **状态机管理**：完整的订单生命周期（待审核 -> 待支付 -> 已支付/已取消/已退款）。
+- **实时推送**：集成 WebSocket(STOMP) 支付状态实时推送，前端订阅 `/topic/orders/{orderId}`，端点 `/ws`。
 
 ### 🛡️ 系统与安全
 - **RBAC 权限模型**：区分普通用户、普通管理员、超级管理员。
@@ -208,6 +209,8 @@ stateDiagram-v2
     }
     ```
 
+  - 可选：混合舱位联程，传 `cabinTypes` 数组，与 `flightNos` 一一对应。
+
 **Step 3: 结果处理**
 - **成功**: 返回 `200`，`data` 中包含 `orderNo`（首个子订单的 `orderId`，后续支付/取消/选座等操作均以该值作为路径参数）与 `orderStatus: 1`（待支付）。
   - 若为联程/多乘客场景：`data.parentOrderId` 会提供联程关联用的 `parent_order_id`。
@@ -249,6 +252,10 @@ stateDiagram-v2
     - **当前选中 (Selected)**: 黄色标识，表示当前用户正在操作的座位。
     - **并发处理**: 提交选座时若发生冲突，系统会自动刷新座位图以显示最新状态。
 
+##### 高性能座位图
+- 接口: `GET /api/v1/flights/{flightId}/seat-map`
+- 说明: 使用 Redis BitMap 存储座位状态（`0=空`, `1=占`），并通过 Pipeline 批量读取，显著降低数据库压力。
+
 #### 📦 订单 (Orders)
 - **创建订单 (支持单程/联程)**: `POST /api/v1/orders`
   - **支持多航段**：通过 `flightNos` 数组传递多个航班号。
@@ -287,6 +294,20 @@ stateDiagram-v2
   - Params: `orderNo`, `userId`, `paymentStatus`, `paymentMethod`, `paymentTimeStart`, `paymentTimeEnd`, `page`(默认1), `size`(默认20)
   - Response: `PageResult<PaymentSearchResponse>`
   - 说明：当传入 `userId` 时，将按该用户的订单进行关联查询
+  
+##### 实时支付状态推送
+- WebSocket 端点: `/ws`
+- 订阅主题: `/topic/orders/{orderId}`
+- 消息: `PAID`（支付成功后立即推送）
+
+#### 🗂 文件上传 (Upload)
+- 上传图片: `POST /api/v1/upload`（`multipart/form-data`，字段 `file`）
+- 返回示例:
+  ```json
+  { "url": "/uploads/xxxx.png", "name": "xxxx.png", "originalName": "model.png", "size": 10240 }
+  ```
+- 静态访问: 直接访问返回的 `url`
+- 机型图片字段: `AircraftModel.imageUrl`，管理端创建/修改机型接口支持该字段
 
 ### 3. 前端分页对接示例
 
@@ -444,6 +465,13 @@ async function fetchOrders({ page = 1, size = 20, filters }) {
   - 逻辑：仅处理状态为 `4` (退票/改签申请中) 的订单。
   - 结果：通过 -> 状态变更为 `5` (已退款)；拒绝 -> 状态回滚为 `2` (已确认)。
   - 联程订单：审核任一段将级联更新同一 `parentOrderId` 下的所有子单
+
+#### 📊 管理大盘 (Dashboard)
+- 指标：今日订单、今日GMV、总GMV、航班状态分布等
+- 新增趋势：
+  - `gmvTrend7d`：最近 7 天 GMV
+  - `ordersTrend7d`：最近 7 天订单量
+  - `topRoutes7d`：近 7 日热门航线 Top10（按 GMV）
 
 ---
 

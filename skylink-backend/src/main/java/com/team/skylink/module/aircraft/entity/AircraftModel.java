@@ -17,4 +17,5 @@ public class AircraftModel {
     private String modelName;           // 机型名称 (如: Boeing 737-800)
     private String manufacturer;        // 制造商 (Boeing/Airbus)
     private Integer totalPhysicalSeats; // 物理座位总上限
+    private String imageUrl;            // 机型图片URL
 }
