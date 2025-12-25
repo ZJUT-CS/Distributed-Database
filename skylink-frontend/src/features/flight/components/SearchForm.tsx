@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Calendar, ChevronDown, Minus, Plus, ChevronRight, ChevronLeft, ArrowRightLeft, X, MapPin, Building2, Plane } from 'lucide-react';
-import { POPULAR_AIRPORTS } from '../../../constants';
+import { POPULAR_AIRPORTS } from '@/config/data/airports';
 import type { SearchParams } from '../types';
 
 interface SearchFormProps {

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { type ConfirmedBooking } from '@/features/booking';
 import { CheckCircle, Sparkles, Map as MapIcon } from 'lucide-react';
 import { getDestinationGuide } from '@/features/ai';
-import { POPULAR_AIRPORTS } from '@/constants';
+import { POPULAR_AIRPORTS } from '@/config/data/airports';
 
 const ConfirmationPage: React.FC = () => {
   const location = useLocation();

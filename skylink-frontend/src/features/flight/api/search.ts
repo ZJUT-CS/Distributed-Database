@@ -1,5 +1,5 @@
 import { request } from '../../../lib/axios';
-import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '../../../constants';
+import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '@/config/data/airports';
 import type { Flight } from '../types';
 
 const toCity = (loc: string) => {

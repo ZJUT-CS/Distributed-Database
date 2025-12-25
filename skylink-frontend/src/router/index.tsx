@@ -102,9 +102,8 @@ const Login = React.lazy(() => import('@/pages/User/Login'));
 const AdminApply = React.lazy(() => import('@/pages/User/AdminApply'));
 const Profile = React.lazy(() => import('@/pages/User/Profile'));
 const Settings = React.lazy(() => import('@/pages/User/Settings'));
-const UserCenter = React.lazy(() => import('@/pages/User/UserCenter'));
-const RefundsHelp = React.lazy(() => import('@/pages/User/RefundsHelp'));
-
+const UserCenter = React.lazy(() => import('@/features/user/pages/UserCenterPage'));
+const RefundsHelp = React.lazy(() => import('@/features/user/pages/RefundsHelpPage'));
 const UserBookingsPage = React.lazy(() => import('@/features/user/pages/BookingsPage'));
 const BookingDetailsPage = React.lazy(() => import('@/features/user/pages/BookingDetailsPage').then(m => ({ default: m.BookingDetailsPage })));
 

@@ -1,4 +1,4 @@
-import { useList as useSharedList, type UseListOptions as UseSharedListOptions, type UseListReturn as UseSharedListReturn } from '@/shared/hooks';
+import { useList as useSharedList, type UseListOptions as UseSharedListOptions, type UseListReturn as UseSharedListReturn } from '@/hooks';
 
 export type UseAdminListOptions<T, F extends Record<string, unknown> = Record<string, unknown>> = UseSharedListOptions<T, F>;
 

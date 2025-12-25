@@ -19,7 +19,8 @@ import {
   Shuffle,
   Clock3
 } from 'lucide-react';
-import { AIRLINES, POPULAR_AIRPORTS } from '../../../constants';
+import { AIRLINES } from '@/config/data/airlines';
+import { POPULAR_AIRPORTS } from '@/config/data/airports';
 
 interface FilterSidebarProps {
   filters: FilterState;

@@ -1,20 +1,32 @@
-import { ApiError } from '@/lib/axios';
+import { ApiError, type ErrorType } from '@/lib/axios';
 
-/**
- * API 错误格式化工具
- * 统一将各种错误转为用户友好的消息
- */
+export interface FormatErrorOptions {
+  defaultMessage?: string;
+  showCode?: boolean;
+  showRequestId?: boolean;
+}
 
-// 业务错误码映射（与后端 ResultCodeEnum 对应）
+export interface ErrorHandlerOptions {
+  onRetry?: () => void;
+  onAuthError?: () => void;
+  showToast?: boolean;
+  customMessage?: string;
+}
+
+export interface ErrorHandlerResult {
+  message: string;
+  type: ErrorType;
+  retryable: boolean;
+  shouldRedirectToLogin: boolean;
+}
+
 const ERROR_CODE_MESSAGES: Record<number, string> = {
-  // 通用错误
   400: '请求参数错误',
   401: '登录已过期，请重新登录',
   403: '无权限执行此操作',
   404: '请求的资源不存在',
   500: '服务器内部错误',
   
-  // 业务错误码
   1001: '用户名或密码错误',
   1002: '用户已被禁用',
   1003: '用户不存在',
@@ -38,7 +50,6 @@ const ERROR_CODE_MESSAGES: Record<number, string> = {
   4003: '舱位配置不存在',
 };
 
-// HTTP 状态码默认消息
 const HTTP_STATUS_MESSAGES: Record<number, string> = {
   400: '请求参数错误',
   401: '登录已过期，请重新登录',
@@ -52,18 +63,6 @@ const HTTP_STATUS_MESSAGES: Record<number, string> = {
   504: '网关超时',
 };
 
-export interface FormatErrorOptions {
-  /** 默认消息（当无法识别错误时使用） */
-  defaultMessage?: string;
-  /** 是否显示错误码 */
-  showCode?: boolean;
-  /** 是否显示 RequestId（便于排查） */
-  showRequestId?: boolean;
-}
-
-/**
- * 格式化 API 错误为用户友好消息
- */
 export function formatApiError(
   error: unknown,
   options: FormatErrorOptions = {}
@@ -74,17 +73,13 @@ export function formatApiError(
     showRequestId = false,
   } = options;
 
-  // ApiError 实例
   if (error instanceof ApiError) {
     let message = error.message;
     
-    // 优先使用后端返回的消息
     if (!message || message === '请求失败') {
-      // 尝试从业务错误码获取消息
       if (error.code && ERROR_CODE_MESSAGES[error.code]) {
         message = ERROR_CODE_MESSAGES[error.code];
       }
-      // 尝试从 HTTP 状态码获取消息
       else if (error.status && HTTP_STATUS_MESSAGES[error.status]) {
         message = HTTP_STATUS_MESSAGES[error.status];
       }
@@ -93,12 +88,10 @@ export function formatApiError(
       }
     }
 
-    // 附加错误码
     if (showCode && error.code) {
       message = `${message}（错误码: ${error.code}）`;
     }
 
-    // 附加 RequestId
     if (showRequestId && error.requestId) {
       message = `${message}（请求ID: ${error.requestId}）`;
     }
@@ -106,39 +99,79 @@ export function formatApiError(
     return message;
   }
 
-  // 标准 Error 实例
   if (error instanceof Error) {
-    // 网络错误
     if (error.message.includes('Network') || error.message.includes('网络')) {
       return '网络连接失败，请检查网络';
     }
-    // 超时错误
     if (error.message.includes('timeout') || error.message.includes('超时')) {
       return '请求超时，请稍后重试';
     }
     return error.message || defaultMessage;
   }
 
-  // 字符串错误
   if (typeof error === 'string') {
     return error || defaultMessage;
   }
 
-  // 其他未知错误
   return defaultMessage;
 }
 
-/**
- * 格式化表单校验错误
- */
+export function handleApiError(error: unknown, options: ErrorHandlerOptions = {}): ErrorHandlerResult {
+  if (error instanceof ApiError) {
+    const result: ErrorHandlerResult = {
+      message: options.customMessage || error.userMessage || error.message,
+      type: error.errorType,
+      retryable: error.retryable,
+      shouldRedirectToLogin: error.errorType === 'AUTH',
+    };
+
+    if (result.shouldRedirectToLogin && options.onAuthError) {
+      options.onAuthError();
+    }
+
+    return result;
+  }
+
+  if (error instanceof Error) {
+    if (error.message.includes('网络') || error.message.includes('Network')) {
+      return {
+        message: options.customMessage || '网络连接失败，请检查网络后重试',
+        type: 'NETWORK',
+        retryable: true,
+        shouldRedirectToLogin: false,
+      };
+    }
+
+    if (error.message.includes('超时') || error.message.includes('timeout')) {
+      return {
+        message: options.customMessage || '请求超时，请稍后重试',
+        type: 'TIMEOUT',
+        retryable: true,
+        shouldRedirectToLogin: false,
+      };
+    }
+
+    return {
+      message: options.customMessage || error.message || '操作失败，请稍后重试',
+      type: 'UNKNOWN',
+      retryable: true,
+      shouldRedirectToLogin: false,
+    };
+  }
+
+  return {
+    message: options.customMessage || '发生未知错误，请稍后重试',
+    type: 'UNKNOWN',
+    retryable: true,
+    shouldRedirectToLogin: false,
+  };
+}
+
 export function formatValidationError(errors: Record<string, string[]>): string {
   const messages = Object.values(errors).flat();
   return messages.length > 0 ? messages[0] : '表单校验失败';
 }
 
-/**
- * 判断是否为认证错误
- */
 export function isAuthError(error: unknown): boolean {
   if (error instanceof ApiError) {
     return error.code === 401 || error.status === 401;
@@ -146,15 +179,37 @@ export function isAuthError(error: unknown): boolean {
   return false;
 }
 
-/**
- * 判断是否为网络错误
- */
 export function isNetworkError(error: unknown): boolean {
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
     return msg.includes('network') || msg.includes('网络') || msg.includes('econnaborted');
   }
   return false;
+}
+
+export function getErrorStyleClass(type: ErrorType): string {
+  switch (type) {
+    case 'AUTH':
+    case 'PERMISSION':
+      return 'bg-yellow-50 text-yellow-800 border-yellow-200';
+    case 'VALIDATION':
+      return 'bg-red-50 text-red-800 border-red-200';
+    case 'CONFLICT':
+      return 'bg-orange-50 text-orange-800 border-orange-200';
+    case 'SERVER':
+    case 'NETWORK':
+    case 'TIMEOUT':
+      return 'bg-gray-50 text-gray-800 border-gray-200';
+    default:
+      return 'bg-red-50 text-red-800 border-red-200';
+  }
+}
+
+export function shouldRetry(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.retryable;
+  }
+  return true;
 }
 
 export default formatApiError;

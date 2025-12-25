@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CalendarDays, Check, Lock, Mail, Phone, Shield, ShieldCheck, User as UserIcon } from 'lucide-react';
-import { useAuth } from '../../features/auth/hooks/useAuth';
-import { useToast } from '../../features/admin/components/Toast';
-import { useConfirm } from '../../features/admin';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { useToast } from '@/features/admin/components/Toast';
+import { useConfirm } from '@/features/admin';
 import {
   bindEmail,
   bindPhone,
@@ -12,7 +12,7 @@ import {
   sendEmailCode as sendEmailCodeApi,
   sendPhoneCode as sendPhoneCodeApi,
   updateMyProfile,
-} from '../../features/auth/api/auth';
+} from '../../auth/api/auth';
 
 type TabKey = 'profile' | 'security';
 

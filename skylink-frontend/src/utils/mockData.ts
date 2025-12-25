@@ -1,5 +1,7 @@
 
-import { POPULAR_AIRPORTS, AIRLINES, AIRCRAFTS } from '@/constants';
+import { POPULAR_AIRPORTS } from '@/config/data/airports';
+import { AIRLINES } from '@/config/data/airlines';
+import { AIRCRAFTS } from '@/config/data/aircrafts';
 import { type FlightStatus } from '@/features/flight';
 
 export const generateMockFlights = (origin: string, destination: string, date: string): any[] => {

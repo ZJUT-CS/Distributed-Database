@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Flight, TripSegment } from '../types';
 import { Check, Plane, Clock, ArrowRight } from 'lucide-react';
-import { POPULAR_AIRPORTS } from '../../../constants';
+import { POPULAR_AIRPORTS } from '@/config/data/airports';
 
 interface TripSummaryProps {
   segments: TripSegment[];

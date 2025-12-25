@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { SearchForm, FilterSidebar, FlightList, FlightListSkeleton, TripSummary, type Flight, type SearchParams, type FilterState, type MapPoint } from '@/features/flight';
 import { WorldMap } from '@/components';
-import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '@/constants';
+import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '@/config/data/airports';
 import { Plane, Filter, MoveRight } from 'lucide-react';
 import { useAuth } from '@/features/auth';
 import { searchFlights } from '@/features/flight/api/search';
