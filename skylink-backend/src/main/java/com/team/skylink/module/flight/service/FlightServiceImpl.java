@@ -275,6 +275,7 @@ public class FlightServiceImpl implements FlightService {
             return null;
 
         FlightSearchResponse dto = new FlightSearchResponse();
+        dto.setFlightId(f.getFlightId()); // ✅ 设置数据库主键ID
         dto.setFlightNo(f.getFlightNo());
         dto.setDeparturePlace(f.getDepartureCity());
         dto.setDestination(f.getArrivalCity());
@@ -346,6 +347,7 @@ public class FlightServiceImpl implements FlightService {
             return null;
 
         FlightSearchResponse dto = new FlightSearchResponse();
+        dto.setFlightId(f.getFlightId()); // ✅ 设置数据库主键ID
         dto.setFlightNo(f.getFlightNo());
         dto.setDeparturePlace(f.getDepartureCity());
         dto.setDestination(f.getArrivalCity());

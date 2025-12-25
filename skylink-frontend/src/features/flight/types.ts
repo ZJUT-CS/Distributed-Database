@@ -15,7 +15,7 @@ export interface FlightSegment {
 }
 
 export interface Flight {
-  id: string;
+  id: number;
   airline: string;
   airlineCode: string;
   flightNumber: string;
@@ -43,6 +43,9 @@ export interface Flight {
   baggageAllowance?: string;
   /** 原始服务数据 (后端返回，如 "餐食,WiFi") */
   services?: string;
+
+  /** 用户选择的舱位配置ID (用于预订流程) */
+  selectedCabinId?: number;
 
   // 联程航班专用字段
   /** 联程航段详情 */

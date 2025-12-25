@@ -38,7 +38,7 @@ export interface BookingRequest {
 export interface PassengerInfo {
     name: string;
     idCard: string;
-    phone?: string;
+    phone?: string;  // ✅ 添加phone字段
 }
 
 /**

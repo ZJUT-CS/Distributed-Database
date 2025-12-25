@@ -89,6 +89,7 @@ export async function searchFlights(params: {
   };
 
   const toFlight = (r: {
+    flightId?: number | string;  // ✅ 添加后端返回的数据库ID字段
     flightNo: string;
     departurePlace: string;
     destination: string;
@@ -103,7 +104,7 @@ export async function searchFlights(params: {
     baggageAllowance?: string;
     services?: string;
   }): Flight => ({
-    id: r.flightNo || `${r.departurePlace}-${r.destination}-${r.departureTime}`,
+    id: Number(r.flightId),  // ✅ 强制使用数据库唯一ID (Long -> number)
     airline: r.airlineCompany || '',
     airlineCode: (r.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
     flightNumber: r.flightNo || '',

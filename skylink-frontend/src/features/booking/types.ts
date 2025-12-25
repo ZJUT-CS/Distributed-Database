@@ -3,6 +3,7 @@ import type { Flight } from '../flight/types';
 export interface PassengerInfo {
   name: string;
   idCard: string;
+  phone?: string;  // ✅ 添加电话字段
   type?: 'adult' | 'child';
 }
 

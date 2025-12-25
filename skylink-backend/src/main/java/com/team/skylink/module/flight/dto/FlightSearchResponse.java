@@ -8,6 +8,9 @@ import java.math.BigDecimal;
 
 @Data
 public class FlightSearchResponse {
+    // ✅ 新增：航班数据库ID (用于预订API)
+    private Long flightId;
+
     private String flightNo;
     private String departurePlace;
     private String destination;

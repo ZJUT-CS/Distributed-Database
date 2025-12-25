@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { BookingForm, type BookingDetails, type ConfirmedBooking } from '@/features/booking';
 import { type Flight } from '@/features/flight';
 import { useAuth } from '@/features/auth';
-import { createOrder } from '@/features/booking/api/order';
+import { createBooking } from '@/features/booking/api/booking';
 import { saveOrderPassengers } from '@/utils/storage';
 import { useToast } from '@/features/admin/components/Toast';
 
@@ -33,29 +33,36 @@ const BookingPage: React.FC = () => {
   }
 
   const handleConfirm = async (details: BookingDetails) => {
-    const flightNo = String(flights[0]?.flightNumber || flights[0]?.id || '').trim();
-    if (!flightNo) {
-      toast.error('缺少航班号，无法下单');
+    // 验证航班是否有选择的舱位配置ID
+    const cabinId = flights[0]?.selectedCabinId;
+    if (!cabinId) {
+      toast.error('缺少舱位配置信息，请返回重新选择航班');
       return;
     }
 
-    const cabinType = cabinClass === 'first' ? 'F' : cabinClass === 'business' ? 'J' : 'Y';
-
     try {
-      const passengersJson = JSON.stringify(Array.isArray(details.passengers) ? details.passengers : []);
-      const created = await createOrder({
+      // 格式化乘客信息为后端期望的格式
+      const passengers = Array.isArray(details.passengers) ? details.passengers.map(p => ({
+        name: p.name || details.passengerName,
+        idCard: p.idCard || details.passportNumber || '',  // ✅ 使用idCard而非passportNumber
+        phone: p.phone || details.phone || ''
+      })) : [{
+        name: details.passengerName,
+        idCard: details.passportNumber || '',
+        phone: details.phone || ''
+      }];
+
+      // 调用新的预订API
+      const created = await createBooking({
         userId: user.id as any,
-        flightNo,
-        cabinType,
-        ticketNum: passengerCount,
-        passengerName: details.passengerName,
-        contactEmail: details.contactEmail,
-        contactPhone: details.phone,
-        passengersJson,
+        flightIds: flights.map(f => f.id),
+        cabinId,
+        passengers,
+        isInterline: flights.length > 1
       });
 
-      const id = String(created?.orderNo ?? '').trim();
-      if (!id) throw new Error('创建订单失败：缺少订单号');
+      const id = String(created?.parentOrderId || created?.orderIds?.[0] || '').trim();
+      if (!id) throw new Error('创建预订失败：缺少订单号');
       saveOrderPassengers(id, details.passengers);
 
       const totalPrice = Number.isFinite(Number(created?.totalAmount))
@@ -64,7 +71,7 @@ const BookingPage: React.FC = () => {
           ? (details.totalAmount as number)
           : flights.reduce((sum, f) => sum + f.price, 0);
 
-      const bookingDate = (created?.orderTime as any) ? String(created.orderTime) : new Date().toISOString();
+      const bookingDate = (created?.createTime as any) ? String(created.createTime) : new Date().toISOString();
 
       const newBooking: ConfirmedBooking = {
         ...details,
@@ -82,7 +89,7 @@ const BookingPage: React.FC = () => {
 
       navigate(`/my-bookings/${encodeURIComponent(id)}`, { state: { booking: newBooking } });
     } catch (e: any) {
-      toast.error(e?.message || '下单失败');
+      toast.error(e?.message || '预订失败');
     }
   };
 

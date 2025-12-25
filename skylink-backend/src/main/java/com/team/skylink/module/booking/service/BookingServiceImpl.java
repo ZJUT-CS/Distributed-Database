@@ -20,6 +20,7 @@ import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
 import com.team.skylink.module.user.mapper.UserMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class BookingServiceImpl implements BookingService {
 
@@ -40,8 +42,8 @@ public class BookingServiceImpl implements BookingService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public BookingServiceImpl(OrderMapper orderMapper, FlightMapper flightMapper,
-                              AircraftCabinConfigMapper configMapper, UserMapper userMapper,
-                              RouteMapper routeMapper, SeatService seatService) {
+            AircraftCabinConfigMapper configMapper, UserMapper userMapper,
+            RouteMapper routeMapper, SeatService seatService) {
         this.orderMapper = orderMapper;
         this.flightMapper = flightMapper;
         this.configMapper = configMapper;
@@ -83,7 +85,7 @@ public class BookingServiceImpl implements BookingService {
     private Map<String, Object> createInterlineOrders(BookingRequest req, String passengersJson) {
         long parentOrderId = IdWorker.getId();
         List<Long> flightIds = req.getFlightIds();
-        
+
         AircraftCabinConfig config = configMapper.selectById(req.getCabinId());
         if (config == null) {
             throw new IllegalArgumentException("Invalid Cabin ID");
@@ -97,6 +99,20 @@ public class BookingServiceImpl implements BookingService {
         // 【修改点】 循环处理每一段航班：锁座 -> 建单 -> 关联
         for (int i = 0; i < flightIds.size(); i++) {
             Long flightId = flightIds.get(i);
+
+            // ✅ 添加参数验证
+            if (flightId == null) {
+                log.error("❌ flightId is null at index {}, flightIds={}", i, flightIds);
+                throw new IllegalArgumentException("航班ID不能为空 (索引: " + i + ")");
+            }
+
+            if (cabinType == null || cabinType.trim().isEmpty()) {
+                log.error("❌ cabinType is null or empty, cabinId={}, config={}", req.getCabinId(), config);
+                throw new IllegalArgumentException("舱位类型不能为空");
+            }
+
+            log.info("🔍 准备锁座: flightId={}, cabinType={}, passengerCount={}, userId={}",
+                    flightId, cabinType, passengerCount, userId);
 
             // 1. 先尝试锁座 (传入 UserId)
             List<Seat> lockedSeats = seatService.lockSeats(flightId, cabinType, passengerCount, userId);
@@ -122,10 +138,11 @@ public class BookingServiceImpl implements BookingService {
 
     private Map<String, Object> createIndependentOrders(BookingRequest req, String passengersJson) {
         List<String> orderIds = new ArrayList<>();
-        
+
         AircraftCabinConfig config = configMapper.selectById(req.getCabinId());
-        if (config == null) throw new IllegalArgumentException("Invalid Cabin ID");
-        
+        if (config == null)
+            throw new IllegalArgumentException("Invalid Cabin ID");
+
         String cabinType = config.getCabinType();
         int passengerCount = req.getPassengers().size();
         Long userId = req.getUserId();
@@ -146,7 +163,7 @@ public class BookingServiceImpl implements BookingService {
             // 4. 保存 (tripType=0 单程)
             saveSingleOrder(userId, flightId, req.getCabinId(), null, 0, passengersJson, passengerCount, orderId);
         }
-        
+
         Map<String, Object> res = new HashMap<>();
         res.put("orderIds", orderIds);
         return res;
@@ -155,17 +172,17 @@ public class BookingServiceImpl implements BookingService {
     /**
      * 【修改点】只负责保存 Orders 对象，不再负责锁座
      */
-    private void saveSingleOrder(Long userId, Long flightId, Long cabinId, Long parentOrderId, 
-                                 Integer tripType, String passengersJson, int ticketNum, Long orderId) {
+    private void saveSingleOrder(Long userId, Long flightId, Long cabinId, Long parentOrderId,
+            Integer tripType, String passengersJson, int ticketNum, Long orderId) {
         Flight flight = flightMapper.selectById(flightId);
         AircraftCabinConfig config = configMapper.selectById(cabinId);
         Route route = routeMapper.selectById(flight.getRouteId());
-        
+
         BigDecimal basePrice = route.getBasePrice();
         if (config.getCabinCoefficient() != null) {
             basePrice = basePrice.multiply(config.getCabinCoefficient());
         }
-        
+
         Orders order = new Orders();
         order.setOrderId(orderId); // 必填：使用外部生成的ID
         order.setUserId(userId);
@@ -178,14 +195,15 @@ public class BookingServiceImpl implements BookingService {
         order.setTripType(tripType);
         order.setOrderTime(LocalDateTime.now());
         order.setPassengersJson(passengersJson);
-        
+
         // 生成快照
         try {
             Map<String, Object> snapshot = new HashMap<>();
             snapshot.put("flightNo", flight.getFlightNo());
             snapshot.put("departureCity", flight.getDepartureCity());
             snapshot.put("arrivalCity", flight.getArrivalCity());
-            snapshot.put("departureTime", flight.getDepartureTime() != null ? flight.getDepartureTime().toString() : "");
+            snapshot.put("departureTime",
+                    flight.getDepartureTime() != null ? flight.getDepartureTime().toString() : "");
             snapshot.put("arrivalTime", flight.getArrivalTime() != null ? flight.getArrivalTime().toString() : "");
             snapshot.put("airlineCompany", flight.getAirlineCompany());
             snapshot.put("cabinType", config.getCabinType());
@@ -203,20 +221,20 @@ public class BookingServiceImpl implements BookingService {
     public List<BookingResponse> listBookings(Long userId) {
         List<Orders> orders = orderMapper.selectList(new QueryWrapper<Orders>()
                 .eq("user_id", userId).orderByDesc("order_time"));
-        
+
         List<BookingResponse> resp = new ArrayList<>();
 
         for (Orders o : orders) {
             Flight f = flightMapper.selectById(o.getFlightId());
             AircraftCabinConfig c = (o.getCabinId() != null) ? configMapper.selectById(o.getCabinId()) : null;
-            
+
             BookingResponse r = new BookingResponse();
             r.setId(String.valueOf(o.getOrderId()));
             r.setTotalPrice(o.getTotalAmount());
             r.setStatus(String.valueOf(o.getOrderStatus()));
             r.setBookingDate(o.getOrderTime());
             r.setCabinClass(c != null ? c.getCabinType() : null);
-            
+
             if (f != null) {
                 BookingFlightDto dto = new BookingFlightDto();
                 dto.setId(String.valueOf(f.getFlightId()));
@@ -229,18 +247,18 @@ public class BookingServiceImpl implements BookingService {
                 if (c != null) {
                     dto.setCabinType(c.getCabinType());
                 }
-                
+
                 if (f.getDepartureTime() != null && f.getArrivalTime() != null) {
-                     java.time.Duration d = java.time.Duration.between(f.getDepartureTime(), f.getArrivalTime());
-                     long hours = d.toHours();
-                     long minutes = d.toMinutesPart();
-                     dto.setDuration(hours + "h" + minutes + "m");
+                    java.time.Duration d = java.time.Duration.between(f.getDepartureTime(), f.getArrivalTime());
+                    long hours = d.toHours();
+                    long minutes = d.toMinutesPart();
+                    dto.setDuration(hours + "h" + minutes + "m");
                 }
-                
+
                 r.setFlight(dto);
                 r.setFlights(Arrays.asList(dto));
             }
-            
+
             resp.add(r);
         }
         return resp;

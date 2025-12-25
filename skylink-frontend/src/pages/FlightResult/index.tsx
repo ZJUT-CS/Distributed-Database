@@ -119,28 +119,58 @@ const FlightResultPage: React.FC = () => {
     navigate(`?${newParams.toString()}`, { replace: true, state: { searchParams: params } });
   };
 
-  const handleFlightSelect = (flight: Flight) => {
-    const newSelected = [...selectedFlights];
-    newSelected[currentLegIndex] = flight;
-    setSelectedFlights(newSelected);
+  const handleFlightSelect = async (flight: Flight) => {
+    try {
+      // 🆕 获取该航班的可用舱位配置
+      const { getAvailableCabins } = await import('@/features/booking/api/cabin');
+      const availableCabins = await getAvailableCabins(flight.flightNumber);  // ✅ 使用航班号而非数字ID
 
-    if (currentLegIndex < tripSegments.length - 1) {
-      // Next leg
-      const nextIndex = currentLegIndex + 1;
-      const nextLeg = tripSegments[nextIndex];
-      setCurrentLegIndex(nextIndex);
-      setOrigin(nextLeg.origin);
-      setDestination(nextLeg.destination);
-      setDate(nextLeg.date);
-      fetchFlights(nextLeg.origin, nextLeg.destination, nextLeg.date);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      // Complete
-      if (!user) {
-        navigate('/login');
+      // 根据用户选择的舱位等级选择对应的配置
+      const cabinTypeMap: Record<string, string> = {
+        'economy': 'Y',
+        'business': 'J',
+        'first': 'F'
+      };
+      const targetCabinType = cabinTypeMap[cabinClass];
+
+      // 查找匹配的舱位配置
+      const matchedCabin = availableCabins.find(c => c.cabinType === targetCabinType);
+
+      if (!matchedCabin) {
+        // 如果没有找到匹配的舱位,使用第一个可用舱位
+        if (availableCabins.length > 0) {
+          flight.selectedCabinId = availableCabins[0].configId;
+        } else {
+          throw new Error(`该航班暂无可用的${cabinClass === 'economy' ? '经济舱' : cabinClass === 'business' ? '商务舱' : '头等舱'}座位`);
+        }
       } else {
-        navigate('/booking', { state: { flights: newSelected, passengers, cabinClass } });
+        flight.selectedCabinId = matchedCabin.configId;
       }
+
+      const newSelected = [...selectedFlights];
+      newSelected[currentLegIndex] = flight;
+      setSelectedFlights(newSelected);
+
+      if (currentLegIndex < tripSegments.length - 1) {
+        // Next leg
+        const nextIndex = currentLegIndex + 1;
+        const nextLeg = tripSegments[nextIndex];
+        setCurrentLegIndex(nextIndex);
+        setOrigin(nextLeg.origin);
+        setDestination(nextLeg.destination);
+        setDate(nextLeg.date);
+        fetchFlights(nextLeg.origin, nextLeg.destination, nextLeg.date);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        // Complete
+        if (!user) {
+          navigate('/login');
+        } else {
+          navigate('/booking', { state: { flights: newSelected, passengers, cabinClass } });
+        }
+      }
+    } catch (error: any) {
+      setFlightError(error?.message || '获取舱位信息失败,请重试');
     }
   };
 
