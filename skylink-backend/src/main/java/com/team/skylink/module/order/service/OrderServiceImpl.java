@@ -34,6 +34,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -285,11 +289,38 @@ public class OrderServiceImpl implements OrderService {
                 .ne("order_status", 0)
                 .orderByDesc("order_time");
         List<Orders> orders = orderMapper.selectList(qw);
+        if (orders.isEmpty()) {
+            return Result.ok(new ArrayList<>());
+        }
+
+        // 批量查询优化
+        Set<Long> flightIds = orders.stream().map(Orders::getFlightId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> cabinIds = orders.stream().map(Orders::getCabinId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> userIds = orders.stream().map(Orders::getUserId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, Flight> flightMap = new HashMap<>();
+        if (!flightIds.isEmpty()) {
+            flightMap = flightMapper.selectBatchIds(flightIds).stream()
+                    .collect(Collectors.toMap(Flight::getFlightId, f -> f));
+        }
+
+        Map<Long, AircraftCabinConfig> cabinMap = new HashMap<>();
+        if (!cabinIds.isEmpty()) {
+            cabinMap = configMapper.selectBatchIds(cabinIds).stream()
+                    .collect(Collectors.toMap(AircraftCabinConfig::getConfigId, c -> c));
+        }
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            userMap = userMapper.selectBatchIds(userIds).stream()
+                    .collect(Collectors.toMap(User::getUserId, u -> u));
+        }
+
         List<OrderSearchResponse> resp = new ArrayList<>();
         for (Orders o : orders) {
-            Flight f = flightMapper.selectById(o.getFlightId());
-            AircraftCabinConfig c = (o.getCabinId() != null) ? configMapper.selectById(o.getCabinId()) : null;
-            User u = userMapper.selectById(o.getUserId());
+            Flight f = flightMap.get(o.getFlightId());
+            AircraftCabinConfig c = cabinMap.get(o.getCabinId());
+            User u = userMap.get(o.getUserId());
 
             OrderSearchResponse r = new OrderSearchResponse();
             r.setOrderNo(String.valueOf(o.getOrderId()));
