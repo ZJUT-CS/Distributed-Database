@@ -132,9 +132,19 @@ const FlightResultPage: React.FC = () => {
         'first': 'F'
       };
       const targetCabinType = cabinTypeMap[cabinClass];
+      const targetCabinTypes = (() => {
+        const t = (targetCabinType || '').toUpperCase();
+        if (t === 'Y') return ['Y', 'ECONOMY'];
+        if (t === 'J') return ['J', 'BUSINESS'];
+        if (t === 'F') return ['F', 'FIRST'];
+        return [t];
+      })();
 
       // 查找匹配的舱位配置
-      const matchedCabin = availableCabins.find(c => c.cabinType === targetCabinType);
+      const matchedCabin = availableCabins.find(c => {
+        const ct = (c.cabinType || '').toUpperCase();
+        return targetCabinTypes.includes(ct);
+      });
 
       if (!matchedCabin) {
         // 如果没有找到匹配的舱位,使用第一个可用舱位

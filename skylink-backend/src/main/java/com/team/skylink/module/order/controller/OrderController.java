@@ -56,13 +56,6 @@ public class OrderController {
         return orderService.getDetail(orderId);
     }
 
-    @PostMapping("")
-    public Result<OrderSearchResponse> create(HttpServletRequest request, @Valid @RequestBody CreateOrderRequest req) {
-        Result<?> guard = ensureNonAdmin(request);
-        if (guard != null) return (Result<OrderSearchResponse>) guard;
-        return orderService.create(req);
-    }
-
     @PostMapping("/{orderId}/cancellation")
     public Result<Boolean> cancel(@PathVariable("orderId") Long orderId) {
         return orderService.cancel(orderId);

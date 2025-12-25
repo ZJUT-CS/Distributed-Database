@@ -13,6 +13,7 @@ public class Orders {
     private Long orderId;
 
     private Long userId;
+    @TableField(updateStrategy = FieldStrategy.NEVER)
     private Long flightId;
     private Long cabinId;
     private Integer orderStatus;

@@ -382,9 +382,11 @@ public class PaymentServiceImpl implements PaymentService {
         p.setCreateTime(now);
         p.setUpdateTime(now);
         paymentMapper.insert(p);
-        o.setOrderStatus(OrderStatusEnum.CONFIRMED.getCode());
-        o.setPayTime(now);
-        orderMapper.updateById(o);
+        LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Orders::getOrderId, o.getOrderId())
+                .set(Orders::getOrderStatus, OrderStatusEnum.CONFIRMED.getCode())
+                .set(Orders::getPayTime, now);
+        orderMapper.update(null, updateWrapper);
         
         // 确认座位 (锁定 -> 已售)
         if (o.getSeatId() != null) {

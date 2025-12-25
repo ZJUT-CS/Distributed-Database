@@ -142,7 +142,7 @@ public class FlightController {
         BigDecimal base = route != null ? route.getBasePrice() : null;
         var seatQ = Wrappers.<Seat>lambdaQuery().eq(Seat::getFlightId, flightId);
         if (cabinType != null && !cabinType.isBlank()) {
-            seatQ.eq(Seat::getCabinType, cabinType);
+            seatQ.in(Seat::getCabinType, cabinTypeVariants(cabinType));
         }
         var seats = seatMapper.selectList(seatQ);
         
@@ -214,4 +214,14 @@ public class FlightController {
         return Result.ok(data);
     }
 
+    private List<String> cabinTypeVariants(String cabinType) {
+        String t = cabinType == null ? "" : cabinType.trim().toUpperCase();
+        if ("ECONOMY".equals(t)) return java.util.Arrays.asList("ECONOMY", "Y");
+        if ("BUSINESS".equals(t)) return java.util.Arrays.asList("BUSINESS", "J");
+        if ("FIRST".equals(t)) return java.util.Arrays.asList("FIRST", "F");
+        if ("Y".equals(t)) return java.util.Arrays.asList("Y", "ECONOMY");
+        if ("J".equals(t)) return java.util.Arrays.asList("J", "BUSINESS");
+        if ("F".equals(t)) return java.util.Arrays.asList("F", "FIRST");
+        return java.util.Collections.singletonList(t);
+    }
 }

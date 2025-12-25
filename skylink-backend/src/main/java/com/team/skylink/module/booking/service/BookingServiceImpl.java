@@ -18,6 +18,7 @@ import com.team.skylink.module.flight.mapper.RouteMapper;
 import com.team.skylink.module.flight.service.SeatService;
 import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
+import com.team.skylink.module.order.service.PriceStrategyService;
 import com.team.skylink.module.user.mapper.UserMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -39,22 +40,25 @@ public class BookingServiceImpl implements BookingService {
     private final UserMapper userMapper;
     private final RouteMapper routeMapper;
     private final SeatService seatService;
+    private final PriceStrategyService priceStrategyService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public BookingServiceImpl(OrderMapper orderMapper, FlightMapper flightMapper,
             AircraftCabinConfigMapper configMapper, UserMapper userMapper,
-            RouteMapper routeMapper, SeatService seatService) {
+            RouteMapper routeMapper, SeatService seatService, PriceStrategyService priceStrategyService) {
         this.orderMapper = orderMapper;
         this.flightMapper = flightMapper;
         this.configMapper = configMapper;
         this.userMapper = userMapper;
         this.routeMapper = routeMapper;
         this.seatService = seatService;
+        this.priceStrategyService = priceStrategyService;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Map<String, Object>> submitBooking(BookingRequest req) {
+        log.info("收到预订请求 flightIds={} cabinId={} userId={} interline={}", req.getFlightIds(), req.getCabinId(), req.getUserId(), req.getIsInterline());
         if (req.getFlightIds() == null || req.getFlightIds().isEmpty()) {
             return Result.fail(400, "请至少选择一个航班");
         }
@@ -76,7 +80,7 @@ public class BookingServiceImpl implements BookingService {
             }
             return Result.ok(result);
         } catch (InventoryShortageException e) {
-            return Result.fail(400, e.getMessage());
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -113,6 +117,10 @@ public class BookingServiceImpl implements BookingService {
 
             log.info("🔍 准备锁座: flightId={}, cabinType={}, passengerCount={}, userId={}",
                     flightId, cabinType, passengerCount, userId);
+            try {
+                Integer avail = seatService.getAvailableCount(flightId, cabinType);
+                log.info("可用座位统计 flightId={} cabinType={} available={}", flightId, cabinType, avail);
+            } catch (Exception ignore) {}
 
             // 1. 先尝试锁座 (传入 UserId)
             List<Seat> lockedSeats = seatService.lockSeats(flightId, cabinType, passengerCount, userId);
@@ -150,6 +158,10 @@ public class BookingServiceImpl implements BookingService {
         // 【修改点】 循环处理每个独立航班
         for (Long flightId : req.getFlightIds()) {
             // 1. 先锁座
+            try {
+                Integer avail = seatService.getAvailableCount(flightId, cabinType);
+                log.info("可用座位统计 flightId={} cabinType={} available={}", flightId, cabinType, avail);
+            } catch (Exception ignore) {}
             List<Seat> lockedSeats = seatService.lockSeats(flightId, cabinType, passengerCount, userId);
 
             // 2. 生成 ID
@@ -178,9 +190,13 @@ public class BookingServiceImpl implements BookingService {
         AircraftCabinConfig config = configMapper.selectById(cabinId);
         Route route = routeMapper.selectById(flight.getRouteId());
 
-        BigDecimal basePrice = route.getBasePrice();
-        if (config.getCabinCoefficient() != null) {
-            basePrice = basePrice.multiply(config.getCabinCoefficient());
+        boolean isInterline = parentOrderId != null;
+        BigDecimal unitPrice = priceStrategyService.calculateSegmentPrice(flight, route, config, isInterline);
+        BigDecimal totalPrice = unitPrice.multiply(new BigDecimal(ticketNum));
+        Long existing = orderMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Orders>().eq("user_id", userId));
+        boolean isNewUser = existing != null && existing == 0;
+        if (tripType == 0 || tripType == 1) {
+            totalPrice = priceStrategyService.applyUserDiscount(totalPrice, isNewUser);
         }
 
         Orders order = new Orders();
@@ -188,9 +204,9 @@ public class BookingServiceImpl implements BookingService {
         order.setUserId(userId);
         order.setFlightId(flightId);
         order.setCabinId(cabinId);
-        order.setTotalAmount(basePrice.multiply(new BigDecimal(ticketNum)));
+        order.setTotalAmount(totalPrice);
         order.setTicketNum(ticketNum);
-        order.setOrderStatus(OrderStatusEnum.PENDING_AUDIT.getCode());
+        order.setOrderStatus(OrderStatusEnum.PENDING_PAYMENT.getCode());
         order.setParentOrderId(parentOrderId);
         order.setTripType(tripType);
         order.setOrderTime(LocalDateTime.now());
@@ -207,7 +223,7 @@ public class BookingServiceImpl implements BookingService {
             snapshot.put("arrivalTime", flight.getArrivalTime() != null ? flight.getArrivalTime().toString() : "");
             snapshot.put("airlineCompany", flight.getAirlineCompany());
             snapshot.put("cabinType", config.getCabinType());
-            snapshot.put("unitPrice", basePrice);
+            snapshot.put("unitPrice", unitPrice);
             order.setFlightSnapshot(objectMapper.writeValueAsString(snapshot));
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate flight snapshot", e);

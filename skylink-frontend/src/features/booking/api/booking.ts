@@ -77,9 +77,9 @@ export async function createBooking(body: BookingRequest): Promise<BookingRespon
         method: 'POST',
         url: '/api/v1/bookings',
         data: {
-            userId: Number(userId),
-            flightIds: body.flightIds.map(id => Number(id)),
-            cabinId: body.cabinId ? Number(body.cabinId) : undefined,
+            userId: String(userId),
+            flightIds: body.flightIds.map(id => String(id)),
+            cabinId: body.cabinId ? String(body.cabinId) : undefined,
             passengers: body.passengers,
             isInterline: body.isInterline ?? (body.flightIds.length > 1),
         },

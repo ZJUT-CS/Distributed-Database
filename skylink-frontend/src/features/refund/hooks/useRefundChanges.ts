@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { request } from '@/lib/axios';
+import { applyRefundChange } from '../../user/api/refund';
 import type { RefundChange } from '../types';
 
 export const useRefundChanges = (userId: number | string, enabled = true) => {
@@ -21,8 +22,14 @@ export const useRefundChange = (id: number | string, enabled = true) => {
 export const useApplyRefundChange = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { orderId: number | string; operType: number; reason?: string }) => 
-      request<RefundChange>({ method: 'POST', url: '/api/v1/refund-change-requests', data }),
+    mutationFn: (data: {
+      orderNo: string | number;
+      operType: 1 | 2;
+      remark?: string;
+      newFlightId?: string | number;
+      newFlightIds?: Array<string | number>;
+      newCabinType?: string;
+    }) => applyRefundChange(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['refundChanges'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
