@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { UserBookings as UserBookingsComponent } from '@/features/user';
 import { useAuth } from '@/features/auth';
 import { type ConfirmedBooking, type PassengerInfo } from '@/features/booking';
 import { ArrowLeft, Calendar, CheckCircle, Plane, Route, Ticket, XCircle, RefreshCw, Clock, Armchair, AlertTriangle } from 'lucide-react';
@@ -8,9 +7,9 @@ import { searchOrders, type OrderSearchResult, cancelOrder } from '@/features/bo
 import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '@/features/booking/api/payment';
 import { applyRefundChange } from '@/features/user/api/refund';
 import { loadOrderPassengers } from '@/utils/storage';
-import { ORDER_STATUS } from '@/features/admin/constants';
+import { ORDER_STATUS } from '@/config/features/admin/constants';
 import { API_CONFIG } from '@/config/constants';
-import InterlineJourneyTimeline from '@/components/booking/InterlineJourneyTimeline';
+import { InterlineJourneyTimeline } from '@/features/booking/components/booking-ui';
 import { useToast } from '@/features/admin/components/Toast';
 import { logger } from '@/lib/logger';
 
@@ -45,14 +44,12 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
   const id = String(o.orderNo);
   const passengers = parsePassengersJson(o.passengersJson) ?? loadOrderPassengers(id) ?? [];
 
-  // 使用 flightId（数据库主键）作为航班 ID，用于座位查询等需要主键的操作
-  // flightNo 是航班号字符串，仅用于显示
   const dbFlightId = o.flightId || '';
 
   return {
     id,
     flight: {
-      id: dbFlightId,  // 数据库主键，用于 API 调用
+      id: dbFlightId,
       airline: '',
       airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
       flightNumber: o.flightNo || '',
@@ -69,7 +66,7 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
       amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
     },
     flights: [{
-      id: dbFlightId,  // 数据库主键
+      id: dbFlightId,
       airline: '',
       airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
       flightNumber: o.flightNo || '',
@@ -86,7 +83,6 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
       amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
     }],
     status:
-      // 后端 OrderStatusEnum - 使用统一常量
       o.orderStatus === ORDER_STATUS.PENDING_PAYMENT
         ? 'pending_payment'
         : o.orderStatus === ORDER_STATUS.CONFIRMED
@@ -111,19 +107,15 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
 const mapOrdersToBooking = (orders: OrderSearchResult[]): ConfirmedBooking | null => {
   if (!orders || orders.length === 0) return null;
   
-  // 按出发时间排序
   const sortedOrders = [...orders].sort((a, b) => 
     (a.departureTime || '').localeCompare(b.departureTime || '')
   );
 
   const firstOrder = sortedOrders[0];
-  // 构造复合ID
   const compositeId = sortedOrders.map(o => o.orderNo).join('+');
   
-  // 计算总金额
   const totalPrice = sortedOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
   
-  // 收集所有航段
   const flights = sortedOrders.map(o => {
       const dbFlightId = o.flightId || '';
       return {
@@ -147,7 +139,6 @@ const mapOrdersToBooking = (orders: OrderSearchResult[]): ConfirmedBooking | nul
 
   const passengers = parsePassengersJson(firstOrder.passengersJson) ?? loadOrderPassengers(compositeId) ?? loadOrderPassengers(String(firstOrder.orderNo)) ?? [];
 
-  // 映射状态
   let status: ConfirmedBooking['status'] = 'pending_payment';
   if (firstOrder.orderStatus === ORDER_STATUS.CONFIRMED) status = 'confirmed';
   else if (firstOrder.orderStatus === ORDER_STATUS.PROCESSING) status = 'refunding';
@@ -191,55 +182,6 @@ const getPaymentDeadlineMs = (bookingDate: string) => {
   return new Date(bookingDate).getTime() + API_CONFIG.PAYMENT_TIMEOUT_MS;
 };
 
-const BookingsPage: React.FC = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [bookings, setBookings] = useState<ConfirmedBooking[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    setLoading(true);
-    setError(null);
-    searchOrders({ userId: user.id })
-      .then((res) => setBookings(Array.isArray(res) ? res.map(mapOrderToBooking) : []))
-      .catch((e: any) => setError(e?.message || '加载订单失败'))
-      .finally(() => setLoading(false));
-  }, [user]);
-
-  const handleUpdateBooking = (updated: ConfirmedBooking) => {
-    if (!user?.id) return;
-    setLoading(true);
-    setError(null);
-    searchOrders({ userId: user.id })
-      .then((res) => setBookings(Array.isArray(res) ? res.map(mapOrderToBooking) : []))
-      .catch((e: any) => setError(e?.message || '刷新订单失败'))
-      .finally(() => setLoading(false));
-  };
-
-  if (!user) {
-    navigate('/login');
-    return null;
-  }
-
-  return (
-    <div>
-      {error && (
-        <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-      <UserBookingsComponent bookings={bookings} onBack={() => navigate('/')} onUpdateBooking={handleUpdateBooking} />
-      {loading && (
-        <div className="mt-4 text-sm text-gray-500">加载中...</div>
-      )}
-    </div>
-  );
-};
-
-export default BookingsPage;
-
 export const BookingDetailsPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -258,7 +200,6 @@ export const BookingDetailsPage: React.FC = () => {
   const [payError, setPayError] = useState<string | null>(null);
   const [payToken, setPayToken] = useState<PaymentConfirmToken | null>(null);
 
-  // 退票申请模态框状态
   const [refundModalOpen, setRefundModalOpen] = useState(false);
   const [refundReason, setRefundReason] = useState('');
   const [refundApplying, setRefundApplying] = useState(false);
@@ -353,7 +294,6 @@ export const BookingDetailsPage: React.FC = () => {
   const flights = booking.flights && booking.flights.length > 0 ? booking.flights : booking.flight ? [booking.flight] : [];
   const first = flights[0];
   const last = flights[flights.length - 1];
-  const isConfirmed = booking.status === 'confirmed';
   const passengerList = Array.isArray(booking.passengers) && booking.passengers.length > 0 ? booking.passengers : [];
 
   const formatTime = (isoString?: string) => {
@@ -430,7 +370,6 @@ export const BookingDetailsPage: React.FC = () => {
   };
 
   const handlePay = async () => {
-    // 🔧 支付前先从后端重新获取最新订单状态，避免使用缓存的过期数据
     if (!user?.id) {
       toast.error('请先登录');
       return;
@@ -440,7 +379,6 @@ export const BookingDetailsPage: React.FC = () => {
     setPayError(null);
 
     try {
-      // 尝试重新获取最新订单状态
       let currentBooking = booking;
       try {
         const refreshed = await fetchBookingDetails(user.id, booking.id);
@@ -449,11 +387,9 @@ export const BookingDetailsPage: React.FC = () => {
           setBooking(currentBooking);
         }
       } catch (refreshErr) {
-        // 刷新失败时继续使用缓存数据
         logger.warn('刷新订单状态失败，继续使用缓存数据', refreshErr);
       }
 
-      // 检查订单状态
       if (currentBooking.status !== 'pending_payment') {
         const statusMsg = currentBooking.status === 'confirmed' ? '订单已支付' :
           currentBooking.status === 'cancelled' ? '订单已取消' : '订单状态异常';
@@ -462,7 +398,6 @@ export const BookingDetailsPage: React.FC = () => {
         return;
       }
 
-      // 检查是否超时
       const expired = Date.now() >= getPaymentDeadlineMs(currentBooking.bookingDate);
       if (expired) {
         const ids = currentBooking.id.split('+');
@@ -475,7 +410,6 @@ export const BookingDetailsPage: React.FC = () => {
         return;
       }
 
-      // 创建支付令牌
       const token = await createPaymentConfirmToken({ orderNo: currentBooking.id, amount: Number(currentBooking.totalPrice || 0) });
       setPayToken(token);
       setPayModalOpen(true);
@@ -678,14 +612,12 @@ export const BookingDetailsPage: React.FC = () => {
               {flights.length === 0 ? (
                 <div className="text-sm text-gray-500">暂无航段信息</div>
               ) : flights.length > 1 && flights[0].segments && flights[0].segments.length > 0 ? (
-                // 联程航班：使用时间线组件
                 <InterlineJourneyTimeline
                   segments={flights[0].segments}
                   transferCity={flights[0].transferCity}
                   transferDuration={flights[0].transferDuration}
                 />
               ) : (
-                // 普通/直飞航班：使用原有卡片展示
                 <div className="space-y-3">
                   {flights.map((f, idx) => (
                     <div
@@ -784,7 +716,6 @@ export const BookingDetailsPage: React.FC = () => {
         </div>
       )}
 
-      {/* 退票申请模态框 */}
       {refundModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-scale-up">

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { MapPoint } from '@/features/flight';
-import type { MapRoute } from './WorldMapRender';
+import type { MapRoute } from '../WorldMap';
 import { buildArcPath } from './utils/arcUtils';
 import { project } from './geometry';
 

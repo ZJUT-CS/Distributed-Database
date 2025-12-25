@@ -15,9 +15,8 @@ import {
   useConfirm,
   useToast,
   useSensitiveAudit,
-  GENDER_MAP,
-  GENDER_OPTIONS,
 } from '@/features/admin';
+import { GENDER_MAP, GENDER_OPTIONS, type SelectOption } from '@/config/features/admin/constants';
 import EntityCell from '@/components/common/EntityCell';
 import { exportToCSV } from '@/utils/export';
 import { useAdminUsers, useCreateAdminUser, useUpdateAdminUser, useResetAdminUserPassword, useDeleteAdminUser } from '@/features/admin/hooks/useAdminUsers';
@@ -610,7 +609,7 @@ const UsersMgmt: React.FC = () => {
               onChange={(e) => setFormGender(e.target.value === '' ? '' : Number(e.target.value))}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
             >
-              {GENDER_OPTIONS.map((opt) => (
+              {GENDER_OPTIONS.map((opt: SelectOption) => (
                 <option key={String(opt.value)} value={opt.value}>{opt.label}</option>
               ))}
             </select>

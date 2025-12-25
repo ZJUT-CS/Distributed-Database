@@ -7,7 +7,7 @@ import { ArrowLeft, Plane, Calendar, CheckCircle, XCircle, Route, Ticket, Circle
 import { exportToCSV, type ExportColumn } from '@/utils/export';
 import { Countdown } from '@/components';
 import { API_CONFIG } from '@/config/constants';
-import InterlineOrderBadge from '@/components/booking/InterlineOrderBadge';
+import { InterlineOrderBadge } from '../../booking/components/booking-ui';
 import { useToast } from '@/features/admin/components/Toast';
 import { useConfirm } from '@/features/admin';
 

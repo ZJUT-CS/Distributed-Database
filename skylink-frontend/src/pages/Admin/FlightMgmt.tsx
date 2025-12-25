@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Download, Plus, Search, Users, Edit2, Ban, Trash2, Save, Plane as PlaneIcon, RefreshCw, CheckSquare, Square, X, Copy } from 'lucide-react';
 import { type FlightStatus } from '@/features/flight';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, type AdminFlightItem, FLIGHT_STATUS_STR_META, AdminTableState, useAdminOptions, PassengerListDrawer } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, type AdminFlightItem, AdminTableState, useAdminOptions, PassengerListDrawer } from '@/features/admin';
+import { FLIGHT_STATUS_STR_META } from '@/config/features/admin/constants';
 import { formatApiError } from '@/utils/apiError';
 import EntityCell from '@/components/common/EntityCell';
 import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';

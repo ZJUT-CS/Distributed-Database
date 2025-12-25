@@ -1,5 +1,6 @@
 import React from 'react';
 import type { MapPoint } from '@/features/flight';
+import type { HeatPoint, MapRoute } from '../WorldMap';
 import WorldMapSvg from '../../../assets/images/Simplified_World_Map.svg?react';
 import { MAP_HEIGHT, MAP_WIDTH, VIEWBOX, project } from './geometry';
 import { useMemo, useCallback } from 'react';
@@ -9,22 +10,6 @@ import { MapGrid } from './MapGrid';
 import { MapHeatPoints } from './MapHeatPoints';
 import { MapRoutes } from './MapRoutes';
 import { MapPoints } from './MapPoints';
-
-export type HeatPoint = {
-  id: string;
-  name?: string;
-  lat: number;
-  lng: number;
-  value: number;
-  unit?: string;
-};
-
-export type MapRoute = {
-  from: string;
-  to: string;
-  id?: string;
-  active?: boolean;
-};
 
 export interface WorldMapRenderProps {
   points: MapPoint[];

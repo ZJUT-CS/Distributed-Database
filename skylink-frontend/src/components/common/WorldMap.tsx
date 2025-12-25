@@ -5,7 +5,7 @@ import { WorldMapRender } from './world-map/WorldMapRender';
 import { useWorldMapControls } from './world-map/useWorldMapControls';
 import type { WorldMapView } from './world-map/geometry';
 import { computeAutoFitView } from './world-map/geometry';
-import { useMapDataIncremental } from '@/hooks/useMapDataIncremental';
+import { useMapDataIncremental } from '@/features/map/hooks/useMapDataIncremental';
 import type { RouteDictItem, CityDictItem } from '@/features/admin/dashboard/map';
 
 export interface HeatPoint {

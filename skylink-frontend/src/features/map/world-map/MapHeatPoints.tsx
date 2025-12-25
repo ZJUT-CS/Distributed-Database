@@ -1,5 +1,5 @@
 import React from 'react';
-import type { HeatPoint } from './WorldMapRender';
+import type { HeatPoint } from '../WorldMap';
 import { getHeatColor } from './utils/colorUtils';
 import { project } from './geometry';
 

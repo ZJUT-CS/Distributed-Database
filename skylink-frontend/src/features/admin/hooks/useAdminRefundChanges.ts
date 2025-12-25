@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listRefundChangeRequests, approveRefundChangeRequest, rejectRefundChangeRequest } from '../api/refundChangeRequests';
-import type { RefundChangeRecord } from '../../user/types';
+import type { RefundChangeRecord } from '../../refund/types';
 
 export const useAdminRefundChanges = (params: {
   userId?: string | number;

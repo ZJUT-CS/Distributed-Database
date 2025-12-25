@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRightLeft, Globe, TrendingUp } from 'lucide-react';
 
-import WorldMap from '../../../../components/common/WorldMap';
+import WorldMap from '@/features/map/WorldMap';
 import type { DashboardViewModel } from '../../../../features/admin/dashboard/viewModel';
 
 export type MapPanelProps = {

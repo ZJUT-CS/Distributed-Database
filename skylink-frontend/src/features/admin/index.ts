@@ -28,9 +28,6 @@ export { useSensitiveAudit } from './hooks/useSensitiveAudit';
 export { useAdminOptions, clearOptionsCache } from './hooks/useAdminOptions';
 export type { SelectOption, UseAdminOptionsReturn } from './hooks/useAdminOptions';
 
-// Constants
-export * from './constants';
-
 // API
 export * from './api/configs';
 export * from './api/dashboard';

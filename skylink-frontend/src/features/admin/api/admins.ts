@@ -1,5 +1,4 @@
-import { request } from '@/lib/axios';
-import type { PageResult } from './types';
+import { request, type PageResult } from '@/lib/axios';
 
 /**
  * 管理员类型（与后端 Admin 实体对齐）

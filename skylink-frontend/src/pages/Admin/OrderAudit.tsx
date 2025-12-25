@@ -10,17 +10,14 @@ import {
   approveRefundChangeRequest,
   listRefundChangeRequests,
   rejectRefundChangeRequest,
-  CHANGE_REQUEST_STATUS_MAP,
-  ORDER_STATUS,
   useToast,
   useConfirm,
 } from '@/features/admin';
-import type { RefundChangeRecord } from '@/features/user';
+import { CHANGE_REQUEST_STATUS_MAP, ORDER_STATUS } from '@/config/features/admin/constants';
+import type { RefundChangeRecord, AuditStatus } from '@/features/refund/types';
 import EntityCell from '@/components/common/EntityCell';
 import { auditAdminOrder, listAdminOrders, type AdminOrderItem } from '@/features/admin/api/orders';
 import { exportToCSV } from '@/utils/export';
-
-type AuditStatus = 'all' | 'pending' | 'approved' | 'rejected';
 type AuditTab = 'orders' | 'refund-change';
 
 const ITEMS_PER_PAGE = 8;
@@ -36,7 +33,7 @@ const OrderAudit: React.FC = () => {
   const { confirm } = useConfirm();
   const [tab, setTab] = useState<AuditTab>('orders');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<AuditStatus>('pending');
+  const [statusFilter, setStatusFilter] = useState<AuditStatus | 'all'>('pending');
 
   const normalizedSearch = useMemo(() => searchTerm.trim(), [searchTerm]);
 

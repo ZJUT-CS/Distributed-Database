@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Eye, FileText, CreditCard, Wallet, Search, RefreshCw, CheckSquare, Square, X, RotateCcw } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, AdminDrawer, PAYMENT_STATUS_OPTIONS, PAYMENT_STATUS_MAP, PAYMENT_METHOD_MAP, useToast, useConfirm } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, FilterBar, AdminTableState, AdminDrawer, useToast, useConfirm } from '@/features/admin';
+import { PAYMENT_STATUS_OPTIONS, PAYMENT_STATUS_MAP, PAYMENT_METHOD_MAP, type SelectOption } from '@/config/features/admin/constants';
 import { useAdminPayments } from '@/features/payment/hooks/usePayments';
 import { type PaymentItem } from '@/features/admin/api/payments';
 import EntityCell from '@/components/common/EntityCell';
@@ -210,7 +211,7 @@ const PaymentsMgmt: React.FC = () => {
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
             <div className="flex bg-gray-100 p-1 rounded-lg">
-              {PAYMENT_STATUS_OPTIONS.map(opt => (
+              {PAYMENT_STATUS_OPTIONS.map((opt: SelectOption) => (
                 <button
                   key={String(opt.value)}
                   onClick={() => {
