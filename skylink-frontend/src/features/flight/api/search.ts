@@ -23,6 +23,7 @@ export async function searchFlights(params: {
     directFlights?: {
       total: number;
       data: Array<{
+        flightId?: number | string;
         flightNo: string;
         departurePlace: string;
         destination: string;
@@ -40,6 +41,7 @@ export async function searchFlights(params: {
     };
     interlineFlights?: Array<{
       segments: Array<{
+        flightId?: number | string;
         flightNo: string;
         departurePlace: string;
         destination: string;
@@ -104,7 +106,7 @@ export async function searchFlights(params: {
     baggageAllowance?: string;
     services?: string;
   }): Flight => ({
-    id: Number(r.flightId),  // ✅ 强制使用数据库唯一ID (Long -> number)
+    id: String(r.flightId ?? '').trim(),
     airline: r.airlineCompany || '',
     airlineCode: (r.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
     flightNumber: r.flightNo || '',
@@ -124,18 +126,24 @@ export async function searchFlights(params: {
     services: r.services,
   });
 
-  const direct = (data.directFlights?.data ?? []).map((r) => toFlight(r));
+  const direct = (data.directFlights?.data ?? []).map((r) => toFlight(r)).filter((f) => !!f.id);
 
-  const interline = (data.interlineFlights ?? []).map((it) => {
+  const interline = (data.interlineFlights ?? [])
+    .map((it): Flight | null => {
     const segs = it.segments ?? [];
     const first = segs[0];
     const last = segs[segs.length - 1];
-    const id = segs.map((s) => s.flightNo).filter(Boolean).join('+') || `interline-${Date.now()}`;
+
+    if (!segs.length) return null;
+    const flightIds = segs.map((s) => String(s.flightId ?? '').trim()).filter(Boolean);
+    if (flightIds.length !== segs.length) return null;
+    const id = flightIds.join('+');
     const airline = first?.airlineCompany || '';
     const airlineCode = (first?.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2);
 
     // 将后端 segments 转换为 FlightSegment 格式
     const flightSegments = segs.map((s) => ({
+      flightId: String(s.flightId ?? '').trim(),
       flightNumber: s.flightNo,
       origin: s.departurePlace,
       destination: s.destination,
@@ -160,7 +168,7 @@ export async function searchFlights(params: {
       id,
       airline,
       airlineCode,
-      flightNumber: id,
+      flightNumber: segs.map((s) => s.flightNo).filter(Boolean).join('+') || 'INTERLINE',
       cabinType: first?.cabinType,
       origin: first?.departurePlace || toCity(o),
       destination: last?.destination || toCity(d),
@@ -181,7 +189,8 @@ export async function searchFlights(params: {
       transferDuration: it.transferDuration ? parseTransferDuration(it.transferDuration) : undefined,
       segments: flightSegments,
     } satisfies Flight;
-  });
+  })
+    .filter(Boolean) as Flight[];
 
   // 🔧 去重：避免后端返回重复数据导致前端显示多个相同航班
   const allFlights = [...direct, ...interline];

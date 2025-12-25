@@ -16,15 +16,15 @@ export interface AvailableCabin {
 
 /**
  * 查询指定航班的可用舱位配置
- * GET /api/v1/cabins/available?flightNo=CA4479
+ * GET /api/v1/cabins/available?flightId=360441346
  */
-export async function getAvailableCabins(flightNo: string | number): Promise<AvailableCabin[]> {
-    const no = String(flightNo ?? '').trim();
-    if (!no) throw new Error('缺少航班号');
+export async function getAvailableCabins(flightId: string | number): Promise<AvailableCabin[]> {
+    const id = String(flightId ?? '').trim();
+    if (!id) throw new Error('缺少航班ID');
 
     return request<AvailableCabin[]>({
         method: 'GET',
         url: '/api/v1/cabins/available',
-        params: { flightNo: no },
+        params: { flightId: id },
     });
 }

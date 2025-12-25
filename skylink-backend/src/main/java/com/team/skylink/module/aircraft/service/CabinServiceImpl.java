@@ -95,22 +95,4 @@ public class CabinServiceImpl implements CabinService {
 
         return result;
     }
-
-    @Override
-    public List<AvailableCabinDto> getAvailableCabinsByFlightNo(String flightNo) {
-        // 1. 根据航班号查询航班信息
-        Flight flight = flightMapper.selectOne(
-                new QueryWrapper<Flight>()
-                        .eq("flight_no", flightNo)
-                        .orderByDesc("flight_id")
-                        .last("LIMIT 1"));
-
-        if (flight == null) {
-            log.warn("查询可用舱位失败：航班不存在 flightNo={}", flightNo);
-            return new ArrayList<>();
-        }
-
-        // 2. 调用现有方法
-        return getAvailableCabins(flight.getFlightId());
-    }
 }

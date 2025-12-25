@@ -104,6 +104,12 @@ npm run dev
 - 接口清单、枚举值、错误码：见 [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md)
 - 端口与环境变量：见 [PORT_CONFIGURATION.md](PORT_CONFIGURATION.md)
 
+#### 订单链路锚点（重要）
+
+- `flightId` 为全链路强一致锚点（下单/支付/退改签/联程组合等均以此为准）。
+- `flightNo` 仅用于展示或兼容查询入口；如需用 `flightNo` 查询，必须满足“唯一解析”（否则前端应提示改用 `flightId`）。
+- 雪花 ID 在前端一律以 **string** 承载与传输，避免 JS number 精度问题。
+
 ### 调用示例（curl）
 
 用户登录（获取 token）：

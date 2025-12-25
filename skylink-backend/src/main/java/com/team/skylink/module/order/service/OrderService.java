@@ -15,6 +15,7 @@ public interface OrderService {
             Integer orderStatus,
             LocalDateTime createTimeStart,
             LocalDateTime createTimeEnd,
+        Long flightId,
             String flightNo,
             String cabinType,
             int page,

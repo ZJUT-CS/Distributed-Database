@@ -27,7 +27,8 @@ export type CreateOrderResult = OrderSearchResult;
 
 export async function createOrder(body: {
   userId: string | number;
-  flightNo: string;
+  flightId?: string | number | null;
+  flightIds?: Array<string | number> | null;
   cabinType: string;
   ticketNum: number;
   passengerName: string;
@@ -37,8 +38,9 @@ export async function createOrder(body: {
 }): Promise<CreateOrderResult> {
   const userId = String(body.userId ?? '').trim();
   if (!userId) throw new Error('缺少 userId');
-  const flightNo = String(body.flightNo ?? '').trim();
-  if (!flightNo) throw new Error('缺少 flightNo');
+  const flightIds = Array.isArray(body.flightIds) ? body.flightIds.map((x) => String(x ?? '').trim()).filter(Boolean) : [];
+  const flightId = String(body.flightId ?? '').trim();
+  if (flightIds.length === 0 && !flightId) throw new Error('缺少 flightId/flightIds');
   const cabinType = String(body.cabinType ?? '').trim();
   if (!cabinType) throw new Error('缺少 cabinType');
   if (!Number.isFinite(body.ticketNum) || body.ticketNum <= 0) throw new Error('ticketNum 无效');
@@ -50,7 +52,8 @@ export async function createOrder(body: {
     url: '/api/v1/orders',
     data: {
       userId: userId,
-      flightNo,
+      flightId: flightIds.length > 0 ? undefined : flightId,
+      flightIds: flightIds.length > 0 ? flightIds : undefined,
       cabinType,
       ticketNum: Math.floor(body.ticketNum),
       passengerName,

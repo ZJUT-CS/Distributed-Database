@@ -31,11 +31,12 @@ public class AdminOrderController {
             @RequestParam(required = false) Long orderNo,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Integer orderStatus,
+            @RequestParam(required = false) Long flightId,
             @RequestParam(required = false) String flightNo
     ) {
         Result<?> adminGuard = ensureAdmin(request);
         if (adminGuard != null) return (Result<PageResult<AdminOrderItem>>) adminGuard;
-        return adminOrderService.list(page, size, orderNo, userId, orderStatus, flightNo);
+        return adminOrderService.list(page, size, orderNo, userId, orderStatus, flightId, flightNo);
     }
 
     // 2. 更新订单状态 (通用)

@@ -144,41 +144,49 @@ public class RefundChangeServiceImpl implements RefundChangeService {
         List<Flight> newFlights = new ArrayList<>();
         List<AircraftCabinConfig> newConfigs = new ArrayList<>();
         if (operType == 2) {
-             // Parse new flight numbers (handle interline +)
-             List<String> newFlightNos = new ArrayList<>();
-             if (req.getNewFlightNo() != null && req.getNewFlightNo().contains("+")) {
-                  for(String s : req.getNewFlightNo().split("\\+")) {
-                       if(!s.isBlank()) newFlightNos.add(s.trim());
-                  }
-             } else if (req.getNewFlightNo() != null) {
-                  newFlightNos.add(req.getNewFlightNo());
-             }
-             
-             // Validation
-             if (newFlightNos.size() != targetOrders.size()) {
-                 return Result.fail(400, "改签必须完全匹配原订单航段数量 (Interline change requires matching segments)");
-             }
-             
-             // Look up flights and configs
-             for (int i=0; i<newFlightNos.size(); i++) {
-                 String fNo = newFlightNos.get(i);
-                 Flight nf = flightMapper.selectOne(new QueryWrapper<Flight>().eq("flight_no", fNo).orderByDesc("flight_id").last("LIMIT 1"));
-                 if (nf == null) return Result.fail(404, "New flight not found: " + fNo);
-                 
-                 AircraftCabinConfig nc = configMapper.selectOne(Wrappers.<AircraftCabinConfig>lambdaQuery()
+            // Reject legacy field to avoid ambiguous mapping
+            if (req.getNewFlightNo() != null && !req.getNewFlightNo().isBlank()) {
+                return Result.fail(400, "改签请使用 newFlightId/newFlightIds（flightNo 不再允许用于写入）");
+            }
+
+            // Build newFlightIds (support single and interline)
+            List<Long> newFlightIds = req.getNewFlightIds();
+            if (newFlightIds == null || newFlightIds.isEmpty()) {
+                newFlightIds = new ArrayList<>();
+                if (req.getNewFlightId() != null) {
+                    newFlightIds.add(req.getNewFlightId());
+                }
+            }
+
+            if (newFlightIds == null || newFlightIds.isEmpty()) {
+                return Result.fail(400, "改签必须提供 newFlightId/newFlightIds");
+            }
+
+            // Validation
+            if (newFlightIds.size() != targetOrders.size()) {
+                return Result.fail(400, "改签必须完全匹配原订单航段数量 (Interline change requires matching segments)");
+            }
+
+            // Look up flights and configs
+            for (int i = 0; i < newFlightIds.size(); i++) {
+                Long fId = newFlightIds.get(i);
+                Flight nf = fId != null ? flightMapper.selectById(fId) : null;
+                if (nf == null) return Result.fail(404, "New flight not found: " + fId);
+
+                AircraftCabinConfig nc = configMapper.selectOne(Wrappers.<AircraftCabinConfig>lambdaQuery()
                         .eq(AircraftCabinConfig::getModelId, nf.getModelId())
                         .eq(AircraftCabinConfig::getCabinType, req.getNewCabinType())
                         .last("LIMIT 1"));
-                 if (nc == null) return Result.fail(404, "New cabin config not found for: " + fNo);
-                 
-                 // Check inventory
-                 Integer avail = seatService.getAvailableCount(nf.getFlightId(), nc.getCabinType());
-                 if (avail < targetOrders.get(i).getTicketNum()) {
-                      return Result.fail(409, "Insufficient seats in new flight: " + fNo);
-                 }
-                 newFlights.add(nf);
-                 newConfigs.add(nc);
-             }
+                if (nc == null) return Result.fail(404, "New cabin config not found for flightId: " + fId);
+
+                // Check inventory
+                Integer avail = seatService.getAvailableCount(nf.getFlightId(), nc.getCabinType());
+                if (avail < targetOrders.get(i).getTicketNum()) {
+                    return Result.fail(409, "Insufficient seats in new flightId: " + fId);
+                }
+                newFlights.add(nf);
+                newConfigs.add(nc);
+            }
         }
 
         // 2. Create Records for ALL targets

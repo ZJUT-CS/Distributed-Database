@@ -4,6 +4,8 @@ export type FlightStatus = 'active' | 'delayed' | 'cancelled' | 'full';
  * 联程航班航段信息
  */
 export interface FlightSegment {
+  /** 航班实例唯一ID（后端 flightId） */
+  flightId?: string;
   flightNumber: string;
   airline?: string;
   airlineCode?: string;
@@ -15,7 +17,8 @@ export interface FlightSegment {
 }
 
 export interface Flight {
-  id: number;
+  /** 航班实例唯一ID（雪花ID），前端必须以字符串承载避免精度丢失 */
+  id: string;
   airline: string;
   airlineCode: string;
   flightNumber: string;

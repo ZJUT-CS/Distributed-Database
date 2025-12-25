@@ -11,6 +11,7 @@ public interface AdminOrderService {
             Long orderNo,
             Long userId,
             Integer orderStatus,
+        Long flightId,
             String flightNo
     );
 

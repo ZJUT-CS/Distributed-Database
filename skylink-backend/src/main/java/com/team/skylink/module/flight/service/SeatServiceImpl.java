@@ -424,35 +424,43 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
             log.error("Failed to cache seat list", e);
         }
 
-        // 3. Cache Index Map (SeatId -> Index)
-        Map<String, String> indexMap = new HashMap<>();
-        for (int i = 0; i < seats.size(); i++) {
-            indexMap.put(String.valueOf(seats.get(i).getSeatId()), String.valueOf(i));
-        }
-        redisTemplate.opsForHash().putAll(getSeatIndexKey(flightId), indexMap);
-        redisTemplate.expire(getSeatIndexKey(flightId), 1, TimeUnit.HOURS);
+        // 3/4. Cache Index Map + BitMap
+        // Redis 不可用时不应影响主流程（尤其是测试环境/降级场景）
+        try {
+            Map<String, String> indexMap = new HashMap<>();
+            for (int i = 0; i < seats.size(); i++) {
+                indexMap.put(String.valueOf(seats.get(i).getSeatId()), String.valueOf(i));
+            }
+            redisTemplate.opsForHash().putAll(getSeatIndexKey(flightId), indexMap);
+            redisTemplate.expire(getSeatIndexKey(flightId), 1, TimeUnit.HOURS);
 
-        // 4. Cache BitMap (Status)
-        String bitmapKey = getBitmapKey(flightId);
-        redisTemplate.delete(bitmapKey); 
-        for (int i = 0; i < seats.size(); i++) {
-            Seat s = seats.get(i);
-            boolean isOccupied = s.getStatus() != 1;
-            redisTemplate.opsForValue().setBit(bitmapKey, i, isOccupied);
+            String bitmapKey = getBitmapKey(flightId);
+            redisTemplate.delete(bitmapKey);
+            for (int i = 0; i < seats.size(); i++) {
+                Seat s = seats.get(i);
+                boolean isOccupied = s.getStatus() != 1;
+                redisTemplate.opsForValue().setBit(bitmapKey, i, isOccupied);
+            }
+            redisTemplate.expire(bitmapKey, 1, TimeUnit.HOURS);
+        } catch (Exception e) {
+            log.warn("Failed to sync seat map to Redis", e);
         }
-        redisTemplate.expire(bitmapKey, 1, TimeUnit.HOURS);
     }
 
     private void updateRedisSeatStatus(Long flightId, Long seatId, Integer status) {
-        Object indexObj = redisTemplate.opsForHash().get(getSeatIndexKey(flightId), String.valueOf(seatId));
-        if (indexObj == null) {
-            // Maybe expired or not initialized. Sync.
-            syncSeatMapToRedis(flightId);
-            indexObj = redisTemplate.opsForHash().get(getSeatIndexKey(flightId), String.valueOf(seatId));
-            if (indexObj == null) return;
+        try {
+            Object indexObj = redisTemplate.opsForHash().get(getSeatIndexKey(flightId), String.valueOf(seatId));
+            if (indexObj == null) {
+                // Maybe expired or not initialized. Sync.
+                syncSeatMapToRedis(flightId);
+                indexObj = redisTemplate.opsForHash().get(getSeatIndexKey(flightId), String.valueOf(seatId));
+                if (indexObj == null) return;
+            }
+            long index = Long.parseLong((String) indexObj);
+            boolean occupied = status != 1;
+            redisTemplate.opsForValue().setBit(getBitmapKey(flightId), index, occupied);
+        } catch (Exception e) {
+            log.warn("Redis update failed", e);
         }
-        long index = Long.parseLong((String)indexObj);
-        boolean occupied = status != 1;
-        redisTemplate.opsForValue().setBit(getBitmapKey(flightId), index, occupied);
     }
 }

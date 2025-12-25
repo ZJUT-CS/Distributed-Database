@@ -195,12 +195,13 @@ stateDiagram-v2
 **Step 2: 提交下单 (Booking)**
 - **API**: `POST /api/v1/orders`
 - **Payload 构造**:
-  - 将所有航段的 `flightNo` 按顺序放入 `flightNos` 数组。
+  - 将所有航段的 `flightId` 按顺序放入 `flightIds` 数组（推荐）。
+  - `flightNo` 仅用于展示或查询入口兼容；当作为查询条件时必须能唯一解析，否则后端会返回 400 并提示改用 `flightId`。
   - 示例:
     ```json
     {
       "userId": 1001,
-      "flightNos": ["MU5588", "CA1818"], // 核心：传递多段航班号
+      "flightIds": ["200000000000000001", "200000000000000002"], // 核心：传递多段航班ID（雪花ID，前端用 string 承载）
       "cabinType": "ECONOMY",
       "ticketNum": 1,
       "passengerName": "Alice",
@@ -251,19 +252,20 @@ stateDiagram-v2
 
 #### 📦 订单 (Orders)
 - **创建订单 (支持单程/联程)**: `POST /api/v1/orders`
-  - **支持多航段**：通过 `flightNos` 数组传递多个航班号。
+  - **支持多航段**：通过 `flightIds` 数组传递多个航班ID（推荐）。
   - Body:
     ```json
     {
       "userId": 1001,
-      "flightNos": ["MU1234", "CA5678"], // 联程时传多个，单程传一个
+      "flightIds": ["200000000000000001", "200000000000000002"], // 联程时传多个，单程传一个
       "cabinType": "ECONOMY",
       "passengerName": "John Doe",
       "contactPhone": "13800138000"
     }
     ```
 - **查询订单**: `GET /api/v1/orders`
-  - Params: `userId`, `orderNo`, `orderStatus`, `createTimeStart`, `createTimeEnd`, `flightNo`, `cabinType`, `page`(默认1), `size`(默认20)
+  - Params: `userId`, `orderNo`, `orderStatus`, `createTimeStart`, `createTimeEnd`, `flightId`, `flightNo`, `cabinType`, `page`(默认1), `size`(默认20)
+  - 说明：`flightNo` 仅作为兼容查询条件，必须能唯一解析为 `flightId`，否则返回 400。
   - Response: `PageResult<OrderSearchResponse>`
 - **订单选座**: `PUT /api/v1/orders/{orderId}/seat`
   - Path: `orderId`

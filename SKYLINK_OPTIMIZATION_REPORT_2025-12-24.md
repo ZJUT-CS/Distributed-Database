@@ -4,6 +4,27 @@
 
 ---
 
+## 增量更新内容（2025-12-25）
+
+### 订单链路锚点收口：`flightId` 取代 `flightNo`
+
+- 目标：前端页面/联程组合/改签入口不再使用 `flightNo` 或时间戳作为 `id/key/路由锚点`，避免与后端“`flightNo` 必须唯一解析”策略冲突。
+- 约定：雪花 ID 在前端一律以 **string** 承载与传输。
+
+### 前端修改
+
+| 文件 | 修改内容 |
+|------|----------|
+| `src/features/flight/api/search.ts` | 联程 `id` 仅由各段 `flightId` 拼接；缺失 `flightId` 的方案直接过滤 |
+| `src/pages/Booking/ChangeFlight.tsx` | 改签页/联程结果不再用 `flightNo`/`Date.now()` 兜底生成 `id`；缺失 `flightId` 直接不可办理或过滤 |
+| `src/features/booking/api/cabin.ts` | `getAvailableCabins` 支持 `flightId` 以 string 传参，兼容雪花 ID |
+
+### 验证
+
+- 前端构建：`npm run build`（`tsc && vite build`）通过。
+
+---
+
 ## 当前状态总结
 
 ### ✅ 已完成功能

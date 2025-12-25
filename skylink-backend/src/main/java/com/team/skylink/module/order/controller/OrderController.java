@@ -37,12 +37,13 @@ public class OrderController {
             @RequestParam(required = false) Integer orderStatus,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createTimeStart,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createTimeEnd,
+            @RequestParam(required = false) Long flightId,
             @RequestParam(required = false) String flightNo,
             @RequestParam(required = false) String cabinType,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return orderService.search(userId, orderNo, orderStatus, createTimeStart, createTimeEnd, flightNo, cabinType, page, size);
+        return orderService.search(userId, orderNo, orderStatus, createTimeStart, createTimeEnd, flightId, flightNo, cabinType, page, size);
     }
 
     @GetMapping("/my")

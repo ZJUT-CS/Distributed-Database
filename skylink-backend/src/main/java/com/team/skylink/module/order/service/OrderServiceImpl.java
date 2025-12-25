@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team.skylink.common.Result;
 import com.team.skylink.common.PageResult;
+import com.team.skylink.common.exception.InventoryShortageException;
 import com.team.skylink.module.aircraft.entity.AircraftCabinConfig;
 import com.team.skylink.module.aircraft.mapper.AircraftCabinConfigMapper;
 import com.team.skylink.module.user.entity.User;
@@ -30,7 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -57,8 +60,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Result<PageResult<OrderSearchResponse>> search(Long userId, Long orderNo, Integer orderStatus,
-            LocalDateTime createTimeStart, LocalDateTime createTimeEnd, String flightNo, String cabinType, int page,
-            int size) {
+            LocalDateTime createTimeStart, LocalDateTime createTimeEnd, Long flightId, String flightNo, String cabinType,
+            int page, int size) {
         QueryWrapper<Orders> qw = new QueryWrapper<>();
         if (userId != null)
             qw.eq("user_id", userId);
@@ -77,17 +80,29 @@ public class OrderServiceImpl implements OrderService {
             qw.le("order_time", createTimeEnd);
         }
 
-        if (flightNo != null && !flightNo.isEmpty()) {
-            // flight_no 可能在脏数据/测试数据下出现重复，selectOne 会抛 TooManyResultsException
-            Flight f = flightMapper.selectOne(new QueryWrapper<Flight>()
-                    .eq("flight_no", flightNo)
+        if (flightId != null) {
+            qw.eq("flight_id", flightId);
+        } else if (flightNo != null && !flightNo.isEmpty()) {
+            // flight_no 非唯一，只允许“唯一解析”；避免使用“取最新 flight_id”导致的错绑
+            String normalizedFlightNo = flightNo.trim();
+            if (normalizedFlightNo.isEmpty()) {
+                return Result.fail(400, "flightNo is invalid");
+            }
+
+            // LIMIT 2：既能判断是否存在/是否唯一，也避免全表扫
+            List<Flight> matches = flightMapper.selectList(new QueryWrapper<Flight>()
+                    .select("flight_id")
+                    .eq("flight_no", normalizedFlightNo)
                     .orderByDesc("flight_id")
-                    .last("LIMIT 1"));
-            if (f != null) {
-                qw.eq("flight_id", f.getFlightId());
-            } else {
+                    .last("LIMIT 2"));
+
+            if (matches == null || matches.isEmpty()) {
                 return Result.ok(new PageResult<>(0, new ArrayList<>()));
             }
+            if (matches.size() > 1) {
+                return Result.fail(400, "flightNo is not unique, please use flightId");
+            }
+            qw.eq("flight_id", matches.get(0).getFlightId());
         }
 
         Long total = orderMapper.selectCount(qw);
@@ -132,26 +147,18 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<OrderSearchResponse> create(CreateOrderRequest req) {
-        List<String> flightNos = req.getFlightNos();
-        if (flightNos == null || flightNos.isEmpty()) {
-            flightNos = new ArrayList<>();
-            if (req.getFlightNo() != null) {
-                // 兼容前端传来的组合航班号 (e.g. "SK3453+ca10080")
-                if (req.getFlightNo().contains("+")) {
-                    String[] parts = req.getFlightNo().split("\\+");
-                    for (String p : parts) {
-                        if (!p.isBlank()) {
-                            flightNos.add(p.trim());
-                        }
-                    }
-                } else {
-                    flightNos.add(req.getFlightNo());
-                }
+        Map<Long, Flight> flightCache = new HashMap<>();
+        // 优先解析 flightIds（唯一标识）
+        List<Long> flightIds = req.getFlightIds();
+        if (flightIds == null || flightIds.isEmpty()) {
+            flightIds = new ArrayList<>();
+            if (req.getFlightId() != null) {
+                flightIds.add(req.getFlightId());
             }
         }
 
-        if (flightNos.isEmpty()) {
-            return Result.fail(400, "flightNo is required");
+        if (flightIds == null || flightIds.isEmpty()) {
+            return Result.fail(400, "flightId or flightIds is required");
         }
 
         Long parentOrderId = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
@@ -162,7 +169,7 @@ public class OrderServiceImpl implements OrderService {
              Long count = orderMapper.selectCount(new QueryWrapper<Orders>().eq("user_id", req.getUserId()));
              isNewUser = (count != null && count == 0);
         }
-        boolean isInterline = flightNos.size() > 1;
+        boolean isInterline = flightIds.size() > 1;
         
         BigDecimal totalAmountAll = BigDecimal.ZERO;
         List<Orders> ordersToInsert = new ArrayList<>();
@@ -179,16 +186,12 @@ public class OrderServiceImpl implements OrderService {
             passengers = null;
         }
 
-        for (int i = 0; i < flightNos.size(); i++) {
-            String fNo = flightNos.get(i);
-            // 1. 查航班
-            // flight_no 可能重复；用 LIMIT 1 避免 TooManyResultsException
-            Flight f = flightMapper.selectOne(new QueryWrapper<Flight>()
-                    .eq("flight_no", fNo)
-                    .orderByDesc("flight_id")
-                    .last("LIMIT 1"));
+        for (int i = 0; i < flightIds.size(); i++) {
+            Long fId = flightIds.get(i);
+            // 1. 查航班（flightId 唯一）
+            Flight f = fId != null ? flightCache.getOrDefault(fId, flightMapper.selectById(fId)) : null;
             if (f == null) {
-                return Result.fail(404, "找不到航班: " + fNo);
+                return Result.fail(404, "找不到航班: " + fId);
             }
             if (i == 0)
                 firstFlight = f;
@@ -218,7 +221,10 @@ public class OrderServiceImpl implements OrderService {
             }
 
             if (config == null) {
-                return Result.fail(404,                   "找不到舱位配置: " + fNo + " (机型:" + f.getModelId() + ", 舱位:" + req.getCabinType() + ")" + " (" + currentCabinType + ")");
+                return Result.fail(404,
+                    "找不到舱位配置: " + f.getFlightId() + " (" + f.getFlightNo() + ")" +
+                        " (机型:" + f.getModelId() + ", 舱位:" + req.getCabinType() + ")" +
+                        " (" + currentCabinType + ")");
 
                  }
 
@@ -228,7 +234,7 @@ public class OrderServiceImpl implements OrderService {
             // 4. 计算总价
             Route route = routeMapper.selectById(f.getRouteId());
             if (route == null)
-                return Result.fail(404, "找不到航线信息: " + fNo);
+                return Result.fail(404, "找不到航线信息: " + f.getFlightId());
             
             // New Price Strategy
             BigDecimal unitPrice = priceStrategyService.calculateSegmentPrice(f, route, config, isInterline);
@@ -239,14 +245,12 @@ public class OrderServiceImpl implements OrderService {
                 try {
                     // 修复：传入 userId 而不是 orderId
                     seatId = seatService.lockRandomSeat(f.getFlightId(), config.getConfigId(), req.getUserId());
+                } catch (InventoryShortageException e) {
+                    // 透传：由 GlobalExceptionHandler 转成 409
+                    throw e;
                 } catch (Exception e) {
-                    if (e.getMessage() != null && e.getMessage().contains("InventoryShortage")) {
-                        throw new RuntimeException("抱歉，该航班座位已售罄");
-                    }
-                    if (e.getMessage() != null && e.getMessage().contains("no available seat")) {
-                        throw new RuntimeException("抱歉，该航班座位已售罄");
-                    }
-                    throw new RuntimeException("您选择的座位刚刚被抢走了，请重新选择");
+                    // 保持与历史行为一致：锁座失败应视为库存/并发问题（409），而不是 500
+                    throw new InventoryShortageException("您选择的座位刚刚被抢走了，请重新选择");
                 }
 
                 BigDecimal totalAmount = unitPrice;
@@ -262,7 +266,7 @@ public class OrderServiceImpl implements OrderService {
                 o.setUserId(req.getUserId());
                 o.setFlightId(f.getFlightId());
                 o.setCabinId(config.getConfigId());
-                o.setOrderStatus(1); // 1=Pending Payment (无需审核)
+                o.setOrderStatus(0); // 0=Pending Audit
                 o.setTicketNum(1);
                 o.setTotalAmount(totalAmount);
 
@@ -371,41 +375,78 @@ public class OrderServiceImpl implements OrderService {
             return Result.fail(404, "订单不存在");
         }
 
-        // 移除针对状态0(待审核)的逻辑，仅处理售后申请(如状态4)
-        if (order.getOrderStatus() != 4) {
+        Integer currentStatus = order.getOrderStatus();
+        if (currentStatus == null) {
             return Result.fail(400, "当前订单状态不需要审核");
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        // 4=退票申请中 -> 5=已退款(Pass) OR 2=已确认/拒绝退票(Reject)
-        int newStatus = pass ? 5 : 2;
+        // 0=待审核（管理员审核下单） -> 1=待支付(Pass) OR 3=已拒绝(Reject)
+        if (currentStatus == 0) {
+            int newStatus = pass ? 1 : 3;
 
-        if (order.getParentOrderId() != null) {
-            if (pass) {
-                // 如果是退票通过，需要释放座位
-                List<Orders> siblings = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
-                        .eq(Orders::getParentOrderId, order.getParentOrderId()));
-                for (Orders sib : siblings) {
-                    releaseSeatsForOrder(sib);
+            if (!pass) {
+                // 审核拒绝需释放座位（不阻断审核流程）
+                try {
+                    if (order.getParentOrderId() != null) {
+                        List<Orders> siblings = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
+                                .eq(Orders::getParentOrderId, order.getParentOrderId()));
+                        for (Orders sib : siblings) {
+                            releaseSeatsForOrder(sib);
+                        }
+                    } else {
+                        releaseSeatsForOrder(order);
+                    }
+                } catch (Exception e) {
+                    log.warn("审核拒绝释放座位失败: {}", e.getMessage());
                 }
             }
-            LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
-            updateWrapper.eq(Orders::getParentOrderId, order.getParentOrderId())
-                    .set(Orders::getOrderStatus, newStatus);
-            if (pass) {
-                updateWrapper.set(Orders::getRefundTime, now);
+
+            if (order.getParentOrderId() != null) {
+                LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+                updateWrapper.eq(Orders::getParentOrderId, order.getParentOrderId())
+                        .set(Orders::getOrderStatus, newStatus);
+                orderMapper.update(null, updateWrapper);
+            } else {
+                order.setOrderStatus(newStatus);
+                orderMapper.updateById(order);
             }
-            orderMapper.update(null, updateWrapper);
-        } else {
-            if (pass) {
-                releaseSeatsForOrder(order);
-                order.setRefundTime(now);
-            }
-            order.setOrderStatus(newStatus);
-            orderMapper.updateById(order);
+            return Result.ok(true);
         }
 
-        return Result.ok(true);
+        // 4=退票申请中（售后审核） -> 5=已退款(Pass) OR 2=已确认/拒绝退票(Reject)
+        if (currentStatus == 4) {
+            LocalDateTime now = LocalDateTime.now();
+            int newStatus = pass ? 5 : 2;
+
+            if (order.getParentOrderId() != null) {
+                if (pass) {
+                    // 如果是退票通过，需要释放座位
+                    List<Orders> siblings = orderMapper.selectList(Wrappers.<Orders>lambdaQuery()
+                            .eq(Orders::getParentOrderId, order.getParentOrderId()));
+                    for (Orders sib : siblings) {
+                        releaseSeatsForOrder(sib);
+                    }
+                }
+                LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
+                updateWrapper.eq(Orders::getParentOrderId, order.getParentOrderId())
+                        .set(Orders::getOrderStatus, newStatus);
+                if (pass) {
+                    updateWrapper.set(Orders::getRefundTime, now);
+                }
+                orderMapper.update(null, updateWrapper);
+            } else {
+                if (pass) {
+                    releaseSeatsForOrder(order);
+                    order.setRefundTime(now);
+                }
+                order.setOrderStatus(newStatus);
+                orderMapper.updateById(order);
+            }
+
+            return Result.ok(true);
+        }
+
+        return Result.fail(400, "当前订单状态不需要审核");
     }
 
     @Override

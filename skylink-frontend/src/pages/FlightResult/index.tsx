@@ -121,9 +121,9 @@ const FlightResultPage: React.FC = () => {
 
   const handleFlightSelect = async (flight: Flight) => {
     try {
-      // 🆕 获取该航班的可用舱位配置
+      // 🆕 获取该航班的可用舱位配置（使用数据库ID）
       const { getAvailableCabins } = await import('@/features/booking/api/cabin');
-      const availableCabins = await getAvailableCabins(flight.flightNumber);  // ✅ 使用航班号而非数字ID
+      const availableCabins = await getAvailableCabins(flight.id);  // ✅ 使用唯一数字ID
 
       // 根据用户选择的舱位等级选择对应的配置
       const cabinTypeMap: Record<string, string> = {

@@ -57,7 +57,7 @@ public class OrderManagementFlowTests {
         String body = """
                 {
                   "userId": 5000,
-                  "flightNo": "SK100",
+                                                                        "flightId": 2000,
                   "cabinType": "ECONOMY",
                   "ticketNum": 2,
                   "passengerName": "Alice",
@@ -94,7 +94,6 @@ public class OrderManagementFlowTests {
         String body = """
                 {
                   "userId": 5000,
-                  "flightNo": "",
                   "cabinType": "ECONOMY",
                   "ticketNum": 1,
                   "passengerName": "Alice"
@@ -119,7 +118,7 @@ public class OrderManagementFlowTests {
         String body = """
                 {
                   "userId": 5000,
-                  "flightNo": "NOPE",
+                                                                        "flightId": 999999,
                   "cabinType": "ECONOMY",
                   "ticketNum": 1,
                   "passengerName": "Alice"
@@ -144,7 +143,7 @@ public class OrderManagementFlowTests {
         String body = """
                 {
                   "userId": 5000,
-                  "flightNo": "SK100",
+                                                                        "flightId": 2000,
                   "cabinType": "ECONOMY",
                   "ticketNum": 6,
                   "passengerName": "Alice"
@@ -326,7 +325,7 @@ public class OrderManagementFlowTests {
         String body = """
                 {
                   "userId": 5000,
-                  "flightNo": "SK100",
+                                                                        "flightId": 2000,
                   "cabinType": "ECONOMY",
                   "ticketNum": 1,
                   "passengerName": "Alice"
@@ -360,7 +359,7 @@ public class OrderManagementFlowTests {
         String body = """
                 {
                   "userId": 5000,
-                  "flightNo": "SK100",
+                                                                        "flightId": 2000,
                   "cabinType": "ECONOMY",
                   "ticketNum": 1,
                   "passengerName": "Alice"

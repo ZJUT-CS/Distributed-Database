@@ -48,7 +48,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
 
     @Override
     public Result<PageResult<AdminOrderController.AdminOrderItem>> list(
-            Integer page, Integer size, Long orderNo, Long userId, Integer orderStatus, String flightNo) {
+            Integer page, Integer size, Long orderNo, Long userId, Integer orderStatus, Long flightId, String flightNo) {
         int p = page != null && page > 0 ? page : 1;
         int s = size != null && size > 0 ? Math.min(size, 100) : 10;
         int offset = (p - 1) * s;
@@ -58,15 +58,28 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         if (userId != null) countQw.eq("user_id", userId);
         if (orderStatus != null) countQw.eq("order_status", orderStatus);
 
-        Long flightId = null;
-        if (flightNo != null && !flightNo.isBlank()) {
-            Flight f = flightMapper.selectOne(new QueryWrapper<Flight>()
-                    .eq("flight_no", flightNo.trim())
+        Long resolvedFlightId = flightId;
+        if (resolvedFlightId == null && flightNo != null && !flightNo.isBlank()) {
+            String normalizedFlightNo = flightNo.trim();
+            if (normalizedFlightNo.isEmpty()) {
+                return Result.fail(400, "flightNo is invalid");
+            }
+
+            List<Flight> flights = flightMapper.selectList(new QueryWrapper<Flight>()
+                    .select("flight_id")
+                    .eq("flight_no", normalizedFlightNo)
                     .orderByDesc("flight_id")
-                    .last("LIMIT 1"));
-            if (f == null) return Result.ok(new PageResult<>(0, new ArrayList<>()));
-            flightId = f.getFlightId();
-            countQw.eq("flight_id", flightId);
+                    .last("LIMIT 2"));
+            if (flights.isEmpty()) {
+                return Result.ok(new PageResult<>(0, new ArrayList<>()));
+            }
+            if (flights.size() > 1) {
+                return Result.fail(400, "flightNo is not unique, please use flightId");
+            }
+            resolvedFlightId = flights.get(0).getFlightId();
+        }
+        if (resolvedFlightId != null) {
+            countQw.eq("flight_id", resolvedFlightId);
         }
 
         Long total = orderMapper.selectCount(countQw);
@@ -75,7 +88,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         if (orderNo != null) listQw.eq("order_id", orderNo);
         if (userId != null) listQw.eq("user_id", userId);
         if (orderStatus != null) listQw.eq("order_status", orderStatus);
-        if (flightId != null) listQw.eq("flight_id", flightId);
+        if (resolvedFlightId != null) listQw.eq("flight_id", resolvedFlightId);
 
         listQw.orderByDesc("order_time");
         listQw.last("limit " + offset + "," + s);
@@ -200,10 +213,15 @@ public class AdminOrderServiceImpl implements AdminOrderService {
 
     private void releaseSeatsForOrder(Orders o) {
         if (o == null) return;
-        if (o.getSeatId() != null) {
-            seatService.releaseSeat(o.getSeatId());
-        } else if (o.getOrderId() != null) {
-            seatService.releaseSeats(o.getOrderId());
+        try {
+            if (o.getSeatId() != null) {
+                seatService.releaseSeat(o.getSeatId());
+            } else if (o.getOrderId() != null) {
+                seatService.releaseSeats(o.getOrderId());
+            }
+        } catch (Exception e) {
+            // 测试/降级场景（如 Redis 不可用）不应阻断管理端操作
+            // 这里保持 best-effort：释放失败仍继续走状态流转
         }
     }
 }

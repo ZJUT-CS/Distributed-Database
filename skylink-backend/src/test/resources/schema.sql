@@ -35,8 +35,11 @@ CREATE TABLE flights (
   status INT,
   create_time TIMESTAMP,
   update_time TIMESTAMP,
-  lowest_price DECIMAL(12,2)
+  lowest_price DECIMAL(12,2),
+  CONSTRAINT uk_flight_no_departure_time UNIQUE (flight_no, departure_time)
 );
+
+CREATE INDEX idx_flight_no_id ON flights (flight_no, flight_id);
 
 CREATE TABLE aircraft_cabin_configs (
   config_id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -74,6 +77,7 @@ CREATE TABLE seat (
   update_time TIMESTAMP,
   version INT,
   order_id BIGINT,
+  user_id BIGINT,
   passenger_index INT
 );
 

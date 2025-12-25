@@ -33,7 +33,7 @@ const parsePassengersJson = (raw?: string | null): PassengerInfo[] | undefined =
 const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => ({
   id: String(o.orderNo),
   flight: {
-    id: o.flightNo || '',
+    id: String(o.flightId ?? '').trim(),
     airline: '',
     airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
     flightNumber: o.flightNo || '',
@@ -51,7 +51,7 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => ({
   },
   flights: [
     {
-      id: o.flightNo || '',
+      id: String(o.flightId ?? '').trim(),
       airline: '',
       airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
       flightNumber: o.flightNo || '',
@@ -214,6 +214,7 @@ const ChangeFlightPage: React.FC = () => {
         directFlights?: {
           total: number;
           data: Array<{
+            flightId?: string | number;
             flightNo: string;
             departurePlace: string;
             destination: string;
@@ -228,6 +229,7 @@ const ChangeFlightPage: React.FC = () => {
         };
         interlineFlights?: Array<{
           segments: Array<{
+            flightId?: string | number;
             flightNo: string;
             departurePlace: string;
             destination: string;
@@ -252,49 +254,63 @@ const ChangeFlightPage: React.FC = () => {
 
       // 处理直飞航班
       const directFlights = data?.directFlights?.data ?? [];
-      const mappedDirect: Flight[] = directFlights.map((r) => ({
-        id: r.flightNo || `${r.departurePlace}-${r.destination}-${r.departureTime}`,
-        airline: r.airlineCompany || '',
-        airlineCode: (r.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
-        flightNumber: r.flightNo || '',
-        cabinType: r.cabinType,
-        origin: r.departurePlace,
-        destination: r.destination,
-        departureTime: r.departureTime,
-        arrivalTime: r.arrivalTime,
-        price: Number(r.price ?? 0),
-        remainingSeats: typeof r.remainingSeats === 'number' ? r.remainingSeats : undefined,
-        duration: r.duration || '',
-        stops: 0,
-        baggageWeight: 23,
-        amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
-      }));
+      const mappedDirect: Flight[] = directFlights
+        .map((r) => {
+          const id = String(r.flightId ?? '').trim();
+          if (!id) return null;
+          return {
+            id,
+            airline: r.airlineCompany || '',
+            airlineCode: (r.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
+            flightNumber: r.flightNo || '',
+            cabinType: r.cabinType,
+            origin: r.departurePlace,
+            destination: r.destination,
+            departureTime: r.departureTime,
+            arrivalTime: r.arrivalTime,
+            price: Number(r.price ?? 0),
+            remainingSeats: typeof r.remainingSeats === 'number' ? r.remainingSeats : undefined,
+            duration: r.duration || '',
+            stops: 0,
+            baggageWeight: 23,
+            amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+          } satisfies Flight;
+        })
+        .filter(Boolean) as Flight[];
 
       // 处理联程航班
       const interlineFlights = data?.interlineFlights ?? [];
-      const mappedInterline: Flight[] = interlineFlights.map((it) => {
-        const segs = it.segments ?? [];
-        const first = segs[0];
-        const last = segs[segs.length - 1];
-        const id = segs.map((s) => s.flightNo).filter(Boolean).join('+') || `interline-${Date.now()}`;
-        return {
-          id,
-          airline: '',
-          airlineCode: (first?.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
-          flightNumber: id,
-          cabinType: undefined,
-          origin: first?.departurePlace || o,
-          destination: last?.destination || d,
-          departureTime: first?.departureTime || '',
-          arrivalTime: last?.arrivalTime || '',
-          price: Number(it.totalPrice ?? 0),
-          remainingSeats: undefined,
-          duration: '',
-          stops: Math.max(0, segs.length - 1),
-          baggageWeight: 23,
-          amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
-        };
-      });
+      const mappedInterline: Flight[] = interlineFlights
+        .map((it) => {
+          const segs = it.segments ?? [];
+          if (segs.length === 0) return null;
+
+          const flightIds = segs.map((s) => String(s.flightId ?? '').trim()).filter(Boolean);
+          if (flightIds.length !== segs.length) return null;
+
+          const first = segs[0];
+          const last = segs[segs.length - 1];
+          const id = flightIds.join('+');
+          return {
+            id,
+            airline: '',
+            airlineCode: (first?.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
+            flightNumber: segs.map((s) => s.flightNo).filter(Boolean).join('+') || 'INTERLINE',
+            isInterline: true,
+            cabinType: undefined,
+            origin: first?.departurePlace || o,
+            destination: last?.destination || d,
+            departureTime: first?.departureTime || '',
+            arrivalTime: last?.arrivalTime || '',
+            price: Number(it.totalPrice ?? 0),
+            remainingSeats: undefined,
+            duration: '',
+            stops: Math.max(0, segs.length - 1),
+            baggageWeight: 23,
+            amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+          } satisfies Flight;
+        })
+        .filter(Boolean) as Flight[];
 
       const allFlights = [...mappedDirect, ...mappedInterline];
       const valid = allFlights.filter((f) => f.flightNumber && f.departureTime);
@@ -368,7 +384,8 @@ const ChangeFlightPage: React.FC = () => {
         orderNo: booking.id,
         operType: 2,
         remark: remarkParts.join(' '),
-        newFlightNo: selectedFlight.flightNumber,
+        newFlightId: selectedFlight.isInterline ? undefined : selectedFlight.id,
+        newFlightIds: selectedFlight.isInterline ? selectedFlight.id.split('+').filter(Boolean) : undefined,
         newCabinType: String(chosenCabin),
       });
 
@@ -388,12 +405,12 @@ const ChangeFlightPage: React.FC = () => {
     );
   }
 
-  if (!booking || !oldFlight) {
+  if (!booking || !oldFlight || !String(oldFlight.id ?? '').trim()) {
     return (
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-10">
         <div className="rounded-3xl border border-red-100 bg-red-50 p-8">
           <div className="text-lg font-extrabold text-red-700">无法办理改签</div>
-          <div className="text-sm text-red-700/80 mt-1">{bookingError || '缺少订单信息'}</div>
+          <div className="text-sm text-red-700/80 mt-1">{bookingError || '缺少 flightId（链路锚点）'}</div>
           <button
             type="button"
             onClick={() => navigate('/my-bookings')}

@@ -120,7 +120,7 @@ const RefundsHelpPage: React.FC = () => {
       setError(null);
       await updateRefundChange(editingRecord.id, {
         remark: editReason,
-        newFlightNo: editingRecord.type === '改签' ? editNewFlight.trim() : undefined,
+        newFlightId: editingRecord.type === '改签' ? editNewFlight.trim() : undefined,
       });
 
       setIsModalOpen(false);

@@ -24,20 +24,20 @@ public class CabinController {
 
     /**
      * 查询指定航班的可用舱位配置
-     * GET /api/v1/cabins/available?flightNo=CA4479
+     * GET /api/v1/cabins/available?flightId=360441346
      * 
-     * @param flightNo 航班号（如CA4479）
+     * @param flightId 航班ID（数据库主键）
      * @return 可用舱位列表
      */
     @GetMapping("/available")
-    public Result<List<AvailableCabinDto>> getAvailableCabins(@RequestParam String flightNo) {
-        log.info("查询可用舱位 flightNo={}", flightNo);
+    public Result<List<AvailableCabinDto>> getAvailableCabins(@RequestParam Long flightId) {
+        log.info("查询可用舱位 flightId={}", flightId);
 
-        if (flightNo == null || flightNo.trim().isEmpty()) {
-            return Result.fail(400, "缺少航班号参数");
+        if (flightId == null) {
+            return Result.fail(400, "缺少航班ID参数");
         }
 
-        List<AvailableCabinDto> cabins = cabinService.getAvailableCabinsByFlightNo(flightNo.trim());
+        List<AvailableCabinDto> cabins = cabinService.getAvailableCabins(flightId);
         return Result.ok(cabins);
     }
 }

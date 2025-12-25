@@ -49,7 +49,7 @@ CREATE TABLE `aircraft_models` (
 
 CREATE TABLE `flights` (
   `flight_id` bigint NOT NULL COMMENT '航班ID，主键(雪花算法生成)',
-  `flight_no` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '航班班次（如CA1234，注意：每天可复用，不能设唯一键）',
+  `flight_no` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '航班班次（如CA1234，注意：每天可复用，不能仅对 flight_no 设唯一键）',
   `model_id` bigint NOT NULL COMMENT '机型ID (关联 aircraft_models，用于确定总座位和布局)',
   `route_id` bigint NOT NULL COMMENT '航线ID (关联 routes，用于确定基准票价和预计时长)',
   `departure_time` datetime NOT NULL COMMENT '计划起飞时间',
@@ -66,7 +66,9 @@ CREATE TABLE `flights` (
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `lowest_price` decimal(10,2) DEFAULT NULL COMMENT '最低票价(冗余字段，用于列表展示)',
   PRIMARY KEY (`flight_id`),
+  UNIQUE KEY `uk_flight_no_departure_time` (`flight_no`,`departure_time`),
   KEY `idx_flight_no` (`flight_no`),
+  KEY `idx_flight_no_id` (`flight_no`,`flight_id`),
   KEY `idx_route_date` (`departure_city`,`arrival_city`,`departure_time`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='航班计划/实例表';
@@ -140,6 +142,8 @@ CREATE TABLE `refund_change_record` (
   `remark` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '操作/审核备注',
   PRIMARY KEY (`record_id`),
   KEY `idx_order_id` (`order_id`),
+  KEY `idx_old_flight_id` (`old_flight_id`),
+  KEY `idx_new_flight_id` (`new_flight_id`),
   KEY `idx_audit_status` (`audit_status`) COMMENT '审核状态筛选索引'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='退票/改签操作记录表';
 

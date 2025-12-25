@@ -58,6 +58,9 @@ class OrderServiceImplTest {
     @Mock
     private SeatService seatService;
 
+    @Mock
+    private PriceStrategyService priceStrategyService;
+
     @InjectMocks
     private OrderServiceImpl orderService;
 
@@ -66,6 +69,12 @@ class OrderServiceImplTest {
         // Init MyBatis Plus TableInfo for LambdaWrapper
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), Orders.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), AircraftCabinConfig.class);
+
+        // Default pricing stubs used by OrderServiceImpl.create()
+        lenient().when(priceStrategyService.calculateSegmentPrice(any(Flight.class), any(Route.class), any(AircraftCabinConfig.class), anyBoolean()))
+            .thenReturn(new BigDecimal("100"));
+        lenient().when(priceStrategyService.applyUserDiscount(any(BigDecimal.class), anyBoolean()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     /**
@@ -84,7 +93,7 @@ class OrderServiceImplTest {
         req.setCabinType("ECONOMY");
         req.setPassengerName("Test User");
         req.setContactEmail("test@example.com");
-        req.setFlightNos(Arrays.asList("FL001", "FL002"));
+        req.setFlightIds(Arrays.asList(1L, 2L));
 
         // Mock Flights
         Flight f1 = new Flight();
@@ -103,8 +112,8 @@ class OrderServiceImplTest {
         f2.setDepartureCity("Shanghai");
         f2.setArrivalCity("New York");
 
-        // Use sequential return for repeated calls in loop
-        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(f1, f2);
+        when(flightMapper.selectById(1L)).thenReturn(f1);
+        when(flightMapper.selectById(2L)).thenReturn(f2);
 
         // Mock Config
         AircraftCabinConfig config = new AircraftCabinConfig();
@@ -158,12 +167,13 @@ class OrderServiceImplTest {
         req.setTicketNum(1);
         req.setCabinType("ECONOMY");
         req.setPassengerName("Test User");
-        req.setFlightNos(Arrays.asList("FL001", "FL002"));
+        req.setFlightIds(Arrays.asList(1L, 2L));
 
         Flight f1 = new Flight(); f1.setFlightId(1L); f1.setFlightNo("FL001"); f1.setModelId(10L); f1.setRouteId(100L);
         Flight f2 = new Flight(); f2.setFlightId(2L); f2.setFlightNo("FL002"); f2.setModelId(10L); f2.setRouteId(101L);
         
-        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(f1, f2);
+        when(flightMapper.selectById(1L)).thenReturn(f1);
+        when(flightMapper.selectById(2L)).thenReturn(f2);
 
         AircraftCabinConfig config = new AircraftCabinConfig(); 
         config.setConfigId(50L); 
@@ -240,7 +250,7 @@ class OrderServiceImplTest {
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
 
         CreateOrderRequest req = new CreateOrderRequest();
-        req.setFlightNo("FL999");
+        req.setFlightId(99L);
         req.setTicketNum(1);
         req.setUserId(1L);
         req.setCabinType("ECONOMY");
@@ -254,7 +264,7 @@ class OrderServiceImplTest {
         Route r = new Route(); r.setBasePrice(BigDecimal.TEN);
 
         // Relaxed stubbing for concurrency
-        lenient().when(flightMapper.selectOne(any())).thenReturn(f);
+        lenient().when(flightMapper.selectById(99L)).thenReturn(f);
         lenient().when(configMapper.selectOne(any())).thenReturn(config);
         lenient().when(routeMapper.selectById(any())).thenReturn(r);
 
@@ -291,11 +301,24 @@ class OrderServiceImplTest {
 
     @Test
     void testSearch_flightNoNotFound_returnsEmptyList() {
-        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(null);
-        Result<PageResult<OrderSearchResponse>> result = orderService.search(null, null, null, null, null, "NOPE", null, 1, 20);
+        when(flightMapper.selectList(any(QueryWrapper.class))).thenReturn(List.of());
+        Result<PageResult<OrderSearchResponse>> result = orderService.search(null, null, null, null, null, null, "NOPE", null, 1, 20);
         assertEquals(0, result.getCode());
         assertNotNull(result.getData());
         assertTrue(result.getData().getData().isEmpty());
+    }
+
+    @Test
+    void testSearch_flightNoAmbiguous_returns400() {
+        Flight f1 = new Flight();
+        f1.setFlightId(1L);
+        Flight f2 = new Flight();
+        f2.setFlightId(2L);
+
+        when(flightMapper.selectList(any(QueryWrapper.class))).thenReturn(List.of(f1, f2));
+
+        Result<PageResult<OrderSearchResponse>> result = orderService.search(null, null, null, null, null, null, "SK100", null, 1, 20);
+        assertEquals(400, result.getCode());
     }
 
     @Test
@@ -322,7 +345,7 @@ class OrderServiceImplTest {
         u.setRealName("Real Name");
         when(userMapper.selectById(10L)).thenReturn(u);
 
-        Result<PageResult<OrderSearchResponse>> result = orderService.search(10L, null, null, null, null, null, null, 1, 20);
+        Result<PageResult<OrderSearchResponse>> result = orderService.search(10L, null, null, null, null, null, null, null, 1, 20);
         assertEquals(0, result.getCode());
         assertEquals(1, result.getData().getData().size());
         assertEquals("Real Name", result.getData().getData().get(0).getPassengerName());
@@ -330,7 +353,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void testCreate_missingFlightNo_returns400() {
+    void testCreate_missingFlightId_returns400() {
         CreateOrderRequest req = new CreateOrderRequest();
         req.setUserId(1L);
         req.setTicketNum(1);
@@ -348,9 +371,9 @@ class OrderServiceImplTest {
         req.setTicketNum(1);
         req.setCabinType("ECONOMY");
         req.setPassengerName("P");
-        req.setFlightNo("NOPE");
+        req.setFlightId(999L);
 
-        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(null);
+        when(flightMapper.selectById(999L)).thenReturn(null);
         Result<OrderSearchResponse> result = orderService.create(req);
         assertEquals(404, result.getCode());
     }
@@ -362,14 +385,14 @@ class OrderServiceImplTest {
         req.setTicketNum(1);
         req.setCabinType("ECONOMY");
         req.setPassengerName("P");
-        req.setFlightNo("FL001");
+        req.setFlightId(1L);
 
         Flight f = new Flight();
         f.setFlightId(1L);
         f.setFlightNo("FL001");
         f.setModelId(10L);
         f.setRouteId(100L);
-        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(f);
+        when(flightMapper.selectById(1L)).thenReturn(f);
         when(configMapper.selectOne(any())).thenReturn(null);
 
         Result<OrderSearchResponse> result = orderService.create(req);
@@ -383,14 +406,14 @@ class OrderServiceImplTest {
         req.setTicketNum(1);
         req.setCabinType("ECONOMY");
         req.setPassengerName("P");
-        req.setFlightNo("FL001");
+        req.setFlightId(1L);
 
         Flight f = new Flight();
         f.setFlightId(1L);
         f.setFlightNo("FL001");
         f.setModelId(10L);
         f.setRouteId(100L);
-        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(f);
+        when(flightMapper.selectById(1L)).thenReturn(f);
 
         AircraftCabinConfig config = new AircraftCabinConfig();
         config.setConfigId(50L);
@@ -411,14 +434,14 @@ class OrderServiceImplTest {
         req.setTicketNum(2);
         req.setCabinType("ECONOMY");
         req.setPassengerName("P");
-        req.setFlightNo("FL001");
+        req.setFlightId(1L);
 
         Flight f = new Flight();
         f.setFlightId(1L);
         f.setFlightNo("FL001");
         f.setModelId(10L);
         f.setRouteId(100L);
-        when(flightMapper.selectOne(any(QueryWrapper.class))).thenReturn(f);
+        when(flightMapper.selectById(1L)).thenReturn(f);
 
         AircraftCabinConfig config = new AircraftCabinConfig();
         config.setConfigId(50L);
