@@ -238,7 +238,10 @@ public class FlightServiceImpl implements FlightService {
 
         List<AircraftCabinConfig> configs = configMap.getOrDefault(f.getModelId(), Collections.emptyList());
         if (StringUtils.hasText(cabinType)) {
-            configs = configs.stream().filter(c -> c.getCabinType().equals(cabinType)).collect(Collectors.toList());
+            String searchType = cabinType.toLowerCase();
+            configs = configs.stream()
+                    .filter(c -> c.getCabinType() != null && c.getCabinType().toLowerCase().contains(searchType))
+                    .collect(Collectors.toList());
         }
 
         if (configs.isEmpty())

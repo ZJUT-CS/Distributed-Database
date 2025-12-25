@@ -30,5 +30,9 @@ public class CreateOrderRequest {
     
     // For interline flights
     private java.util.List<String> flightNos;
+    
+    // For mixed cabin types in interline flights (Optional)
+    // If provided, must match the size of flightNos
+    private java.util.List<String> cabinTypes;
 }
 

@@ -194,14 +194,22 @@ public class OrderServiceImpl implements OrderService {
                 firstFlight = f;
 
             // 2. 查配置
+            String currentCabinType = req.getCabinType();
+            if (req.getCabinTypes() != null && i < req.getCabinTypes().size()) {
+                String c = req.getCabinTypes().get(i);
+                if (c != null && !c.isBlank()) {
+                    currentCabinType = c;
+                }
+            }
+
             AircraftCabinConfig config = configMapper.selectOne(Wrappers.<AircraftCabinConfig>lambdaQuery()
                     .eq(AircraftCabinConfig::getModelId, f.getModelId())
-                    .eq(AircraftCabinConfig::getCabinType, req.getCabinType())
+                    .eq(AircraftCabinConfig::getCabinType, currentCabinType)
                     .eq(AircraftCabinConfig::getCabinLayoutNo, 1) // 默认布局1
                     .last("LIMIT 1"));
 
             if (config == null) {
-                return Result.fail(404, "找不到舱位配置: " + fNo);
+                return Result.fail(404, "找不到舱位配置: " + fNo + " (" + currentCabinType + ")");
             }
 
             int ticketCount = req.getTicketNum() != null ? req.getTicketNum()
