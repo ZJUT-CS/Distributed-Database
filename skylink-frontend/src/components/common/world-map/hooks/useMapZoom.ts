@@ -26,27 +26,36 @@ export function useMapZoom({
 }: UseMapZoomParams) {
   const BUTTON_ZOOM_FACTOR = 1.1;
 
-  const zoomByFactor = (factor: number) => {
+  const zoomByFactorAt = (factor: number, px: number, py: number) => {
     if (!enableControls) return;
     stopInertia();
     const el = containerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    const px = rect.width / 2;
-    const py = rect.height / 2;
+
+    const anchorX = Math.min(rect.width, Math.max(0, px));
+    const anchorY = Math.min(rect.height, Math.max(0, py));
 
     const prevScale = scaleRef.current;
     const nextScale = clampScale(prevScale * factor);
     const prevOffset = offsetRef.current;
     const k = prevScale > 0 ? nextScale / prevScale : 1;
     const nextOffset = {
-      x: px - (px - prevOffset.x) * k,
-      y: py - (py - prevOffset.y) * k,
+      x: anchorX - (anchorX - prevOffset.x) * k,
+      y: anchorY - (anchorY - prevOffset.y) * k,
     };
     const clamped = clampOffset(nextOffset, nextScale);
     applyView(nextScale, clamped);
     onViewChange?.({ scale: nextScale, offset: clamped });
+  };
+
+  const zoomByFactor = (factor: number) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    zoomByFactorAt(factor, rect.width / 2, rect.height / 2);
   };
 
   const focusOnPoint = (pointX: number, pointY: number, targetScale?: number) => {
@@ -76,6 +85,7 @@ export function useMapZoom({
 
   const wheelAccRef = useRef<number>(0);
   const wheelRafRef = useRef<number | null>(null);
+  const wheelAnchorRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!enableControls) return;
@@ -84,6 +94,11 @@ export function useMapZoom({
 
     const onWheel = (ev: WheelEvent) => {
       ev.preventDefault();
+      const rect = el.getBoundingClientRect();
+      wheelAnchorRef.current = {
+        x: ev.clientX - rect.left,
+        y: ev.clientY - rect.top,
+      };
       const sensitivity = ev.ctrlKey ? 0.002 : 0.0012;
       wheelAccRef.current += ev.deltaY * sensitivity;
       if (wheelRafRef.current) return;
@@ -92,13 +107,14 @@ export function useMapZoom({
         const rawFactor = Math.exp(-wheelAccRef.current);
         wheelAccRef.current = 0;
         const factor = Math.min(1.6, Math.max(0.625, rawFactor));
-        zoomByFactor(factor);
+        const { x, y } = wheelAnchorRef.current;
+        zoomByFactorAt(factor, x, y);
       });
     };
 
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [containerRef, enableControls, zoomByFactor]);
+  }, [containerRef, enableControls]);
 
   return {
     zoomIn: () => zoomByFactor(BUTTON_ZOOM_FACTOR),

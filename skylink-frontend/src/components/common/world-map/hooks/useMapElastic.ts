@@ -7,10 +7,12 @@ export interface ElasticState {
 }
 
 export function useMapElastic() {
-  const SPRING_STIFFNESS = 0.12;
-  const SPRING_DAMPING = 0.82;
-  const HOVER_SPRING_STIFFNESS = 0.25;
+  // Softer rebound: lower stiffness + clamp max deformation.
+  const SPRING_STIFFNESS = 0.07;
+  const SPRING_DAMPING = 0.8;
+  const HOVER_SPRING_STIFFNESS = 0.2;
   const HOVER_SPRING_DAMPING = 0.85;
+  const MAX_DEFORMATION_PX = 18;
 
   const [elastic, setElastic] = useState<ElasticState>({
     deformationX: 0,
@@ -46,8 +48,8 @@ export function useMapElastic() {
     ev.current.dy *= SPRING_DAMPING;
     ev.current.dScale *= HOVER_SPRING_DAMPING;
 
-    const nextDx = e.current.deformationX + ev.current.dx;
-    const nextDy = e.current.deformationY + ev.current.dy;
+    const nextDx = Math.max(-MAX_DEFORMATION_PX, Math.min(MAX_DEFORMATION_PX, e.current.deformationX + ev.current.dx));
+    const nextDy = Math.max(-MAX_DEFORMATION_PX, Math.min(MAX_DEFORMATION_PX, e.current.deformationY + ev.current.dy));
     const nextScale = e.current.hoverScale + ev.current.dScale;
 
     e.current.deformationX = nextDx;

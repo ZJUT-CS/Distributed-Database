@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Eye, Download, XCircle, ShoppingCart, CheckSquare, Square, X } from 'lucide-react';
+import { Search, Eye, Download, XCircle, ShoppingCart, CheckSquare, Square, X, RefreshCw, History } from 'lucide-react';
 import { type AdminOrderItem } from '../../features/admin/api/orders';
 import {
   Pagination,
@@ -20,6 +20,9 @@ import {
 import EntityCell from '@/components/common/EntityCell';
 import { exportToCSV } from '@/utils/export';
 import { useAdminBookings, useCancelAdminBooking, useAuditAdminBooking } from '@/features/admin/hooks/useAdminBookings';
+import { listRefundChangeRequests } from '@/features/admin/api/refundChangeRequests';
+import { CHANGE_REQUEST_STATUS_MAP } from '@/features/admin';
+import type { RefundChangeRecord } from '@/features/user/types';
 
 const BookingsMgmt: React.FC = () => {
   const { confirm } = useConfirm();
@@ -36,6 +39,12 @@ const BookingsMgmt: React.FC = () => {
   // Drawer 状态
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderItem | null>(null);
+
+  // 变更历史 Drawer 状态
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<AdminOrderItem | null>(null);
+  const [historyRecords, setHistoryRecords] = useState<RefundChangeRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const parsedOrderNo = useMemo(() => {
     const s = String(searchTerm ?? '').trim();
@@ -110,6 +119,22 @@ const BookingsMgmt: React.FC = () => {
   const handleDownloadReceipt = (b: AdminOrderItem) => {
     setActiveActionId(null);
     toast.info('票据下载功能开发中，敬请期待');
+  };
+
+  const handleViewHistory = async (order: AdminOrderItem) => {
+    setSelectedHistoryOrder(order);
+    setHistoryDrawerOpen(true);
+    setActiveActionId(null);
+    setHistoryLoading(true);
+    try {
+      const records = await listRefundChangeRequests({ orderNo: order.orderNo });
+      setHistoryRecords(records);
+    } catch (e: any) {
+      toast.error(e?.message || '加载变更历史失败');
+      setHistoryRecords([]);
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   const handleBatchCancel = async () => {
@@ -254,6 +279,14 @@ const BookingsMgmt: React.FC = () => {
         }
         right={
           <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+            <button
+              onClick={() => refetch()}
+              disabled={isLoading}
+              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+              title="刷新"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
             <div className="flex bg-gray-100 p-1 rounded-lg">
               {[
                 { id: 'all', label: '全部' },
@@ -401,6 +434,12 @@ const BookingsMgmt: React.FC = () => {
                           className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                         >
                           <Download className="w-3.5 h-3.5 text-gray-500" /> 下载票据
+                        </button>
+                        <button
+                          onClick={() => handleViewHistory(b)}
+                          className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <History className="w-3.5 h-3.5 text-amber-500" /> 查看变更历史
                         </button>
                         <div className="h-px bg-gray-100 my-0"></div>
                         <button
@@ -557,6 +596,68 @@ const BookingsMgmt: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
+        )}
+      </AdminDrawer>
+
+      {/* 变更历史 Drawer */}
+      <AdminDrawer
+        open={historyDrawerOpen}
+        onClose={() => setHistoryDrawerOpen(false)}
+        title={`变更历史 - 订单 #${selectedHistoryOrder?.orderNo || ''}`}
+        subtitle={selectedHistoryOrder?.flightNo ? `航班 ${selectedHistoryOrder.flightNo}` : undefined}
+        size="lg"
+      >
+        {historyLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="w-6 h-6 text-indigo-500 animate-spin" />
+          </div>
+        ) : historyRecords.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <History className="w-12 h-12 text-gray-300 mb-4" />
+            <p className="text-gray-500 text-sm">暂无变更历史记录</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {historyRecords.map((record) => {
+              const statusKey = record.status === 'pending' ? 0 : record.status === 'approved' ? 1 : record.status === 'rejected' ? 2 : -1;
+              const statusInfo = CHANGE_REQUEST_STATUS_MAP[statusKey as 0 | 1 | 2] || { label: '未知', variant: 'neutral' };
+              return (
+                <div key={record.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <AdminBadge dot variant={statusInfo.variant}>
+                        {statusInfo.label}
+                      </AdminBadge>
+                      <span className="text-xs text-gray-500">
+                        {record.type}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {record.applyTime?.replace('T', ' ').slice(0, 16) || '-'}
+                    </span>
+                  </div>
+                  {record.oldFlight && (
+                    <div className="text-sm text-gray-700 mb-1">
+                      <span className="text-gray-500">原航班：</span>
+                      {record.oldFlight}
+                    </div>
+                  )}
+                  {record.newFlight && (
+                    <div className="text-sm text-gray-700 mb-1">
+                      <span className="text-gray-500">新航班：</span>
+                      {record.newFlight}
+                    </div>
+                  )}
+                  {record.remark && (
+                    <div className="text-sm text-gray-600 mt-2">
+                      <span className="text-gray-500">备注：</span>
+                      {record.remark}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </AdminDrawer>

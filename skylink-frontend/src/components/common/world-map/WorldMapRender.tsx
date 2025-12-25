@@ -2,8 +2,7 @@ import React from 'react';
 import type { MapPoint } from '@/features/flight';
 import WorldMapSvg from '../../../assets/images/Simplified_World_Map.svg?react';
 import { MAP_HEIGHT, MAP_WIDTH, VIEWBOX, project } from './geometry';
-import { ParticleSystem } from './ParticleSystem';
-import { useEffect, useRef, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { MapDefs } from './MapDefs';
 import { MapStyles } from './MapStyles';
 import { MapGrid } from './MapGrid';
@@ -42,7 +41,6 @@ export interface WorldMapRenderProps {
   onPointMouseEnter: (point: MapPoint, rect: DOMRect) => void;
   onPointMouseLeave: () => void;
   onPointDoubleClick?: (point: MapPoint, projected: { x: number; y: number }) => void;
-  canvasRef?: React.RefObject<HTMLCanvasElement>;
 }
 
 export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
@@ -60,10 +58,8 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
   onPointMouseEnter,
   onPointMouseLeave,
   onPointDoubleClick,
-  canvasRef,
 }) => {
   const svgRef = React.useRef<SVGSVGElement | null>(null);
-  const particleSystemRef = useRef<ParticleSystem | null>(null);
   const [viewport, setViewport] = React.useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
   React.useLayoutEffect(() => {
@@ -219,31 +215,6 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
     });
   }, [routes, points, isRouteVisible]);
 
-  useEffect(() => {
-    if (!canvasRef?.current) return;
-    const canvas = canvasRef.current;
-    const ps = new ParticleSystem();
-    ps.init(canvas);
-    particleSystemRef.current = ps;
-
-    if (visibleRoutes && visibleRoutes.length > 0) {
-      const pointsMap = new Map<string, { x: number; y: number }>();
-      visiblePoints.forEach(p => {
-        const { x, y } = project(p.lat, p.lng);
-        pointsMap.set(p.id, { x, y });
-      });
-      ps.setRoutes(visibleRoutes, project, pointsMap);
-      ps.spawnParticles();
-    }
-
-    ps.start();
-
-    return () => {
-      ps.destroy();
-      particleSystemRef.current = null;
-    };
-  }, [canvasRef, visibleRoutes, visiblePoints, project]);
-
   const normalModeRoutes = useMemo(() => {
     if (routes) return null;
     const hub = visiblePoints.find((p) => p.type === 'hub') || visiblePoints[0];
@@ -291,7 +262,7 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
         {heatPoints && heatPoints.length > 0 && <MapHeatPoints heatPoints={heatPoints} isDragging={isDragging} />}
 
         {visibleRoutes && visibleRoutes.length > 0 && (
-          <MapRoutes routes={visibleRoutes} points={visiblePoints} isDragging={isDragging} isDark={isDark} colors={colors} />
+          <MapRoutes routes={visibleRoutes} points={points} isDragging={isDragging} isDark={isDark} colors={colors} />
         )}
 
         {normalModeRoutes}

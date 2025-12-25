@@ -30,12 +30,6 @@ export function useMapDrag({
   });
 
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const pinchBaseRef = useRef<{
-    baseScale: number;
-    baseOffset: WorldMapOffset;
-    baseDistance: number;
-    baseCenter?: { x: number; y: number };
-  } | null>(null);
 
   const dragRef = useRef<{
     pointerId: number;
@@ -56,25 +50,8 @@ export function useMapDrag({
     el.setPointerCapture(e.pointerId);
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    if (pointersRef.current.size === 2) {
-      const arr = Array.from(pointersRef.current.values());
-      const dx = arr[0].x - arr[1].x;
-      const dy = arr[0].y - arr[1].y;
-
-      const rect = el.getBoundingClientRect();
-      const mx = (arr[0].x + arr[1].x) / 2;
-      const my = (arr[0].y + arr[1].y) / 2;
-      const baseCenter = {
-        x: mx - rect.left,
-        y: my - rect.top,
-      };
-
-      pinchBaseRef.current = {
-        baseScale: scaleRef.current,
-        baseOffset: offsetRef.current,
-        baseDistance: Math.max(1, Math.hypot(dx, dy)),
-        baseCenter,
-      };
+    // PC-only: ignore multi-touch / pinch gestures.
+    if (pointersRef.current.size > 1) {
       dragRef.current = null;
       setDragIndicator({ active: false, angle: 0, strength: 0 });
       setIsDragging(false);
@@ -102,36 +79,8 @@ export function useMapDrag({
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    if (pointersRef.current.size === 2) {
-      const base = pinchBaseRef.current;
-      if (!base) return;
-
-      const arr = Array.from(pointersRef.current.values());
-      const dx = arr[0].x - arr[1].x;
-      const dy = arr[0].y - arr[1].y;
-      const distance = Math.max(1, Math.hypot(dx, dy));
-      const ratio = distance / base.baseDistance;
-      const nextScale = Math.min(3, Math.max(0.5, base.baseScale * ratio));
-
-      const el = containerRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
-
-      const mx = (arr[0].x + arr[1].x) / 2;
-      const my = (arr[0].y + arr[1].y) / 2;
-      const px = mx - rect.left;
-      const py = my - rect.top;
-      const k = base.baseScale > 0 ? nextScale / base.baseScale : 1;
-
-      const nextOffset = {
-        x: px - (px - base.baseOffset.x) * k,
-        y: py - (py - base.baseOffset.y) * k,
-      };
-
-      applyView(nextScale, clampOffset(nextOffset, nextScale));
-      return;
-    }
+    // PC-only: ignore multi-touch / pinch gestures.
+    if (pointersRef.current.size > 1) return;
 
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
@@ -155,16 +104,12 @@ export function useMapDrag({
     const strength = Math.min(1, Math.hypot(dx, dy) / 24);
     setDragIndicator({ active: true, angle, strength });
 
-    triggerElastic(dx * 0.3, dy * 0.3);
+    triggerElastic(dx * 0.12, dy * 0.12);
   };
 
   const onPointerUpOrCancel = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!enableControls) return;
-    const wasPinching = pointersRef.current.size === 2;
     pointersRef.current.delete(e.pointerId);
-    if (pointersRef.current.size < 2) {
-      pinchBaseRef.current = null;
-    }
 
     const drag = dragRef.current;
     if (drag && drag.pointerId === e.pointerId) {
@@ -173,12 +118,6 @@ export function useMapDrag({
       setIsDragging(false);
       const vx = drag.vx;
       const vy = drag.vy;
-      onViewChange?.({ scale: scaleRef.current, offset: offsetRef.current });
-    }
-
-    if (wasPinching && pointersRef.current.size < 2) {
-      setDragIndicator({ active: false, angle: 0, strength: 0 });
-      setIsDragging(false);
       onViewChange?.({ scale: scaleRef.current, offset: offsetRef.current });
     }
   };

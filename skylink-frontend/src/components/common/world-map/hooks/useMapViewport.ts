@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type WorldMapOffset = { x: number; y: number };
 
@@ -21,7 +21,7 @@ export function useMapViewport({
   defaultView,
   onViewChange,
 }: UseMapViewportParams) {
-  const clampScale = (s: number) => Math.min(maxScale, Math.max(minScale, s));
+  const clampScale = useCallback((s: number) => Math.min(maxScale, Math.max(minScale, s)), [minScale, maxScale]);
 
   const [offset, setOffset] = useState<WorldMapOffset>({ x: 0, y: 0 });
   const offsetRef = useRef<WorldMapOffset>({ x: 0, y: 0 });
@@ -31,52 +31,58 @@ export function useMapViewport({
   );
   const scaleRef = useRef<number>(Math.min(maxScale, Math.max(minScale, defaultScale)));
 
-  const clampOffset = (candidate: WorldMapOffset, nextScale: number) => {
-    const el = containerRef.current;
-    if (!el) return candidate;
-    const rect = el.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
-    if (!w || !h) return candidate;
+  const clampOffset = useCallback(
+    (candidate: WorldMapOffset, nextScale: number) => {
+      const el = containerRef.current;
+      if (!el) return candidate;
+      const rect = el.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+      if (!w || !h) return candidate;
 
-    const scaledW = w * nextScale;
-    const scaledH = h * nextScale;
+      const scaledW = w * nextScale;
+      const scaledH = h * nextScale;
 
-    let minX = 0;
-    let maxX = 0;
-    if (scaledW <= w) {
-      minX = maxX = (w - scaledW) / 2;
-    } else {
-      minX = w - scaledW;
-      maxX = 0;
-    }
+      let minX = 0;
+      let maxX = 0;
+      if (scaledW <= w) {
+        minX = maxX = (w - scaledW) / 2;
+      } else {
+        minX = w - scaledW;
+        maxX = 0;
+      }
 
-    let minY = 0;
-    let maxY = 0;
-    if (scaledH <= h) {
-      minY = maxY = (h - scaledH) / 2;
-    } else {
-      minY = h - scaledH;
-      maxY = 0;
-    }
+      let minY = 0;
+      let maxY = 0;
+      if (scaledH <= h) {
+        minY = maxY = (h - scaledH) / 2;
+      } else {
+        minY = h - scaledH;
+        maxY = 0;
+      }
 
-    const x = Math.min(maxX, Math.max(minX, candidate.x));
-    const y = Math.min(maxY, Math.max(minY, candidate.y));
-    return { x, y };
-  };
+      const x = Math.min(maxX, Math.max(minX, candidate.x));
+      const y = Math.min(maxY, Math.max(minY, candidate.y));
+      return { x, y };
+    },
+    [containerRef],
+  );
 
-  const getCenteredOffset = (nextScale: number) => {
-    const el = containerRef.current;
-    if (!el) return { x: 0, y: 0 };
-    const rect = el.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
-    if (!w || !h) return { x: 0, y: 0 };
-    return {
-      x: (w - w * nextScale) / 2,
-      y: (h - h * nextScale) / 2,
-    };
-  };
+  const getCenteredOffset = useCallback(
+    (nextScale: number) => {
+      const el = containerRef.current;
+      if (!el) return { x: 0, y: 0 };
+      const rect = el.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+      if (!w || !h) return { x: 0, y: 0 };
+      return {
+        x: (w - w * nextScale) / 2,
+        y: (h - h * nextScale) / 2,
+      };
+    },
+    [containerRef],
+  );
 
   useEffect(() => {
     offsetRef.current = offset;
@@ -86,12 +92,12 @@ export function useMapViewport({
     scaleRef.current = scale;
   }, [scale]);
 
-  const applyView = (nextScale: number, nextOffset: WorldMapOffset) => {
+  const applyView = useCallback((nextScale: number, nextOffset: WorldMapOffset) => {
     scaleRef.current = nextScale;
     offsetRef.current = nextOffset;
     setScale(nextScale);
     setOffset(nextOffset);
-  };
+  }, []);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -101,7 +107,7 @@ export function useMapViewport({
     const ro = new ResizeObserver(() => update());
     ro.observe(el);
     return () => ro.disconnect();
-  }, [containerRef, enableControls]);
+  }, [containerRef, enableControls, clampOffset]);
 
   useEffect(() => {
     if (defaultView) return;

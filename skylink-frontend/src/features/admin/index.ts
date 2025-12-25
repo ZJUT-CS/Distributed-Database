@@ -17,6 +17,10 @@ export { default as ToastProvider, useToast } from './components/Toast';
 export { default as AdminDrawer } from './components/AdminDrawer';
 export { default as SensitiveField } from './components/SensitiveField';
 export { default as AdminTableState } from './components/AdminTableState';
+export { default as AuditLogDrawer } from './components/AuditLogDrawer';
+export { default as PassengerListDrawer } from './components/PassengerListDrawer';
+export type { AuditLogItem, AuditActionType, AuditChange } from './components/AuditLogDrawer';
+export type { PassengerDrawerProps, PassengerInfo } from './components/PassengerListDrawer';
 
 // Hooks
 export { useAdminList } from './hooks/useAdminList';

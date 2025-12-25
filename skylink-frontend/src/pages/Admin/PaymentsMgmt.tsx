@@ -141,6 +141,30 @@ const PaymentsMgmt: React.FC = () => {
     }
   };
 
+  const handleBatchExport = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      toast.warning('请先选择要导出的支付记录');
+      return;
+    }
+    try {
+      toast.info(`正在导出 ${ids.length} 条数据...`);
+      const selectedData = payments.filter((p: PaymentItem) => ids.includes(String(p.paymentId)));
+      exportToCSV(selectedData, '支付记录-选中', [
+        { key: 'paymentId', label: '支付ID' },
+        { key: 'orderNo', label: '订单号' },
+        { key: 'tradeNo', label: '流水号', formatter: (item) => item.tradeNo || '' },
+        { key: 'paymentMethod', label: '支付方式', formatter: (item) => PAYMENT_METHOD_MAP[item.paymentMethod]?.label || String(item.paymentMethod) },
+        { key: 'paymentAmount', label: '金额' },
+        { key: 'paymentStatus', label: '状态', formatter: (item) => PAYMENT_STATUS_MAP[item.paymentStatus]?.label || '' },
+        { key: 'paymentTime', label: '支付时间', formatter: (item) => formatDateTimeZhCN(item.paymentTime) || '' },
+      ]);
+      toast.success('导出成功');
+    } catch (e: any) {
+      toast.error(e?.message || '导出失败');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
@@ -216,6 +240,12 @@ const PaymentsMgmt: React.FC = () => {
                 className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> 批量退款
+              </button>
+              <button
+                onClick={handleBatchExport}
+                className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1"
+              >
+                <Download className="w-3.5 h-3.5" /> 批量导出
               </button>
               <button
                 onClick={() => setSelectedIds(new Set())}

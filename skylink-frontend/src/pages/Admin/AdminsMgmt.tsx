@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Search, Plus, Shield, UserCog, Lock, Trash2, RefreshCw, Download, CheckSquare, Square, X } from 'lucide-react';
-import { Pagination, TableActionMenu, AdminBadge, AdminButton, AdminModal, AdminPageHeader, FilterBar, AdminTableState, useAdminList, useConfirm, useToast } from '@/features/admin';
-import { createAdmin, deleteAdmin, resetAdminPassword, listAdminsPage, type AdminItem } from '@/features/admin/api/admins';
+import { Search, Plus, Shield, UserCog, Lock, Trash2, RefreshCw, Download, CheckSquare, Square, X, Edit2, Clock } from 'lucide-react';
+import { Pagination, TableActionMenu, AdminBadge, AdminButton, AdminModal, AdminPageHeader, FilterBar, AdminTableState, useAdminList, useConfirm, useToast, AuditLogDrawer, type AuditLogItem } from '@/features/admin';
+import { createAdmin, updateAdmin, deleteAdmin, resetAdminPassword, listAdminsPage, listSystemLogs, type AdminItem } from '@/features/admin/api/admins';
 import EntityCell from '@/components/common/EntityCell';
 import { formatApiError } from '@/utils/apiError';
 import { formatDateTimeZhCN } from '@/utils/formatters';
@@ -47,14 +47,21 @@ const AdminsMgmt: React.FC = () => {
     },
   });
 
-  // 新增弹窗
+  // 新增/编辑弹窗
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ adminAccount: '', password: '', role: ADMIN_ROLE.NORMAL });
+  const [editingAdmin, setEditingAdmin] = useState<AdminItem | null>(null);
+  const [formData, setFormData] = useState<{ adminAccount: string; password: string; role: number }>({ adminAccount: '', password: '', role: ADMIN_ROLE.NORMAL });
 
   // 重置密码弹窗
   const [resetPwdOpen, setResetPwdOpen] = useState(false);
   const [resetPwdAdmin, setResetPwdAdmin] = useState<AdminItem | null>(null);
   const [resetPwdValue, setResetPwdValue] = useState('');
+
+  // 操作日志弹窗
+  const [auditLogOpen, setAuditLogOpen] = useState(false);
+  const [auditLogAdmin, setAuditLogAdmin] = useState<AdminItem | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
 
   // 关键词输入防抖，避免每次键入都请求
   useEffect(() => {
@@ -76,17 +83,44 @@ const AdminsMgmt: React.FC = () => {
 
   const closeCreateModal = () => {
     setIsModalOpen(false);
+    setEditingAdmin(null);
     setFormData({ adminAccount: '', password: '', role: ADMIN_ROLE.NORMAL });
   };
 
-  const handleCreate = async () => {
-    if (!formData.adminAccount || !formData.password) {
-      toast.error('请填写账号和密码');
+  const openCreateModal = () => {
+    setEditingAdmin(null);
+    setFormData({ adminAccount: '', password: '', role: ADMIN_ROLE.NORMAL });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (admin: AdminItem) => {
+    setEditingAdmin(admin);
+    setFormData({ adminAccount: admin.adminAccount, password: '', role: admin.role });
+    setActiveActionId(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formData.adminAccount) {
+      toast.error('请填写账号');
+      return;
+    }
+    if (!editingAdmin && !formData.password) {
+      toast.error('新增管理员时必须填写密码');
       return;
     }
     try {
-      await createAdmin(formData);
-      toast.success('创建成功');
+      if (editingAdmin) {
+        await updateAdmin(editingAdmin.adminId, {
+          adminAccount: formData.adminAccount,
+          role: formData.role,
+          ...(formData.password ? { password: formData.password } : {}),
+        });
+        toast.success('更新成功');
+      } else {
+        await createAdmin(formData);
+        toast.success('创建成功');
+      }
       closeCreateModal();
       setPage(1);
     } catch (err) {
@@ -123,6 +157,47 @@ const AdminsMgmt: React.FC = () => {
     setResetPwdOpen(false);
     setResetPwdAdmin(null);
     setResetPwdValue('');
+  };
+
+  const openAuditLog = async (admin: AdminItem) => {
+    setAuditLogAdmin(admin);
+    setAuditLogsLoading(true);
+    setAuditLogOpen(true);
+    setActiveActionId(null);
+    try {
+      const res = await listSystemLogs({
+        module: 'admin',
+        page: 1,
+        size: 100,
+      });
+      const filteredLogs = (res.data ?? []).filter(
+        log => log.operUserId === Number(admin.adminId) && log.operUserType === 2
+      );
+      setAuditLogs(
+        filteredLogs.map(log => ({
+          id: log.logId,
+          operatorId: String(log.operUserId),
+          operatorName: `管理员#${log.operUserId}`,
+          entityType: 'admin',
+          entityId: admin.adminId,
+          action: log.operType as any,
+          description: log.operContent,
+          ip: log.operIp,
+          timestamp: log.operTime,
+        }))
+      );
+    } catch (err) {
+      toast.error(formatApiError(err));
+      setAuditLogs([]);
+    } finally {
+      setAuditLogsLoading(false);
+    }
+  };
+
+  const closeAuditLog = () => {
+    setAuditLogOpen(false);
+    setAuditLogAdmin(null);
+    setAuditLogs([]);
   };
 
   const handleResetPassword = async () => {
@@ -187,16 +262,18 @@ const AdminsMgmt: React.FC = () => {
   const someSelected = selectedIds.size > 0;
 
   // 导出数据
-  const handleExport = async () => {
+  const handleExport = async (selectedOnly = false) => {
     try {
       toast.info('正在导出数据...');
-      const res = await listAdminsPage({ page: 1, size: 1000, keyword: String(filters.keyword ?? '').trim() || undefined });
-      const data = res.data ?? [];
-      if (!data.length) {
+      let exportData = admins;
+      if (selectedOnly && selectedIds.size > 0) {
+        exportData = admins.filter(a => selectedIds.has(a.adminId));
+      }
+      if (!exportData.length) {
         toast.warning('暂无数据可导出');
         return;
       }
-      exportToCSV(data, '管理员列表', [
+      exportToCSV(exportData, '管理员列表', [
         { key: 'adminId', label: '管理员ID' },
         { key: 'adminAccount', label: '账号' },
         { key: 'role', label: '角色', formatter: (item) => ADMIN_ROLE_MAP[Number(item.role)]?.label || `角色${item.role}` },
@@ -209,6 +286,8 @@ const AdminsMgmt: React.FC = () => {
     }
   };
 
+  const handleBatchExport = () => handleExport(true);
+
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -219,11 +298,11 @@ const AdminsMgmt: React.FC = () => {
         description="维护后台管理员账号与角色权限"
         actions={
           <div className="flex items-center gap-3">
-            <button onClick={handleExport} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+            <button onClick={() => void handleExport()} className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
               <Download className="w-4 h-4" /> 导出数据
             </button>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={openCreateModal}
               className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 flex items-center gap-2"
             >
               <Plus className="w-4 h-4" /> 新增管理员
@@ -269,6 +348,12 @@ const AdminsMgmt: React.FC = () => {
           <div className="px-6 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
             <span className="text-sm font-medium text-indigo-700">已选择 {selectedIds.size} 项</span>
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleBatchExport}
+                className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1"
+              >
+                <Download className="w-3.5 h-3.5" /> 导出选中项
+              </button>
               <button
                 onClick={handleBatchDelete}
                 className="px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
@@ -355,6 +440,19 @@ const AdminsMgmt: React.FC = () => {
                       onClose={() => setActiveActionId(null)}
                     >
                       <button
+                        onClick={() => openEditModal(a)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 text-indigo-500" /> 编辑管理员
+                      </button>
+                      <button
+                        onClick={() => openAuditLog(a)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-blue-500" /> 查看操作日志
+                      </button>
+                      <div className="h-px bg-gray-100 my-0" />
+                      <button
                         onClick={() => openResetPassword(a)}
                         className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                       >
@@ -385,11 +483,11 @@ const AdminsMgmt: React.FC = () => {
         </AdminTableState>
       </div>
 
-      {/* 新增管理员弹窗 */}
+      {/* 新增/编辑管理员弹窗 */}
       <AdminModal
         isOpen={isModalOpen}
         onClose={closeCreateModal}
-        title="新增管理员"
+        title={editingAdmin ? '编辑管理员' : '新增管理员'}
         theme="indigo-purple"
         maxWidth="md"
       >
@@ -405,7 +503,9 @@ const AdminsMgmt: React.FC = () => {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-500">密码</label>
+            <label className="text-xs font-bold text-gray-500">
+              密码{editingAdmin ? '（留空则不修改）' : ''}
+            </label>
             <input
               type="password"
               value={formData.password}
@@ -429,8 +529,8 @@ const AdminsMgmt: React.FC = () => {
             <AdminButton variant="outline" onClick={closeCreateModal}>
               取消
             </AdminButton>
-            <AdminButton variant="primary" onClick={handleCreate}>
-              创建
+            <AdminButton variant="primary" onClick={handleSave}>
+              {editingAdmin ? '保存' : '创建'}
             </AdminButton>
           </div>
         </div>
@@ -469,6 +569,16 @@ const AdminsMgmt: React.FC = () => {
           </div>
         </div>
       </AdminModal>
+
+      {/* 操作日志抽屉 */}
+      <AuditLogDrawer
+        open={auditLogOpen}
+        onClose={closeAuditLog}
+        title={`操作日志 - ${auditLogAdmin?.adminAccount ?? ''}`}
+        subtitle={`管理员 ID: ${auditLogAdmin?.adminId ?? '-'}`}
+        logs={auditLogs}
+        loading={auditLogsLoading}
+      />
     </div>
   );
 };

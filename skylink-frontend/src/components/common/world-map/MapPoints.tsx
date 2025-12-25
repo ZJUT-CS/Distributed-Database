@@ -29,7 +29,8 @@ export const MapPoints: React.FC<MapPointsProps> = ({
     if (type === 'hub') return colors.hub;
     if (type === 'origin') return colors.origin;
     if (type === 'destination') return colors.destination;
-    return '#eab308';
+    // normal / other points
+    return colors.origin;
   };
 
   return (
@@ -39,6 +40,17 @@ export const MapPoints: React.FC<MapPointsProps> = ({
         const isLarge = point.type === 'hub' || point.type === 'origin' || point.type === 'destination';
         const isHovered = hoveredPoint?.id === point.id;
         const color = getPointColor(point.type);
+
+        // Visual sizes (intentionally small; map is dense).
+        const haloOuterR = isLarge ? 10 : 7;
+        const haloInnerR = isLarge ? 8 : 5;
+
+        const coreOuterR = isLarge ? 4 : (isHovered ? 3 : 2);
+        const coreInnerBgR = isLarge ? 2.2 : (isHovered ? 1.4 : 1.0);
+        const coreDotR = isLarge ? 1.3 : (isHovered ? 0.9 : 0.7);
+
+        const hoverRing1R = isLarge ? 6 : 4;
+        const hoverRing2R = isLarge ? 8 : 5.5;
 
         return (
           <g
@@ -53,8 +65,8 @@ export const MapPoints: React.FC<MapPointsProps> = ({
           >
             {isDark && (
               <>
-                <circle cx={x} cy={y} r={isLarge ? 28 : 22} fill={color} opacity={0.15} />
-                <circle cx={x} cy={y} r={isLarge ? 22 : 16} fill={color} opacity={0.3} />
+                <circle cx={x} cy={y} r={haloOuterR} fill={color} opacity={0.15} />
+                <circle cx={x} cy={y} r={haloInnerR} fill={color} opacity={0.3} />
               </>
             )}
 
@@ -63,7 +75,7 @@ export const MapPoints: React.FC<MapPointsProps> = ({
                 <circle
                   cx={x}
                   cy={y}
-                  r={isLarge ? 18 : 12}
+                  r={coreOuterR}
                   fill={color}
                   opacity={isDark ? 0.8 : 0.7}
                   filter={isDark ? 'url(#glow-lg)' : ''}
@@ -71,14 +83,14 @@ export const MapPoints: React.FC<MapPointsProps> = ({
                 <circle
                   cx={x}
                   cy={y}
-                  r={isLarge ? 10 : 6}
+                  r={coreInnerBgR}
                   fill={isDark ? '#1e293b' : '#fff'}
                   opacity={isHovered ? 0.9 : 0.7}
                 />
                 <circle
                   cx={x}
                   cy={y}
-                  r={isLarge ? 5 : 3}
+                  r={coreDotR}
                   fill={color}
                   opacity={isHovered ? 1 : 0.85}
                 />
@@ -88,7 +100,7 @@ export const MapPoints: React.FC<MapPointsProps> = ({
                 <circle
                   cx={x}
                   cy={y}
-                  r={isHovered ? 10 : 6}
+                  r={coreOuterR}
                   fill={color}
                   opacity={isDark ? 0.75 : 0.65}
                   filter={isDark ? 'url(#glow-md)' : ''}
@@ -96,7 +108,7 @@ export const MapPoints: React.FC<MapPointsProps> = ({
                 <circle
                   cx={x}
                   cy={y}
-                  r={isHovered ? 4 : 2.5}
+                  r={coreInnerBgR}
                   fill={isDark ? '#1e293b' : '#fff'}
                   opacity={isHovered ? 0.9 : 0.6}
                 />
@@ -105,8 +117,8 @@ export const MapPoints: React.FC<MapPointsProps> = ({
 
             {isHovered && (
               <>
-                <circle cx={x} cy={y} r={isLarge ? 22 : 14} fill="none" stroke={color} strokeWidth="2" opacity={0.5} />
-                <circle cx={x} cy={y} r={isLarge ? 26 : 18} fill="none" stroke={color} strokeWidth="1.5" opacity={0.3} />
+                <circle cx={x} cy={y} r={hoverRing1R} fill="none" stroke={color} strokeWidth="1.5" opacity={0.5} />
+                <circle cx={x} cy={y} r={hoverRing2R} fill="none" stroke={color} strokeWidth="1" opacity={0.3} />
               </>
             )}
           </g>

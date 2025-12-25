@@ -54,6 +54,23 @@ export async function createAdmin(req: CreateAdminRequest): Promise<AdminItem> {
 }
 
 /**
+ * 更新管理员
+ */
+export interface UpdateAdminRequest {
+  adminAccount?: string;
+  password?: string;
+  role?: number;
+}
+
+export async function updateAdmin(adminId: string, req: UpdateAdminRequest): Promise<AdminItem> {
+  return request<AdminItem>({
+    method: 'PUT',
+    url: `/api/v1/admins/${encodeURIComponent(String(adminId))}`,
+    data: req,
+  });
+}
+
+/**
  * 删除管理员
  */
 export async function deleteAdmin(adminId: string): Promise<void> {

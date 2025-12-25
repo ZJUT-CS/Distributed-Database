@@ -96,8 +96,6 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
   const [defaultView, setDefaultView] = useState<WorldMapView | undefined>(undefined);
   const appliedKeyRef = useRef<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
 
   const isDark = theme === 'dark';
   const effectivePreserveAspectRatio = preserveAspectRatio ?? (enableControls ? 'xMidYMid meet' : 'xMidYMid slice');
@@ -151,8 +149,6 @@ const WorldMap: React.FC<WorldMapProps> = ({
     if (!el) return;
     const rect = el.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-
-    setCanvasSize({ width: rect.width, height: rect.height });
 
     const next = computeAutoFitView({
       points,
@@ -217,17 +213,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
         onPointDoubleClick={(point, projected) => {
           focusOnPoint(projected.x, projected.y, 2);
         }}
-        canvasRef={canvasRef}
       />
-
-      {routes && routes.length > 0 && (
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 pointer-events-none"
-          width={canvasSize.width}
-          height={canvasSize.height}
-        />
-      )}
 
       {enableControls && dragIndicator.active && dragIndicator.strength > 0.01 && (
         <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">

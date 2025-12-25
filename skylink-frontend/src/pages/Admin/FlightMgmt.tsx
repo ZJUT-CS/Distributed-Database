@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { Download, Plus, Search, Users, Edit2, Ban, Trash2, Save, Plane as PlaneIcon, RefreshCw, CheckSquare, Square, X } from 'lucide-react';
+import { Download, Plus, Search, Users, Edit2, Ban, Trash2, Save, Plane as PlaneIcon, RefreshCw, CheckSquare, Square, X, Copy } from 'lucide-react';
 import { type FlightStatus } from '@/features/flight';
-import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, type AdminFlightItem, FLIGHT_STATUS_STR_META, AdminTableState, useAdminOptions } from '@/features/admin';
+import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, type AdminFlightItem, FLIGHT_STATUS_STR_META, AdminTableState, useAdminOptions, PassengerListDrawer } from '@/features/admin';
 import { formatApiError } from '@/utils/apiError';
 import EntityCell from '@/components/common/EntityCell';
 import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';
@@ -137,6 +137,8 @@ const FlightMgmt: React.FC = () => {
   const [editingFlight, setEditingFlight] = useState<UiFlight | null>(null);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [passengerDrawerOpen, setPassengerDrawerOpen] = useState(false);
+  const [selectedFlight, setSelectedFlight] = useState<UiFlight | null>(null);
 
   // 下拉选项数据（使用 useAdminOptions 缓存）
   const { options: routeOptionsRaw } = useAdminOptions<RouteOption, number>('routes', {
@@ -292,6 +294,39 @@ const FlightMgmt: React.FC = () => {
     }
   };
 
+  const handleDuplicateFlight = (flight: UiFlight) => {
+    const generateNewFlightNo = (originalFlightNo: string): string => {
+      const match = originalFlightNo.match(/^([A-Z]{2})(\d+)$/);
+      if (match) {
+        const prefix = match[1];
+        const num = parseInt(match[2], 10) + 1;
+        return `${prefix}${String(num).padStart(match[2].length, '0')}`;
+      }
+      return `${originalFlightNo}_COPY`;
+    };
+
+    const newFlightNo = generateNewFlightNo(flight.flightNo || flight.displayId);
+
+    setEditingFlight({
+      ...flight,
+      flightNo: newFlightNo,
+      displayId: newFlightNo,
+      flightId: '',
+      rowId: `new-${Date.now()}`,
+      status: 'active',
+    });
+    setSelectedRouteId(flight.routeId);
+    setSelectedModelId(flight.modelId);
+    setIsFlightModalOpen(true);
+    setActiveActionId(null);
+  };
+
+  const handleOpenPassengerDrawer = (flight: UiFlight) => {
+    setSelectedFlight(flight);
+    setPassengerDrawerOpen(true);
+    setActiveActionId(null);
+  };
+
   const handleBatchCancel = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) {
@@ -393,16 +428,18 @@ const FlightMgmt: React.FC = () => {
   };
 
   // 导出数据
-  const handleExport = async () => {
+  const handleExport = async (selectedOnly = false) => {
     try {
       toast.info('正在导出数据...');
-      const res = await listAdminFlights({ page: 1, size: 1000, keyword: searchKeyword || undefined });
-      const data = (res.data ?? []).map(mapAdminFlight);
-      if (!data.length) {
+      let exportData = flights;
+      if (selectedOnly && selectedIds.size > 0) {
+        exportData = flights.filter(f => selectedIds.has(f.flightId));
+      }
+      if (!exportData.length) {
         toast.warning('暂无数据可导出');
         return;
       }
-      exportToCSV(data, '航班列表', [
+      exportToCSV(exportData, '航班列表', [
         { key: 'flightNo', label: '航班号' },
         { key: 'airline', label: '航空公司' },
         { key: 'route', label: '航线' },
@@ -418,6 +455,8 @@ const FlightMgmt: React.FC = () => {
     }
   };
 
+  const handleBatchExport = () => handleExport(true);
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <AdminPageHeader
@@ -427,7 +466,7 @@ const FlightMgmt: React.FC = () => {
         description="管理全平台航班排期、座位及状态监控"
         actions={
           <div className="flex gap-3">
-            <button onClick={handleExport} className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+            <button onClick={() => void handleExport()} className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
               <Download className="w-4 h-4" /> 导出数据
             </button>
             <button onClick={handleOpenCreateFlight} className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 flex items-center gap-2">
@@ -477,6 +516,12 @@ const FlightMgmt: React.FC = () => {
           <div className="px-6 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
             <span className="text-sm font-medium text-indigo-700">已选择 {selectedIds.size} 项</span>
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleBatchExport}
+                className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1"
+              >
+                <Download className="w-3.5 h-3.5" /> 导出选中项
+              </button>
               <button
                 onClick={handleBatchCancel}
                 className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-white border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors flex items-center gap-1"
@@ -613,6 +658,18 @@ const FlightMgmt: React.FC = () => {
                           onClose={() => setActiveActionId(null)}
                         >
                           <button
+                            onClick={() => handleDuplicateFlight(flight)}
+                            className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-blue-500" /> 复制航班
+                          </button>
+                          <button
+                            onClick={() => handleOpenPassengerDrawer(flight)}
+                            className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <Users className="w-3.5 h-3.5 text-green-500" /> 查看乘客列表
+                          </button>
+                          <button
                             onClick={() => handleOpenEditFlight(flight)}
                             className="w-full text-left px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                           >
@@ -740,6 +797,13 @@ const FlightMgmt: React.FC = () => {
           </div>
         </form>
       </AdminModal>
+
+      <PassengerListDrawer
+        open={passengerDrawerOpen}
+        onClose={() => setPassengerDrawerOpen(false)}
+        flightNo={selectedFlight?.flightNo || ''}
+        flightId={selectedFlight?.flightId}
+      />
     </div>
   );
 };
