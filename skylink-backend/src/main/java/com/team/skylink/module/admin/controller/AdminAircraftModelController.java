@@ -64,6 +64,7 @@ public class AdminAircraftModelController {
         model.setModelName(body.getModelName().trim());
         model.setManufacturer(StringUtils.hasText(body.getManufacturer()) ? body.getManufacturer().trim() : null);
         model.setTotalPhysicalSeats(body.getTotalPhysicalSeats());
+        model.setImageUrl(StringUtils.hasText(body.getImageUrl()) ? body.getImageUrl().trim() : null);
         aircraftModelMapper.insert(model);
 
         return Result.ok(model);
@@ -92,6 +93,10 @@ public class AdminAircraftModelController {
         if (body.getTotalPhysicalSeats() != null) {
             if (body.getTotalPhysicalSeats() <= 0) return Result.fail(400, "invalid totalPhysicalSeats");
             uw.set(AircraftModel::getTotalPhysicalSeats, body.getTotalPhysicalSeats());
+            hasAny = true;
+        }
+        if (body.getImageUrl() != null) {
+            uw.set(AircraftModel::getImageUrl, StringUtils.hasText(body.getImageUrl()) ? body.getImageUrl().trim() : null);
             hasAny = true;
         }
 
