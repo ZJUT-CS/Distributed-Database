@@ -127,7 +127,12 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onBack, mode = 'page' }
                     <Mail className="w-4 h-4 text-sky-500" />
                     邮箱
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-gray-200 truncate">{user.email || '未绑定'}</div>
+                  <div
+                    className="mt-1 text-sm font-semibold text-slate-900 dark:text-gray-200 truncate max-w-[140px]"
+                    title={user.email || '未绑定'}
+                  >
+                    {user.email || '未绑定'}
+                  </div>
                 </div>
                 <div className="rounded-2xl bg-sky-50/80 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800/30 p-4">
                   <div className="flex items-center gap-2 text-xs text-slate-500 font-medium dark:text-gray-400">

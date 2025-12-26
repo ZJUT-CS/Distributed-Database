@@ -46,7 +46,7 @@ rules:
         keyGeneratorName: snowflake
 
     # -------------------------------------------------------
-    # 2. 航班域 (按 flight_id 分片，航班和座位绑定)
+    # 2. 航班域 (按 flight_id 分片，绑定)
     # -------------------------------------------------------
     flights:
       actualDataNodes: ds_${0..2}.flights
@@ -69,25 +69,29 @@ rules:
         keyGeneratorName: snowflake
 
     # -------------------------------------------------------
-    # 3. 交易域 (全部按 user_id 分片 - 核心优化点)
-    # 前提：orders, payments, refund 表中都必须有 user_id 字段
+    # 3. 订单域 (orders 保持按 user_id 分片)
+    # 注意：orders 表必须有 user_id 字段
     # -------------------------------------------------------
     orders:
       actualDataNodes: ds_${0..2}.orders
       databaseStrategy:
         standard:
-          shardingColumn: user_id   # 这里的关键改为 user_id
+          shardingColumn: user_id
           shardingAlgorithmName: user_id_inline
       keyGenerateStrategy:
         column: order_id
         keyGeneratorName: snowflake
 
+    # -------------------------------------------------------
+    # 4. 支付与退改 (回退为按 order_id 分片)
+    # 修改原因：代码 INSERT 中没有 user_id，必须用 order_id 分片
+    # -------------------------------------------------------
     payments:
       actualDataNodes: ds_${0..2}.payments
       databaseStrategy:
         standard:
-          shardingColumn: user_id   # 这里的关键改为 user_id
-          shardingAlgorithmName: user_id_inline
+          shardingColumn: order_id   # <--- 改回 order_id
+          shardingAlgorithmName: order_id_inline
       keyGenerateStrategy:
         column: payment_id
         keyGeneratorName: snowflake
@@ -96,14 +100,14 @@ rules:
       actualDataNodes: ds_${0..2}.refund_change_record
       databaseStrategy:
         standard:
-          shardingColumn: user_id   # 这里的关键改为 user_id
-          shardingAlgorithmName: user_id_inline
+          shardingColumn: order_id   # <--- 改回 order_id
+          shardingAlgorithmName: order_id_inline
       keyGenerateStrategy:
         column: record_id
         keyGeneratorName: snowflake
 
     # -------------------------------------------------------
-    # 4. 系统域 (保持原样或按 ID 分片)
+    # 5. 系统域
     # -------------------------------------------------------
     system_config:
       actualDataNodes: ds_${0..2}.system_config
@@ -126,13 +130,11 @@ rules:
         keyGeneratorName: snowflake
 
   # -------------------------------------------------------
-  # 绑定表规则 (Binding Tables)
+  # 绑定表规则
+  # 注意：这里去掉了 orders 和 payments 的绑定，因为它们分片键不一样了
   # -------------------------------------------------------
   bindingTables:
-    # 航班信息与座位强关联，查询航班详情通常会连带查座位
     - flights, seat
-    # 订单、支付、退款强关联，确保同 User 的数据在同库，避免笛卡尔积查询
-    - orders, payments, refund_change_record
 
   defaultDatabaseStrategy:
     none:
@@ -152,9 +154,13 @@ rules:
       type: INLINE
       props:
         algorithm-expression: ds_${flight_id % 3}
-    
-    # 虽然 log 和 config 也是 %3，但为了逻辑清晰，建议独立定义
-    # 方便未来如果日志表需要改为按日期分片时，不影响 flight/user
+
+    # 必须补回 order_id 的算法
+    order_id_inline:
+      type: INLINE
+      props:
+        algorithm-expression: ds_${order_id % 3}
+
     log_id_inline:
       type: INLINE
       props:
@@ -165,9 +171,6 @@ rules:
       props:
         algorithm-expression: ds_${config_id % 3}
 
-  # -------------------------------------------------------
-  # 主键生成策略
-  # -------------------------------------------------------
   keyGenerators:
     snowflake:
       type: SNOWFLAKE
@@ -175,7 +178,7 @@ rules:
         worker-id: 123
 
 # -------------------------------------------------------
-# 广播表 (全局表)
+# 广播表
 # -------------------------------------------------------
 - !BROADCAST
   tables:
