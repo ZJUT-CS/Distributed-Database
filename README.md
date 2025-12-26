@@ -1,70 +1,55 @@
-# SkyLink - 智能航班预订系统
+# SkyLink（Distributed-Database）- 分布式航空订票系统
 
-基于分布式数据库的现代化航班预订平台，提供航班查询、预订、支付、退改签等全流程服务。
+SkyLink 是一个面向“航班搜索-下单-支付-售后”的分布式订票系统示例工程，包含用户端与管理后台，后端集成 ShardingSphere 分库分表。
 
-## 📋 项目架构
+## 目录
 
-```
+- [项目结构](#项目结构)
+- [主要功能](#主要功能)
+- [快速开始](#快速开始)
+- [详细使用说明](#详细使用说明)
+- [贡献指南](#贡献指南)
+- [许可证](#许可证)
+
+## 项目结构
+
+```text
 Distributed-Database/
-├── skylink-frontend/          # React + TypeScript + Vite 前端
+├── skylink-frontend/          # React + TypeScript + Vite
 ├── skylink-backend/           # Spring Boot 后端
-└── Shardingsphere-proxy/      # ShardingSphere 分库分表配置
+├── Shardingsphere-proxy/      # MySQL + ShardingSphere Proxy
+├── PORT_CONFIGURATION.md      # 端口与环境变量说明
+├── API_AUDIT_REPORT.md        # API 审计（接口清单/枚举/错误码）
+└── SKYLINK_OPTIMIZATION_REPORT_2025-12-24.md  # 优化落地建议
 ```
 
-## 🚀 技术栈
+## 主要功能
 
-### 前端
-- **框架**: React 18 + TypeScript
-- **构建工具**: Vite 5
-- **路由**: React Router 7
-- **UI**: Tailwind CSS + Lucide Icons
-- **HTTP客户端**: Axios
-- **AI集成**: Google Gemini API
+- 航班搜索：直飞 + 联程组合（Split-Join）
+- 订单交易：下单、取消、支付、退改签
+- 选座功能：
+  - 可视化座位图，支持状态实时同步
+  - 座位状态标识：绿色（可选/当前）、黄色（已选待确认）、红色（已售）、橙色（锁定）
+  - 支持并发选座冲突处理与乐观锁控制
+- Mode B：下单锁座、支付后支持换座（后端已具备能力）
+- 管理后台：航班/订单/用户/支付/日志/系统配置等
 
-### 后端
-- **框架**: Spring Boot 3.x
-- **ORM**: MyBatis-Plus
-- **安全**: Spring Security + BCrypt
-- **数据库**: MySQL 8.0
-- **分库分表**: Apache ShardingSphere 5.5.2
-
-### 基础设施
-- **容器化**: Docker + Docker Compose
-- **数据库代理**: ShardingSphere Proxy
-
-## 📡 端口配置
-
-| 服务 | 端口 | 说明 |
-|-----|------|------|
-| 前端开发服务器 | 5173 | Vite开发服务器 |
-| 后端API | 9999 | Spring Boot服务 |
-| MySQL | 3306 | 数据库主库 |
-| ShardingSphere Proxy | 3307 | 分库分表代理 |
-
-详细端口配置请参考 [PORT_CONFIGURATION.md](./PORT_CONFIGURATION.md)
-
-## 🔧 快速开始
+## 快速开始
 
 ### 前置要求
 
 - Node.js 18+
-- Java 17+
-- Maven 3.6+
+- JDK 21+
 - Docker & Docker Compose
 
-### 1. 启动数据库
+### 1) 启动数据库与代理
 
 ```bash
 cd Shardingsphere-proxy
 docker-compose up -d
 ```
 
-验证数据库启动:
-```bash
-docker ps
-```
-
-### 2. 启动后端
+### 2) 启动后端
 
 ```bash
 cd skylink-backend
@@ -76,240 +61,85 @@ mvnw.cmd spring-boot:run
 ./mvnw spring-boot:run
 ```
 
-后端将在 `http://localhost:9999` 启动
+后端默认启动：`http://localhost:9999`
 
-### 3. 启动前端
+### 3) 启动前端
 
-首先配置环境变量:
 ```bash
 cd skylink-frontend
-cp .env.example .env.local
-# 编辑 .env.local 配置 VITE_API_URL 和 VITE_GEMINI_API_KEY
+npm install
 ```
 
-安装依赖并启动:
+创建 `skylink-frontend/.env.local`（示例）：
+
+```env
+VITE_API_URL=http://localhost:9999
+VITE_GEMINI_API_KEY=your_key_here
+```
+
+启动：
+
 ```bash
-npm install
 npm run dev
 ```
 
-前端将在 `http://localhost:5173` 启动并自动打开浏览器
+前端默认启动：`http://localhost:5173`
 
-## 🔐 登录账户
+### （可选）Windows 一键启动脚本
 
-### 普通用户
-- 可通过前端注册页面创建账户
-- 使用手机号 + 密码登录
-- 接口: `POST /auth/login`
+仓库根目录提供 `start.bat`，会分别在新窗口启动前后端。
 
-### 管理员
-- 接口: `POST /auth/admin/login`
-- 需要先通过接口创建管理员账户: `POST /auth/admin/register`
-- 使用用户名 + 密码登录
+注意：当前脚本包含本机绝对路径，如在其他机器上使用，需要先把路径改为相对路径或本机实际路径。
 
-初始化管理员账户示例:
+## 详细使用说明
+
+### 服务地址
+
+- 前端：`http://localhost:5173`
+- 后端 API：`http://localhost:9999/api/v1`
+- Swagger UI：`http://localhost:9999/swagger-ui/index.html`
+
+### API 参考与约定
+
+- 接口清单、枚举值、错误码：见 [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md)
+- 端口与环境变量：见 [PORT_CONFIGURATION.md](PORT_CONFIGURATION.md)
+
+#### 订单链路锚点（重要）
+
+- `flightId` 为全链路强一致锚点（下单/支付/退改签/联程组合等均以此为准）。
+- `flightNo` 仅用于展示或兼容查询入口；如需用 `flightNo` 查询，必须满足“唯一解析”（否则前端应提示改用 `flightId`）。
+- 雪花 ID 在前端一律以 **string** 承载与传输，避免 JS number 精度问题。
+
+### 调用示例（curl）
+
+用户登录（获取 token）：
+
 ```bash
-curl -X POST http://localhost:9999/auth/admin/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "admin",
-    "password": "admin123",
-    "role": 1
-  }'
+curl -X POST http://localhost:9999/api/v1/users/sessions ^
+  -H "Content-Type: application/json" ^
+  -d "{\"phoneNumber\":\"13800138000\",\"password\":\"123456\"}"
 ```
 
-## 📚 API文档
+航班搜索：
 
-### 认证相关
-- `POST /auth/login` - 用户登录
-- `POST /auth/phone-register` - 用户注册
-- `POST /auth/admin/login` - 管理员登录
-- `POST /auth/admin/register` - 管理员注册
-
-### 航班相关
-- `GET /flights` - 查询航班
-- `GET /flights/{id}` - 获取航班详情
-- `POST /flights` - 创建航班（管理员）
-
-### 订单相关
-- `POST /orders` - 创建订单
-- `GET /orders` - 查询订单列表
-- `GET /orders/{id}` - 获取订单详情
-
-### 管理员相关
-- `GET /admin/**` - 管理员功能接口
-
-完整API文档请参考后端Swagger: `http://localhost:9999/swagger-ui.html`
-
-## 🗄️ 数据库配置
-
-### 连接信息
-
-**直连MySQL** (不推荐):
-```
-Host: localhost
-Port: 3306
-Database: sharding_db
-Username: root
-Password: shardingsphere
-```
-
-**通过ShardingSphere Proxy** (推荐):
-```
-Host: 26.122.246.196
-Port: 3307
-Database: sharding_db
-Username: root
-Password: shardingsphere
-```
-
-### 分库分表策略
-
-- 按用户ID分片
-- 按订单时间分片
-- 详细配置见 `Shardingsphere-proxy/conf/config-sharding_db.yaml`
-
-## 🌐 环境变量
-
-### 前端环境变量
-
-创建 `.env.local` 文件:
-```env
-# 后端API地址
-VITE_API_URL=http://localhost:9999
-
-# Gemini AI API密钥
-VITE_GEMINI_API_KEY=your_api_key_here
-```
-
-### 后端环境变量
-
-可通过修改 `application.yml` 或启动参数覆盖:
 ```bash
-java -jar skylink-backend.jar \
-  --server.port=9999 \
-  --spring.datasource.url=jdbc:mysql://host:3307/sharding_db
+curl "http://localhost:9999/api/v1/flights?departurePlace=上海&destination=北京&departureDate=2025-12-20&page=1&size=10"
 ```
 
-## 🏗️ 项目结构
+### 分布式/一致性注意事项
 
-### 前端目录结构
-```
-skylink-frontend/
-├── src/
-│   ├── components/      # 组件
-│   ├── pages/          # 页面
-│   ├── services/       # API服务
-│   ├── hooks/          # React Hooks
-│   ├── types/          # TypeScript类型
-│   └── router/         # 路由配置
-├── public/             # 静态资源
-└── vite.config.ts      # Vite配置
-```
+- 支付与订单状态存在“最终一致性”特征；前端应以订单状态回源结果为准。
+- 管理端接口通常要求 Header：`X-User-Type: 2`；部分操作还要求 `X-Admin-Role: 2`（详见 `API_AUDIT_REPORT.md`）。
 
-### 后端目录结构
-```
-skylink-backend/src/main/java/com/team/skylink/
-├── controller/         # 控制器
-├── entity/            # 实体类
-├── mapper/            # MyBatis映射器
-├── dto/               # 数据传输对象
-├── config/            # 配置类
-└── common/            # 通用类
-```
+## 贡献指南
 
-## 🔒 安全配置
+1. 新建分支：`git checkout -b feature/<topic>`
+2. 提交信息清晰（建议包含模块与目的）
+3. 提交前自测：
+   - 前端：`cd skylink-frontend && npm run build`
+   - 后端：`cd skylink-backend && ./mvnw test`
+4. 发起 Pull Request 并描述：改动点、影响范围、验证方式
 
-- 密码使用 BCrypt 加密存储
-- CORS 已配置允许跨域请求
-- JWT Token 支持（开发中）
-- SQL注入防护（MyBatis-Plus）
+## 许可证
 
-## 🐛 调试接口
-
-开发环境提供调试接口:
-- `GET /debug/**` - 数据库连接测试等
-
-生产环境请禁用这些接口。
-
-## 📦 构建部署
-
-### 前端打包
-```bash
-cd skylink-frontend
-npm run build
-# 产物在 dist/ 目录
-```
-
-### 后端打包
-```bash
-cd skylink-backend
-./mvnw clean package
-# 产物在 target/ 目录
-```
-
-### Docker部署
-```bash
-# 构建镜像
-docker build -t skylink-frontend ./skylink-frontend
-docker build -t skylink-backend ./skylink-backend
-
-# 运行容器
-docker run -d -p 80:5173 skylink-frontend
-docker run -d -p 9999:9999 skylink-backend
-```
-
-## 🧪 测试
-
-### 前端测试
-```bash
-cd skylink-frontend
-npm run test
-```
-
-### 后端测试
-```bash
-cd skylink-backend
-./mvnw test
-```
-
-## 📊 监控与日志
-
-### 后端日志
-- 默认输出到控制台
-- 可配置日志文件路径
-
-### ShardingSphere日志
-```bash
-cd Shardingsphere-proxy
-tail -f logs/stdout.log
-```
-
-## 🤝 贡献指南
-
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
-## 📄 许可证
-
-本项目采用 MIT 许可证
-
-## 📞 联系方式
-
-- 项目主页: [GitHub Repository]
-- 问题反馈: [GitHub Issues]
-
-## 🙏 致谢
-
-- Spring Boot
-- React
-- Apache ShardingSphere
-- Google Gemini AI
-
----
-
-**最后更新**: 2025-12-17  
-**版本**: 1.0.0
+本仓库当前未包含 LICENSE 文件，因此不授予任何开源许可。若需要开源发布，请先补充 LICENSE 并在此处更新说明。

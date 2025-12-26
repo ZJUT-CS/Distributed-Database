@@ -1,20 +1,79 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# SkyLink Frontend - 用户端与管理后台（前端）
 
-# Run and deploy your AI Studio app
+该前端基于 React + TypeScript + Vite，包含用户端购票流程与管理后台页面。
 
-This contains everything you need to run your app locally.
+## 目录
 
-View your app in AI Studio: https://ai.studio/apps/drive/1QClGtJJ23q8UaaR13-1pxBTlABhxEAzv
+- [快速开始](#快速开始)
+- [详细使用说明](#详细使用说明)
+- [脚本命令](#脚本命令)
+- [贡献指南](#贡献指南)
+- [许可证](#许可证)
 
-## Run Locally
+## 快速开始
 
-**Prerequisites:**  Node.js
+### 前置要求
 
+- Node.js 18+
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 安装与启动
+
+```bash
+npm install
+```
+
+创建 `skylink-frontend/.env.local`（示例）：
+
+```env
+VITE_API_URL=http://localhost:9999
+VITE_GEMINI_API_KEY=your_key_here
+```
+
+启动开发服务器：
+
+```bash
+npm run dev
+```
+
+默认访问：`http://localhost:5173`
+
+## 详细使用说明
+
+### 后端依赖
+
+- 后端默认地址：`http://localhost:9999`
+- Swagger UI：`http://localhost:9999/swagger-ui/index.html`
+
+### API 参考
+
+前端不在此重复维护完整 API 清单。请以仓库根目录的 API 审计文档为准：
+
+- [../API_AUDIT_REPORT.md](../API_AUDIT_REPORT.md)
+
+### 关键联调约定（避免口径漂移）
+
+- 订单列表/查询：后端 `GET /api/v1/orders` 返回分页结构 `data.total + data.data[]`；前端已在请求封装层做了解包，业务侧按数组使用即可。
+- 在线选座：依赖 `GET /api/v1/flights/{flightId}/seats` 返回 `seatId/seatNumber/rowNumber/columnLetter/status(1|2|3)`；换座使用 `PUT /api/v1/orders/{orderId}/seat`，请求体为 `{ "seatId": number }`。
+
+### 环境变量
+
+- `VITE_API_URL`：后端 API 基地址（默认 `http://localhost:9999`）
+- `VITE_GEMINI_API_KEY`：AI 推荐功能使用的 Gemini Key（可选；未配置时建议在 UI 做降级处理）
+
+## 脚本命令
+
+- `npm run dev`：启动开发服务器
+- `npm run build`：生产构建
+- `npm run preview`：本地预览构建产物
+
+> 如 `package.json` 中包含额外脚本（lint/test），以实际脚本为准。
+
+## 贡献指南
+
+1. 新建分支：`git checkout -b feature/<topic>`
+2. 提交前检查：`npm run build`
+3. PR 描述包含：页面/接口改动点、验证方式、截图（如涉及 UI）
+
+## 许可证
+
+本仓库当前未包含 LICENSE 文件，因此不授予任何开源许可。若需要开源发布，请先补充 LICENSE 并在此处更新说明。

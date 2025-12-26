@@ -1,8 +1,8 @@
 package com.team.skylink.config;
 
 import com.team.skylink.common.Result;
-import com.team.skylink.entity.SystemLog;
-import com.team.skylink.mapper.OperationLogMapper;
+import com.team.skylink.module.system.entity.SystemLog;
+import com.team.skylink.module.system.mapper.OperationLogMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Configuration;

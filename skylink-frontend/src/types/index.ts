@@ -1,135 +1,32 @@
+// =====================
+// 通用 API 响应类型
+// =====================
 
-export interface Flight {
-  id: string;
-  airline: string;
-  airlineCode: string;
-  flightNumber: string;
-  cabinType?: string;
-  origin: string;
-  destination: string;
-  departureTime: string; // ISO String
-  arrivalTime: string; // ISO String
-  price: number;
-  remainingSeats?: number;
-  duration: string;
-  stops: number;
-  baggageWeight: number; // Added: Baggage allowance in kg
-  amenities: {           // Added: Onboard amenities
-    hasPower: boolean;
-    hasMeal: boolean;
-    hasWifi: boolean;
-    hasEntertainment: boolean;
-  };
-  aircraft?: string;
+/** 标准 API 响应结构 */
+export interface APIResponse<T> {
+    code: number;
+    message: string;
+    data: T;
 }
 
-export interface Airport {
-  code: string;
-  city: string;
-  name: string;
-  lat: number;
-  lng: number;
+/** 分页请求参数 */
+export interface PaginationParams {
+    page: number;
+    pageSize: number;
 }
 
-export interface TripSegment {
-  origin: string;
-  destination: string;
-  date: string;
+/** 分页响应结构 */
+export interface PaginatedResponse<T> {
+    items: T[];
+    total: number;
+    page: number;
+    pageSize: number;
 }
 
-export interface SearchParams {
-  tripType: 'oneWay' | 'roundTrip' | 'multiCity';
-  segments: TripSegment[]; // Standardized segments list
-  passengers: number;
-  passengerDetails?: {
-    adults: number;
-    children: number;
-    infants: number;
-  };
-  cabinClass?: 'economy' | 'business' | 'first';
-}
+// =====================
+// ⚠️ 注意：Feature 类型不再在此 Re-export
+// 请直接从对应 Feature 导入以避免循环依赖：
+// import { Flight } from '@/features/flight';
+// import { User } from '@/features/auth';
+// =====================
 
-export interface PassengerInfo {
-  name: string;
-  idCard: string;
-  type?: 'adult' | 'child';
-}
-
-export interface BookingDetails {
-  passengerName: string;
-  passportNumber: string;
-  passengers?: PassengerInfo[];
-  contactEmail: string;
-  phone: string; // Added phone number
-  cabinClass?: 'economy' | 'business' | 'first';
-  addons?: {
-    insurance: boolean;
-    fastTicket: boolean;
-  };
-  totalAmount?: number;
-}
-
-export interface ConfirmedBooking extends BookingDetails {
-  id: string;
-  flight: Flight; // For backward compatibility, maybe primarily used for display
-  flights?: Flight[]; // Support multiple flights
-  status: 'pending_payment' | 'confirmed' | 'cancelled' | 'refunding' | 'refunded' | 'changed';
-  bookingDate: string;
-  totalPrice?: number;
-}
-
-export type AuditStatus = 'pending' | 'approved' | 'rejected';
-
-export interface RefundChangeRecord {
-  id: string;
-  orderId: string;
-  passenger: string;
-  type: '退票' | '改签';
-  oldFlight: string;
-  newFlight: string;
-  applyTime: string;
-  status: AuditStatus;
-  remark?: string;
-}
-
-export interface AIRecommendation {
-  city: string;
-  airportCode: string;
-  reason: string;
-}
-
-export interface User {
-  id?: number | string;
-  username: string;
-  email?: string;
-  avatarUrl?: string;
-  phoneNumber?: string;
-  realName?: string;
-  idCard?: string;
-  gender?: 0 | 1 | 2;
-  createdAt?: string;
-  role: 'user' | 'admin';
-}
-
-export type FlightStatus = 'active' | 'delayed' | 'cancelled' | 'full';
-
-export interface MapPoint {
-  id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  value: number; // 影响大小
-  type: 'hub' | 'normal' | 'origin' | 'destination'; // 影响颜色
-  info?: string;
-}
-
-export interface FilterState {
-  stops: 'all' | 'direct' | '1stop';
-  airlines: string[]; // List of airline codes
-  priceMax: number;
-  departureTime: string[]; // ['morning', 'afternoon', 'evening', 'night']
-  arrivalTime: string[];
-  originAirports: string[]; // List of origin airport codes
-  destinationAirports: string[]; // List of destination airport codes
-  durationMax: number; // in minutes
-}

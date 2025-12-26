@@ -27,10 +27,11 @@ dataSources:
     maxLifetimeMilliseconds: 1800000
     maxPoolSize: 50
     minPoolSize: 1
+
 rules:
 - !SHARDING
   tables:
-    # 1. 用户表 (对应 users 表，按 user_id 分片)
+    # 1. 用户表
     users:
       actualDataNodes: ds_${0..2}.users
       databaseStrategy:
@@ -41,7 +42,7 @@ rules:
         column: user_id
         keyGeneratorName: snowflake
 
-    # 2. 航班表 (对应 flights 表，按 flight_id 分片)
+    # 2. 航班表 (按 flight_id 分片)
     flights:
       actualDataNodes: ds_${0..2}.flights
       databaseStrategy:
@@ -52,18 +53,18 @@ rules:
         column: flight_id
         keyGeneratorName: snowflake
 
-    # 3. 舱位表 (对应 cabins 表，与航班表绑定分片)
-    cabins:
-      actualDataNodes: ds_${0..2}.cabins
+    # 3. 座位表 (按 flight_id 分片，必须与 flights 在同库)
+    seat:
+      actualDataNodes: ds_${0..2}.seat
       databaseStrategy:
         standard:
-          shardingColumn: flight_id
-          shardingAlgorithmName: flight_id_inline # 与航班表同分片键，优化关联查询
+          shardingColumn: flight_id 
+          shardingAlgorithmName: flight_id_inline # 复用算法，确保同 flight_id 在同库
       keyGenerateStrategy:
-        column: cabin_id
-        keyGeneratorName: snowflake
+        column: seat_id 
+        keyGeneratorName: snowflake 
 
-    # 4. 机票订单表 (对应 orders 表，按 user_id 分片)
+    # 4. 订单表
     orders:
       actualDataNodes: ds_${0..2}.orders
       databaseStrategy:
@@ -74,7 +75,7 @@ rules:
         column: order_id
         keyGeneratorName: snowflake
 
-    # 5. 支付订单表 (对应 payments 表，按 order_id 分片)
+    # 5. 支付表
     payments:
       actualDataNodes: ds_${0..2}.payments
       databaseStrategy:
@@ -85,18 +86,18 @@ rules:
         column: payment_id
         keyGeneratorName: snowflake
 
-    # 6. 退票/改签记录表 (对应 refund_change_record 表，按 order_id 分片)
+    # 6. 退改签表
     refund_change_record:
       actualDataNodes: ds_${0..2}.refund_change_record
       databaseStrategy:
         standard:
           shardingColumn: order_id
-          shardingAlgorithmName: order_id_inline # 与支付表同分片键，优化关联查询
+          shardingAlgorithmName: order_id_inline 
       keyGenerateStrategy:
         column: record_id
         keyGeneratorName: snowflake
 
-    # 7. 系统配置表 (对应 system_config 表，按 config_id 分片)
+    # 7. 系统配置
     system_config:
       actualDataNodes: ds_${0..2}.system_config
       databaseStrategy:
@@ -107,7 +108,7 @@ rules:
         column: config_id
         keyGeneratorName: snowflake
 
-    # 8. 系统操作日志表 (对应 system_log 表，按 log_id 分片)
+    # 8. 系统日志
     system_log:
       actualDataNodes: ds_${0..2}.system_log
       databaseStrategy:
@@ -118,59 +119,49 @@ rules:
         column: log_id
         keyGeneratorName: snowflake
 
-  # 绑定表规则（优化关联查询性能，同分片键的表绑定）
+  # 绑定表规则
+  # 修改点：去掉了 cabins，只绑定 flights 和 seat
   bindingTables:
-    - flights, cabins # 航班与舱位强关联，同分片
-    - orders, payments, refund_change_record # 订单、支付、退改签强关联，同分片
-    - system_config # 单表绑定（可选，便于扩展）
-    - system_log # 单表绑定（可选，便于扩展）
+    - flights, seat                      # 航班和座位强关联，分片键都是 flight_id
+    - orders, payments, refund_change_record # 交易链路绑定
 
-  # 默认分片策略（未明确配置的表使用）
   defaultDatabaseStrategy:
     none:
   defaultTableStrategy:
     none:
 
-  # 分片算法配置（新增 config_id 算法，其余复用原有）
   shardingAlgorithms:
-    # 基于 user_id 取模 3
     user_id_inline:
       type: INLINE
       props:
         algorithm-expression: ds_${user_id % 3}
-    
-    # 基于 flight_id 取模 3
     flight_id_inline:
       type: INLINE
       props:
         algorithm-expression: ds_${flight_id % 3}
-        
-    # 基于 order_id 取模 3
     order_id_inline:
       type: INLINE
       props:
         algorithm-expression: ds_${order_id % 3}
-
-    # 基于 log_id 取模 3
     log_id_inline:
       type: INLINE
       props:
         algorithm-expression: ds_${log_id % 3}
-
-    # 基于 config_id 取模 3（新增，适配 system_config 表）
     config_id_inline:
       type: INLINE
       props:
         algorithm-expression: ds_${config_id % 3}
 
-  # 分布式主键生成器（复用雪花算法，与 SQL 表中主键生成逻辑一致）
   keyGenerators:
     snowflake:
       type: SNOWFLAKE
       props:
         worker-id: 123
 
+# 广播表配置
 - !BROADCAST
   tables:
-    - admins # 管理员表（广播表，所有分片同步数据，适配全局查询）
-    - temp_cabin_data  # 新增：将临时表设为广播表
+    - admins
+    - aircraft_models
+    - aircraft_cabin_configs # 配置表是广播表，没问题
+    - routes                 # 航线表是广播表，没问题

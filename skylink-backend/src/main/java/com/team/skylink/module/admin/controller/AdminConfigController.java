@@ -1,0 +1,109 @@
+package com.team.skylink.module.admin.controller;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.team.skylink.common.PageResult;
+import com.team.skylink.common.Result;
+import com.team.skylink.module.admin.dto.AdminConfigUpsertRequest;
+import com.team.skylink.module.admin.service.AdminConfigService;
+import com.team.skylink.module.system.entity.SystemConfig;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+
+@RestController
+@RequestMapping("/api/v1/admins/system-configs")
+public class AdminConfigController {
+    private final AdminConfigService adminConfigService;
+
+    public AdminConfigController(AdminConfigService adminConfigService) {
+        this.adminConfigService = adminConfigService;
+    }
+
+    @GetMapping
+    @Operation(summary = "系统配置列表")
+    @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
+    public Result<PageResult<SystemConfig>> list(
+            HttpServletRequest request,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String keyword
+    ) 
+    {
+        Result<?> adminGuard = ensureAdmin(request);
+        if (adminGuard != null) return (Result<PageResult<SystemConfig>>) adminGuard;
+        return adminConfigService.list(page, size, keyword);
+    }
+
+    @PostMapping
+    @Operation(summary = "创建系统配置（仅超级管理员）")
+    @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
+    @Parameter(name = "X-Admin-Role", description = "管理员角色：1=普通管理员，2=超级管理员", required = true)
+    public Result<SystemConfig> create(HttpServletRequest request, @Valid @RequestBody AdminConfigUpsertRequest body) {
+        Result<?> adminGuard = ensureSuperAdmin(request);
+        if (adminGuard != null) return (Result<SystemConfig>) adminGuard;
+        return adminConfigService.create(parseAdminId(request), body);
+    }
+
+    @PutMapping("/{configId}")
+    @Operation(summary = "更新系统配置（仅超级管理员）")
+    @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
+    @Parameter(name = "X-Admin-Role", description = "管理员角色：1=普通管理员，2=超级管理员", required = true)
+    public Result<Boolean> update(
+            HttpServletRequest request,
+            @PathVariable("configId") Long configId,
+            @Valid @RequestBody AdminConfigUpsertRequest body
+    ) {
+        Result<?> adminGuard = ensureSuperAdmin(request);
+        if (adminGuard != null) return (Result<Boolean>) adminGuard;
+        return adminConfigService.update(parseAdminId(request), configId, body);
+    }
+
+    @DeleteMapping("/{configId}")
+    @Operation(summary = "删除系统配置（仅超级管理员）")
+    @Parameter(name = "X-User-Type", description = "管理员类型标识，固定为 2", required = true)
+    @Parameter(name = "X-Admin-Role", description = "管理员角色：1=普通管理员，2=超级管理员", required = true)
+    public Result<Boolean> delete(HttpServletRequest request, @PathVariable("configId") Long configId) {
+        Result<?> adminGuard = ensureSuperAdmin(request);
+        if (adminGuard != null) return (Result<Boolean>) adminGuard;
+        return adminConfigService.delete(configId);
+    }
+
+    private static Result<?> ensureAdmin(HttpServletRequest request) {
+        String t = request.getHeader("X-User-Type");
+        if (t == null || (!"2".equals(t.trim()))) {
+            return Result.fail(403, "admin required");
+        }
+        return null;
+    }
+
+    private static Result<?> ensureSuperAdmin(HttpServletRequest request) {
+        Result<?> adminGuard = ensureAdmin(request);
+        if (adminGuard != null) return adminGuard;
+        String r = request.getHeader("X-Admin-Role");
+        if (r == null || (!"2".equals(r.trim()))) {
+            return Result.fail(403, "super admin required");
+        }
+        return null;
+    }
+
+    private static Long parseAdminId(HttpServletRequest request) {
+        String v = request.getHeader("X-User-Id");
+        if (v == null || v.isBlank()) return 0L;
+        try {
+            return Long.parseLong(v.trim());
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+}
+

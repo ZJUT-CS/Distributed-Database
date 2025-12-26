@@ -1,0 +1,40 @@
+package com.team.skylink.module.flight.service;
+
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.team.skylink.module.flight.entity.Seat;
+import java.util.List;
+import java.util.Map;
+
+public interface SeatService extends IService<Seat> {
+
+    // 【修改】参数从 orderId 变成了 userId
+    List<Seat> lockSeats(Long flightId, String cabinType, int count, Long userId);
+
+    // 【新增】Impl 里加了这个，接口里也得声明
+    void associateOrder(Long userId, List<Long> seatIds, Long orderId);
+
+    // 【修改】参数从 orderId 变成了 userId
+    Long lockRandomSeat(Long flightId, Long cabinId, Long userId);
+
+    boolean releaseSeat(Long seatId);
+
+    /**
+     * 确认座位 (单座)
+     * @param seatId 座位ID
+     * @param orderId 订单ID (用于修复可能缺失的关联)
+     */
+    boolean confirmSeat(Long seatId, Long orderId);
+
+    boolean changeSeat(Long orderId, Long newSeatId);
+
+    boolean confirmSeats(Long orderId);
+
+    boolean releaseSeats(Long orderId);
+
+    Integer getAvailableCount(Long flightId, String cabinType);
+
+    Map<Long, Map<String, Integer>> getAvailableCountBatch(List<Long> flightIds);
+
+    // Get Seat Map using Redis BitMap
+    List<Seat> getSeatMap(Long flightId);
+}
