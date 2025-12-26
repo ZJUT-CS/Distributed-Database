@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { Flight } from '../../flight/types';
 import type { BookingDetails, PassengerInfo } from '../types';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { CreditCard, User, ShieldCheck, Plane, Clock, Mail, Phone, ChevronRight, CheckCircle2, QrCode, Smartphone, Wallet, ArrowLeft, AlertCircle, Lock, BadgeCheck } from 'lucide-react';
 import { JourneyTimeline } from '../components/booking-ui';
-import { logger } from '@/lib/logger';
+import { logger } from '@/shared/logger';
 import { useConfirm } from '@/features/admin';
 
 

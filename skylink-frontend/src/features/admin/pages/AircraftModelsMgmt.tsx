@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
+﻿import React, { useState, useCallback, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, Plane as PlaneIcon, Search, RefreshCw, Factory, Users, Layers, Download } from 'lucide-react';
 import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, useAdminList, AdminTableState, useConfirm, useToast } from '@/features/admin';
-import { formatApiError } from '@/utils/apiError';
+import { formatApiError } from '@/shared/api/error';
 import { listAircraftModels, createAircraftModel, updateAircraftModel, deleteAircraftModel, type AircraftModelItem } from '@/features/admin/api/aircraftModels';
 import { listCabinConfigs } from '@/features/admin/api/cabinConfigs';
 import EntityCell from '@/components/common/EntityCell';
-import { exportToCSV } from '@/utils/export';
-import { logger } from '@/lib/logger';
+import { exportToCSV } from '@/shared/utils/export';
+import { logger } from '@/shared/logger';
 
 interface ModelFilters {
   keyword: string;

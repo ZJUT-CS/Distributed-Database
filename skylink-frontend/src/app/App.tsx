@@ -1,8 +1,8 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Navbar from './components/layout/Navbar';
-import Footer from './components/layout/Footer';
-import ErrorBoundary from './components/common/ErrorBoundary';
+import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer';
+import ErrorBoundary from '@/components/common/ErrorBoundary';
 
 const App: React.FC = () => {
   return (

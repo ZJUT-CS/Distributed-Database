@@ -1,0 +1,99 @@
+/* ========== 自定义滚动条 ========== */
+
+/* 平滑滚动 */
+.smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Webkit scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Firefox scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* Dark mode scrollbar - auto */
+@media (prefers-color-scheme: dark) {
+    ::-webkit-scrollbar-track {
+        background: #1e293b;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #475569;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+    }
+
+    * {
+        scrollbar-color: #475569 #1e293b;
+    }
+}
+
+/* Dark mode scrollbar - manual */
+[data-theme='dark'] ::-webkit-scrollbar-track {
+    background: #1e293b;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+    background: #475569;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+[data-theme='dark'] * {
+    scrollbar-color: #475569 #1e293b;
+}
+
+/* Animated scrollbar on hover */
+.animated-scrollbar::-webkit-scrollbar-thumb {
+    transition: background-color 0.2s ease, width 0.2s ease;
+}
+
+.animated-scrollbar:hover::-webkit-scrollbar {
+    width: 10px;
+}
+
+.animated-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+}
+
+[data-theme='dark'] .animated-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+}
+
+/* Utilities */
+.custom-scrollbar {
+    scrollbar-width: thin;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}

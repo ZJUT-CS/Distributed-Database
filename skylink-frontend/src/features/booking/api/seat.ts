@@ -1,4 +1,4 @@
-import { request, ApiError } from '../../../lib/axios';
+﻿import { request, ApiError } from '@/shared/api/axios';
 
 /**
  * 座位信息

@@ -1,4 +1,4 @@
-import { request, type PageResult } from '@/lib/axios';
+﻿import { request, type PageResult } from '@/shared/api/axios';
 
 /**
  * 管理员类型（与后端 Admin 实体对齐）

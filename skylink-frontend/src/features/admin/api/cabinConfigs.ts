@@ -1,4 +1,4 @@
-import { request, type PageResult } from '../../../lib/axios';
+﻿import { request, type PageResult } from '@/shared/api/axios';
 
 /** 舱位配置项 */
 export interface CabinConfigItem {

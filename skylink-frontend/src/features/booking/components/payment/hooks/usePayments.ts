@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { request } from '@/lib/axios';
+﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { request } from '@/shared/api/axios';
 import type { Payment } from '../types';
 import { listPaymentsPage, type PaymentSearchPageParams, type PaymentItem } from '@/features/admin/api/payments';
 

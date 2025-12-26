@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Calendar, CheckCircle2, Plane, RefreshCw } from 'lucide-react';
 import { type ConfirmedBooking, type PassengerInfo } from '@/features/booking';
 import { type Flight, FlightList } from '@/features/flight';
-import { request } from '@/lib/axios';
+import { request } from '@/shared/api';
 import { applyRefundChange } from '@/features/user/api/refund';
 import { useAuth } from '@/features/auth';
 import { searchOrders, type OrderSearchResult } from '@/features/booking/api/order';
@@ -535,8 +535,8 @@ const ChangeFlightPage: React.FC = () => {
                         type="button"
                         onClick={() => setCabinType(ct)}
                         className={`w-full rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${cabinType === ct
-                            ? 'bg-sky-600 text-white'
-                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                          ? 'bg-sky-600 text-white'
+                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                           }`}
                       >
                         {ct === 'economy' ? '经济舱' : ct === 'business' ? '公务舱' : '头等舱'}

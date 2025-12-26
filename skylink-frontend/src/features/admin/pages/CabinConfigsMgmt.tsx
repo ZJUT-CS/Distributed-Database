@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+﻿import React, { useEffect, useState, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Save, Sliders, Plane as PlaneIcon, Grid3X3, Briefcase, Search, RefreshCw, DollarSign, Download } from 'lucide-react';
 import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, FilterBar, AdminTableState, useAdminList, useConfirm, useToast } from '@/features/admin';
 import {
@@ -12,9 +12,9 @@ import {
 } from '@/features/admin/api/cabinConfigs';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
 import EntityCell from '@/components/common/EntityCell';
-import { formatApiError } from '@/utils/apiError';
-import { exportToCSV } from '@/utils/export';
-import { logger } from '@/lib/logger';
+import { formatApiError } from '@/shared/api/error';
+import { exportToCSV } from '@/shared/utils/export';
+import { logger } from '@/shared/logger';
 
 interface ConfigFilters {
   modelId: number | '';

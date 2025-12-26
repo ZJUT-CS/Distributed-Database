@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { createBrowserRouter, useRouteError, isRouteErrorResponse } from 'react-router-dom';
-import App from '@/App';
+import App from '@/app/App';
 import { AlertTriangle, RefreshCw, Home as HomeIcon } from 'lucide-react';
 import { homeRoutes } from '@/features/home/routes';
 import { flightResultRoutes } from '@/features/flight/routes';

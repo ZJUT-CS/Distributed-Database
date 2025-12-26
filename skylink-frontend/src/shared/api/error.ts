@@ -1,4 +1,4 @@
-import { ApiError, type ErrorType } from '@/lib/axios';
+import { ApiError, type ErrorType } from '@/shared/api/axios';
 
 export interface FormatErrorOptions {
   defaultMessage?: string;
@@ -26,25 +26,25 @@ const ERROR_CODE_MESSAGES: Record<number, string> = {
   403: '无权限执行此操作',
   404: '请求的资源不存在',
   500: '服务器内部错误',
-  
+
   1001: '用户名或密码错误',
   1002: '用户已被禁用',
   1003: '用户不存在',
   1004: '手机号已被注册',
   1005: '邮箱已被注册',
   1006: '证件号已被注册',
-  
+
   2001: '航班不存在',
   2002: '航班已取消',
   2003: '航班座位已满',
   2004: '航班时间冲突',
-  
+
   3001: '订单不存在',
   3002: '订单状态异常',
   3003: '订单已过期',
   3004: '支付失败',
   3005: '退款失败',
-  
+
   4001: '航线不存在',
   4002: '机型不存在',
   4003: '舱位配置不存在',
@@ -75,7 +75,7 @@ export function formatApiError(
 
   if (error instanceof ApiError) {
     let message = error.message;
-    
+
     if (!message || message === '请求失败') {
       if (error.code && ERROR_CODE_MESSAGES[error.code]) {
         message = ERROR_CODE_MESSAGES[error.code];

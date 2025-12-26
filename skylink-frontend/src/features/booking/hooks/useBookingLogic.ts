@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Flight } from '../../flight/types';
 import type { BookingDetails, PassengerInfo } from '../types';
 import { usePassengerValidation } from './usePassengerValidation';
-import { isUserVerified } from '@/utils/userVerification';
+import { isUserVerified } from '@/shared/utils/userVerification';
 
 const BOOKING_DRAFT_KEY = 'skylink_booking_form_draft';
 

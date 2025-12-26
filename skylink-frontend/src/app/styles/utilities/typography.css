@@ -1,0 +1,153 @@
+/* ========== 排版工具类 ========== */
+
+/* Display 标题 */
+.text-display-xl {
+    font-size: var(--font-size-display-xl);
+    line-height: var(--line-height-display-xl);
+    font-weight: var(--font-weight-display);
+    letter-spacing: -0.02em;
+}
+
+.text-display-lg {
+    font-size: var(--font-size-display-lg);
+    line-height: var(--line-height-display-lg);
+    font-weight: var(--font-weight-display);
+    letter-spacing: -0.015em;
+}
+
+.text-display-md {
+    font-size: var(--font-size-display-md);
+    line-height: var(--line-height-display-md);
+    font-weight: var(--font-weight-display);
+    letter-spacing: -0.01em;
+}
+
+.text-display-sm {
+    font-size: var(--font-size-display-sm);
+    line-height: var(--line-height-display-sm);
+    font-weight: var(--font-weight-display);
+    letter-spacing: -0.005em;
+}
+
+/* Heading 标题 */
+.text-heading-xl {
+    font-size: var(--font-size-heading-xl);
+    line-height: var(--line-height-heading-xl);
+    font-weight: var(--font-weight-heading);
+    letter-spacing: -0.005em;
+}
+
+.text-heading-lg {
+    font-size: var(--font-size-heading-lg);
+    line-height: var(--line-height-heading-lg);
+    font-weight: var(--font-weight-heading);
+}
+
+.text-heading-md {
+    font-size: var(--font-size-heading-md);
+    line-height: var(--line-height-heading-md);
+    font-weight: var(--font-weight-heading);
+}
+
+.text-heading-sm {
+    font-size: var(--font-size-heading-sm);
+    line-height: var(--line-height-heading-sm);
+    font-weight: var(--font-weight-heading);
+}
+
+/* Body 正文 */
+.text-body-lg {
+    font-size: var(--font-size-body-lg);
+    line-height: var(--line-height-body-lg);
+    font-weight: var(--font-weight-body);
+}
+
+.text-body-md {
+    font-size: var(--font-size-body-md);
+    line-height: var(--line-height-body-md);
+    font-weight: var(--font-weight-body);
+}
+
+.text-body-sm {
+    font-size: var(--font-size-body-sm);
+    line-height: var(--line-height-body-sm);
+    font-weight: var(--font-weight-body);
+}
+
+.text-body-xs {
+    font-size: var(--font-size-body-xs);
+    line-height: var(--line-height-body-xs);
+    font-weight: var(--font-weight-body);
+}
+
+/* Caption 辅助文本 */
+.text-caption {
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+    font-weight: var(--font-weight-caption);
+    color: var(--color-gray-500);
+}
+
+/* Label 标签 */
+.text-label {
+    font-size: var(--font-size-label);
+    line-height: var(--line-height-label);
+    font-weight: var(--font-weight-label);
+}
+
+/* Button 按钮 */
+.text-button {
+    font-size: var(--font-size-button);
+    line-height: var(--line-height-button);
+    font-weight: var(--font-weight-button);
+}
+
+/* Code 代码 */
+.text-code {
+    font-size: var(--font-size-code);
+    line-height: var(--line-height-code);
+    font-weight: var(--font-weight-code);
+    font-family: var(--font-family-code);
+}
+
+/* 字重工具类 */
+.font-light {
+    font-weight: 300;
+}
+
+.font-normal {
+    font-weight: 400;
+}
+
+.font-medium {
+    font-weight: 500;
+}
+
+.font-semibold {
+    font-weight: 600;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+.font-extrabold {
+    font-weight: 800;
+}
+
+/* 字间距工具类 */
+.letter-tight {
+    letter-spacing: -0.025em;
+}
+
+.letter-normal {
+    letter-spacing: 0;
+}
+
+.letter-wide {
+    letter-spacing: 0.025em;
+}
+
+.letter-wider {
+    letter-spacing: 0.05em;
+}

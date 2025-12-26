@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+﻿import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Download, Plus, Search, Users, Edit2, Ban, Trash2, Save, Plane as PlaneIcon, RefreshCw, CheckSquare, Square, X, Copy } from 'lucide-react';
 import { type FlightStatus } from '@/features/flight';
 import { Pagination, TableActionMenu, AdminBadge, AdminPageHeader, AdminModal, EmptyState, useConfirm, useToast, type AdminFlightItem, AdminTableState, useAdminOptions, PassengerListDrawer } from '@/features/admin';
 import { FLIGHT_STATUS_STR_META } from '@/features/admin/constants';
-import { formatApiError } from '@/utils/apiError';
+import { formatApiError } from '@/shared/api/error';
 import EntityCell from '@/components/common/EntityCell';
 import { listRouteOptions, type RouteOption } from '@/features/admin/api/routes';
 import { listAircraftModelOptions, type AircraftModelOption } from '@/features/admin/api/aircraftModels';
 import { listAdminFlights } from '@/features/admin/api/flights';
-import { exportToCSV } from '@/utils/export';
+import { exportToCSV } from '@/shared/utils/export';
 import { useAdminFlights, useCreateAdminFlight, useUpdateAdminFlight, useDeleteAdminFlight } from '@/features/admin/hooks/useAdminFlights';
-import { logger } from '@/lib/logger';
+import { logger } from '@/shared/logger';
 
 type UiFlight = {
   rowId: string; // 唯一标识（用于 key / 选中态 / 菜单展开态）

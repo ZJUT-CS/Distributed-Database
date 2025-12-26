@@ -1,7 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import type { User } from '../../auth/types';
 import { ArrowLeft, Mail, Shield, User as UserIcon, CreditCard, CalendarDays, ShieldCheck } from 'lucide-react';
-import { isUserVerified } from '@/utils/userVerification';
+import { isUserVerified } from '@/shared/utils/userVerification';
 
 interface UserProfileProps {
   user: User;

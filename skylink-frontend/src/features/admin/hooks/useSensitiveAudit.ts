@@ -1,7 +1,7 @@
-import { useCallback } from 'react';
+﻿import { useCallback } from 'react';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/ConfirmModal';
-import { logger } from '@/lib/logger';
+import { logger } from '@/shared/logger';
 
 export type AuditAction = 'view' | 'copy' | 'edit' | 'export';
 

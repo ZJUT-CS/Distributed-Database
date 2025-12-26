@@ -1,4 +1,4 @@
-import { request } from '../../../lib/axios';
+﻿import { request } from '@/shared/api/axios';
 
 /**
  * 联程/多程预订请求参数

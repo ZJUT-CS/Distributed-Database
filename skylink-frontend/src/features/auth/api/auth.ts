@@ -1,4 +1,4 @@
-import { request } from '../../../lib/axios';
+﻿import { request } from '@/shared/api/axios';
 
 export interface LoginResponse {
   id?: number | string;
