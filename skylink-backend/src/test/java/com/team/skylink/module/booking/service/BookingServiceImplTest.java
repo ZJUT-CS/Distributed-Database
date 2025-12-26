@@ -36,7 +36,7 @@ public class BookingServiceImplTest {
         RouteMapper routeMapper = mock(RouteMapper.class);
         SeatService seatService = mock(SeatService.class);
 
-        PriceStrategyService priceStrategyService = new PriceStrategyService(seatService);
+        PriceStrategyService priceStrategyService = new PriceStrategyService(seatService, orderMapper);
 
         BookingServiceImpl bookingService = new BookingServiceImpl(
                 orderMapper, flightMapper, configMapper, userMapper, routeMapper, seatService, priceStrategyService);

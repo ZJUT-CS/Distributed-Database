@@ -71,7 +71,7 @@ class OrderServiceImplTest {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), AircraftCabinConfig.class);
 
         // Default pricing stubs used by OrderServiceImpl.create()
-        lenient().when(priceStrategyService.calculateSegmentPrice(any(Flight.class), any(Route.class), any(AircraftCabinConfig.class), anyBoolean()))
+        lenient().when(priceStrategyService.calculateSegmentPrice(any(Flight.class), any(Route.class), any(AircraftCabinConfig.class), anyBoolean(), any()))
             .thenReturn(new BigDecimal("100"));
         lenient().when(priceStrategyService.applyUserDiscount(any(BigDecimal.class), anyBoolean()))
             .thenAnswer(invocation -> invocation.getArgument(0));

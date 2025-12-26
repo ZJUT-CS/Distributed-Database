@@ -152,6 +152,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
     return { ticketPerPassenger, ticketAmount, taxAmount, insuranceAmount, fastTicketAmount, totalAmount };
   }, [addons.fastTicket, addons.insurance, flights, passengerCount]);
 
+  useEffect(() => {
+    console.log('💰 [Booking Form] Pricing Updated:', pricing);
+  }, [pricing]);
+
   const validation = useMemo(() => {
     const passengerErrors = passengers.map(() => ({ name: '', idCard: '', type: '' }));
     const idCards = passengers.map((p) => normalizeIdCard(p.idCard)).filter(Boolean);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { Flight } from '../types';
 import { Plane, ArrowRight, Luggage, Zap, Utensils, Wifi, MonitorPlay } from 'lucide-react';
 
@@ -10,6 +10,17 @@ interface FlightListProps {
 }
 
 const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction, renderPrice }) => {
+  useEffect(() => {
+    if (flights.length > 0) {
+      console.group('✈️ Flight Search Results');
+      console.log(`Found ${flights.length} flights`);
+      flights.forEach(f => {
+        console.log(`Flight ${f.flightNumber} (${f.airline}): ¥${f.price}`, f);
+      });
+      console.groupEnd();
+    }
+  }, [flights]);
+
   const formatTime = (isoString: string) => {
     return new Date(isoString).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   };

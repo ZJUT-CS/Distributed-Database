@@ -1,9 +1,12 @@
 package com.team.skylink.module.order.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.team.skylink.module.aircraft.entity.AircraftCabinConfig;
 import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.entity.Route;
 import com.team.skylink.module.flight.service.SeatService;
+import com.team.skylink.module.order.entity.Orders;
+import com.team.skylink.module.order.mapper.OrderMapper;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -14,9 +17,11 @@ import java.time.LocalDateTime;
 public class PriceStrategyService {
 
     private final SeatService seatService;
+    private final OrderMapper orderMapper;
 
-    public PriceStrategyService(SeatService seatService) {
+    public PriceStrategyService(SeatService seatService, OrderMapper orderMapper) {
         this.seatService = seatService;
+        this.orderMapper = orderMapper;
     }
 
     /**
@@ -26,9 +31,10 @@ public class PriceStrategyService {
      * @param route      Route entity
      * @param config     Cabin config
      * @param isInterline Whether it is an interline flight (L2)
-     * @return Price after L1-L3
+     * @param userId     User ID (nullable). If provided, applies L4 User Discount.
+     * @return Price after L1-L4
      */
-    public BigDecimal calculateSegmentPrice(Flight flight, Route route, AircraftCabinConfig config, boolean isInterline) {
+    public BigDecimal calculateSegmentPrice(Flight flight, Route route, AircraftCabinConfig config, boolean isInterline, Long userId) {
         // L1: Base Price Layer
         BigDecimal basePrice = route.getBasePrice();
         if (config.getCabinCoefficient() != null) {
@@ -74,7 +80,16 @@ public class PriceStrategyService {
         // Applying dynamic multiplier
         price = price.multiply(dynamicMultiplier);
 
-        return price;
+        // L4: User Discount (New User)
+        if (userId != null) {
+            Long count = orderMapper.selectCount(new QueryWrapper<Orders>().eq("user_id", userId));
+            if (count != null && count == 0) {
+                price = price.multiply(new BigDecimal("0.90")); // 9折
+            }
+        }
+
+        // Rounding (2 decimal places)
+        return price.setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     /**

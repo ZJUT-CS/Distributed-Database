@@ -75,7 +75,7 @@ public class FlightServiceImpl implements FlightService {
     }
 
     @Override
-    @Cacheable(value = "flightSearchV2", key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo, #page, #size)", unless = "#result.data.directFlights.total == 0")
+    //@Cacheable(value = "flightSearchV3", key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo, #page, #size)", unless = "#result.data.directFlights.total == 0")
     public Result<FlightSearchResult> search(String departurePlace, String destination, String flightNo,
             String airlineCompany, String cabinType, Integer status, LocalDate departureDate,
             LocalDateTime departureTimeFrom, LocalDateTime departureTimeTo, int page, int size) {
@@ -315,7 +315,12 @@ public class FlightServiceImpl implements FlightService {
         Map<String, Integer> flightSeats = seatMap.getOrDefault(f.getFlightId(), Collections.emptyMap());
 
         for (AircraftCabinConfig cfg : configs) {
-            BigDecimal price = priceStrategyService.calculateSegmentPrice(f, route, cfg, isInterline);
+            // ✅ UPDATED: Use PriceStrategyService for dynamic pricing
+            BigDecimal price = priceStrategyService.calculateSegmentPrice(f, route, cfg, isInterline, null);
+
+            // 🔴 把它注释掉，直接写死！
+            //BigDecimal price = new BigDecimal("999"); // 写一个绝对不可能出现的数字
+            //System.err.println("🔥🔥🔥 强制改价测试：航班 " + f.getFlightNo() + " 设置为 999");
 
             // Check inventory using pre-fetched map
             Integer availableCount = flightSeats.getOrDefault(cfg.getCabinType(), 0);
@@ -362,9 +367,6 @@ public class FlightServiceImpl implements FlightService {
 
         return dto;
     }
-
-    // Delete convertToResponse as it is no longer used
-
 
     @Override
     @Transactional(rollbackFor = Exception.class)

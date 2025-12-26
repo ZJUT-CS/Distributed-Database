@@ -76,6 +76,13 @@ const BookingPage: React.FC = () => {
           ? (details.totalAmount as number)
           : flights.reduce((sum, f) => sum + f.price, 0);
 
+      console.group('📦 Order Created');
+      console.log('Order ID:', id);
+      console.log('Total Price:', totalPrice);
+      console.log('Flights:', flights);
+      console.log('Passengers:', details.passengers);
+      console.groupEnd();
+
       const bookingDate = (created?.createTime as any) ? String(created.createTime) : new Date().toISOString();
 
       const newBooking: ConfirmedBooking = {

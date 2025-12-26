@@ -411,6 +411,13 @@ export const BookingDetailsPage: React.FC = () => {
       }
 
       const token = await createPaymentConfirmToken({ orderNo: currentBooking.id, amount: Number(currentBooking.totalPrice || 0) });
+      
+      console.group('💳 Payment Preparation');
+      console.log('Order No:', currentBooking.id);
+      console.log('Payment Amount:', Number(currentBooking.totalPrice || 0));
+      console.log('Payment Token:', token);
+      console.groupEnd();
+
       setPayToken(token);
       setPayModalOpen(true);
     } catch (e: any) {
@@ -441,6 +448,7 @@ export const BookingDetailsPage: React.FC = () => {
       method: 'CARD',
     })
       .then(() => {
+        console.log('✅ Payment Confirmed for amount:', payToken.amount);
         toast.success('支付成功！');
         setPayModalOpen(false);
         setPayToken(null);

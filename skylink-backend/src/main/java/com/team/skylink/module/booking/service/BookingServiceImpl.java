@@ -208,13 +208,9 @@ public class BookingServiceImpl implements BookingService {
         Route route = routeMapper.selectById(flight.getRouteId());
 
         boolean isInterline = parentOrderId != null;
-        BigDecimal unitPrice = priceStrategyService.calculateSegmentPrice(flight, route, config, isInterline);
+        BigDecimal unitPrice = priceStrategyService.calculateSegmentPrice(flight, route, config, isInterline, userId);
         BigDecimal totalPrice = unitPrice.multiply(new BigDecimal(ticketNum));
-        Long existing = orderMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Orders>().eq("user_id", userId));
-        boolean isNewUser = existing != null && existing == 0;
-        if (tripType == 0 || tripType == 1) {
-            totalPrice = priceStrategyService.applyUserDiscount(totalPrice, isNewUser);
-        }
+        // User discount logic is now handled in calculateSegmentPrice (L4 strategy)
 
         // Add Taxes and Fees
         // Tax: 120 per passenger
