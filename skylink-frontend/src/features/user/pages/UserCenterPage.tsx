@@ -355,7 +355,7 @@ const UserCenterPage: React.FC = () => {
         <div className="absolute top-1/3 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-blue-200/20 dark:bg-azure-400/10 blur-3xl opacity-20 dark:opacity-30" />
       </div>
 
-      <div className="relative overflow-hidden rounded-3xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 dark:from-cosmos-bg dark:via-cosmos-surface dark:to-indigo-950 text-white shadow-xl shadow-sky-500/15 dark:shadow-indigo-950/50 mb-6 font-primary transition-all duration-500">
+      <div className="relative overflow-hidden rounded-3xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900 text-white shadow-xl shadow-sky-500/15 dark:shadow-indigo-950/50 mb-6 font-primary transition-all duration-500">
         <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/10 dark:bg-sky-500/10 blur-3xl" />
         <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-sky-200/20 dark:bg-indigo-500/10 blur-3xl" />
         <div className="relative p-6 sm:p-7">
@@ -386,7 +386,7 @@ const UserCenterPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] xl:grid-cols-[420px_1fr] gap-6">
-        <div className="rounded-3xl border border-sky-100 dark:border-cosmos-border bg-white/90 dark:bg-cosmos-surface/90 backdrop-blur shadow-sm overflow-hidden">
+        <div className="rounded-3xl border border-sky-100 dark:border-slate-800 bg-white/90 dark:bg-slate-950/60 backdrop-blur shadow-sm overflow-hidden">
           <div className="p-6">
             <div className="flex items-center gap-4">
               <div className={`w-14 h-14 rounded-2xl ${avatarColor} flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-sky-500/20`}>
@@ -451,7 +451,7 @@ const UserCenterPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-sky-100 dark:border-cosmos-border bg-white/90 dark:bg-cosmos-surface/90 backdrop-blur shadow-sm overflow-hidden">
+        <div className="rounded-3xl border border-sky-100 dark:border-slate-800 bg-white/90 dark:bg-slate-950/60 backdrop-blur shadow-sm overflow-hidden">
           <div className="px-6 pt-6">
             <div className="grid grid-cols-2 bg-sky-50 dark:bg-cosmos-surface-elevated p-1 rounded-2xl w-full sm:w-[360px] border border-sky-100 dark:border-cosmos-border">
               <button
@@ -504,8 +504,8 @@ const UserCenterPage: React.FC = () => {
                           onChange={(e) => setRealNameDraft(e.target.value)}
                           readOnly={isVerified}
                           className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none transition-all duration-300 ${isVerified
-                            ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed dark:bg-cosmos-surface-elevated/40 dark:border-cosmos-border/50 dark:text-cosmos-text-muted'
-                            : 'bg-white border-gray-200 focus:ring-2 focus:ring-sky-500 dark:bg-cosmos-surface-elevated dark:border-cosmos-border dark:text-cosmos-text-primary dark:focus:ring-sky-900/50'
+                            ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed dark:bg-slate-900/40 dark:border-slate-800 dark:text-slate-400'
+                            : 'bg-white border-gray-200 focus:ring-2 focus:ring-sky-500 dark:bg-slate-950/50 dark:border-slate-800 dark:text-slate-200 dark:focus:ring-sky-900/50'
                             }`}
                           placeholder="请输入真实姓名"
                         />

@@ -211,7 +211,7 @@ const SeatSelectionPage: React.FC = () => {
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 relative overflow-hidden transition-colors duration-500">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900 relative overflow-hidden transition-colors duration-500">
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 <Plane className="absolute text-blue-200/30 dark:text-blue-900/20 animate-plane-fly" style={{ width: '120px', height: '120px', top: '10%', left: '-120px', animation: 'plane-fly 20s ease-in-out infinite' }} />
             </div>
@@ -241,7 +241,7 @@ const SeatSelectionPage: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => navigate(-1)}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur border border-gray-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md text-gray-700 dark:text-slate-200 transition-all font-medium group hover:scale-105 active:scale-95"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/90 dark:bg-slate-950/80 backdrop-blur border border-gray-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md text-gray-700 dark:text-slate-200 transition-all font-medium group hover:scale-105 active:scale-95"
                     >
                         <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                         <span>返回</span>
@@ -253,7 +253,7 @@ const SeatSelectionPage: React.FC = () => {
                         className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 font-medium transition-all hover:scale-105 active:scale-95
                         ${loading || submitting || !effectiveCabinType
                                 ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 border-gray-200 dark:border-slate-800 cursor-not-allowed'
-                                : 'bg-white/90 dark:bg-slate-900/90 backdrop-blur text-gray-700 dark:text-slate-200 border-gray-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md'
+                                : 'bg-white/90 dark:bg-slate-950/80 backdrop-blur text-gray-700 dark:text-slate-200 border-gray-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md'
                             }
                     `}
                     >
@@ -279,16 +279,16 @@ const SeatSelectionPage: React.FC = () => {
 
                     <div className="lg:col-span-3">
                         {loading ? (
-                            <div className="rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-lg p-8 flex flex-col items-center justify-center border border-gray-200 dark:border-slate-800" style={{ minHeight: '600px' }}>
+                            <div className="rounded-3xl bg-white/90 dark:bg-slate-950/90 backdrop-blur shadow-lg p-8 flex flex-col items-center justify-center border border-gray-200 dark:border-slate-800" style={{ minHeight: '600px' }}>
                                 <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
                                 <p className="mt-4 text-gray-500 dark:text-slate-400 text-sm">加载座位图中...</p>
                             </div>
                         ) : seats.length === 0 ? (
-                            <div className="rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-lg p-8 text-center text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-slate-800" style={{ minHeight: '600px' }}>
+                            <div className="rounded-3xl bg-white/90 dark:bg-slate-950/90 backdrop-blur shadow-lg p-8 text-center text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-slate-800" style={{ minHeight: '600px' }}>
                                 暂无可用座位信息
                             </div>
                         ) : (
-                            <div className="rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-xl overflow-hidden border border-gray-200 dark:border-slate-800 hover:shadow-2xl transition-shadow duration-300">
+                            <div className="rounded-3xl bg-white/90 dark:bg-slate-950/90 backdrop-blur shadow-xl overflow-hidden border border-gray-200 dark:border-slate-800 hover:shadow-2xl transition-shadow duration-300">
                                 <div className="flex items-center border-b border-gray-200 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-950/50 relative">
                                     <button className="flex-1 px-6 py-3.5 text-sm font-semibold text-gray-400 dark:text-slate-500 flex items-center justify-center gap-2 transition-colors hover:bg-gray-100/50 dark:hover:bg-slate-800/50">
                                         🔒 无法调整
@@ -319,7 +319,7 @@ const SeatSelectionPage: React.FC = () => {
                     </div>
 
                     <div className="lg:col-span-2 space-y-3 lg:space-y-4">
-                        <div className="rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-xl border border-gray-200 dark:border-slate-800 overflow-hidden group hover:shadow-2xl transition-shadow duration-300">
+                        <div className="rounded-3xl bg-white/90 dark:bg-slate-950/90 backdrop-blur shadow-xl border border-gray-200 dark:border-slate-800 overflow-hidden group hover:shadow-2xl transition-shadow duration-300">
                             <div className="relative bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 px-6 py-5 text-white overflow-hidden">
                                 <svg
                                     className="absolute -bottom-1 left-0 w-full h-4"
@@ -371,7 +371,7 @@ const SeatSelectionPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-xl border border-gray-200 dark:border-slate-800 p-6 hover:shadow-2xl transition-shadow duration-300">
+                        <div className="rounded-3xl bg-white/90 dark:bg-slate-950/90 backdrop-blur shadow-xl border border-gray-200 dark:border-slate-800 p-6 hover:shadow-2xl transition-shadow duration-300">
                             {selectedSeat ? (
                                 <div className="rounded-2xl border-2 border-blue-300 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 p-5 relative shadow-inner transition-colors">
                                     <button
@@ -399,7 +399,7 @@ const SeatSelectionPage: React.FC = () => {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="rounded-2xl border-2 border-dashed border-gray-300 dark:border-slate-700 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 px-6 py-12 text-center transition-colors">
+                                <div className="rounded-2xl border-2 border-dashed border-gray-300 dark:border-slate-700 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-900 dark:to-slate-950 px-6 py-12 text-center transition-colors">
                                     <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-200 dark:bg-slate-800 flex items-center justify-center">
                                         <Plane className="w-8 h-8 text-gray-400 dark:text-slate-500" />
                                     </div>
@@ -434,7 +434,7 @@ const SeatSelectionPage: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={() => navigate(-1)}
-                                        className="py-3.5 rounded-2xl border-2 border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 font-bold hover:bg-gray-50 dark:hover:bg-slate-700 hover:border-gray-400 dark:hover:border-slate-600 transition-all hover:shadow-md active:scale-95"
+                                        className="py-3.5 rounded-2xl border-2 border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950/50 text-gray-700 dark:text-slate-200 font-bold hover:bg-gray-50 dark:hover:bg-slate-900 hover:border-gray-400 dark:hover:border-slate-600 transition-all hover:shadow-md active:scale-95"
                                     >
                                         返回
                                     </button>
@@ -444,7 +444,7 @@ const SeatSelectionPage: React.FC = () => {
                                         disabled={!selectedSeat || submitting}
                                         className={`py-3.5 rounded-2xl font-bold transition-all transform
                                         ${!selectedSeat || submitting
-                                                ? 'bg-gray-300 dark:bg-slate-800 text-gray-500 dark:text-slate-600 cursor-not-allowed'
+                                                ? 'bg-gray-300 dark:bg-slate-800/50 text-gray-500 dark:text-slate-600 cursor-not-allowed'
                                                 : 'bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 hover:from-blue-600 hover:via-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/40 hover:shadow-xl hover:shadow-blue-500/50 hover:scale-105 active:scale-95'
                                             }
                                     `}

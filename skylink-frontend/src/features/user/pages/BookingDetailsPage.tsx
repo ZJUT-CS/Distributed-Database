@@ -270,7 +270,7 @@ export const BookingDetailsPage: React.FC = () => {
   if (!booking) {
     return (
       <div className="animate-fade-in-up mt-8 w-full max-w-screen-2xl mx-auto mb-20 px-4 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div className="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-950/60 backdrop-blur-xl shadow-sm overflow-hidden">
           <div className="p-6 flex items-center gap-4">
             <button
               type="button"
@@ -411,7 +411,7 @@ export const BookingDetailsPage: React.FC = () => {
       }
 
       const token = await createPaymentConfirmToken({ orderNo: currentBooking.id, amount: Number(currentBooking.totalPrice || 0) });
-      
+
       console.group('💳 Payment Preparation');
       console.log('Order No:', currentBooking.id);
       console.log('Payment Amount:', Number(currentBooking.totalPrice || 0));
@@ -469,7 +469,7 @@ export const BookingDetailsPage: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate('/my-bookings')}
-            className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 hover:shadow-sm text-gray-600 dark:text-slate-300 transition-all"
+            className="p-2.5 rounded-xl bg-white dark:bg-slate-950/50 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 hover:shadow-sm text-gray-600 dark:text-slate-300 transition-all"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -542,10 +542,10 @@ export const BookingDetailsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 backdrop-blur-xl shadow-sm overflow-hidden">
         <div className="p-6 sm:p-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-2xl border border-gray-100 dark:border-cosmos-border bg-gradient-to-br from-blue-50 to-white dark:from-cosmos-surface-elevated/80 dark:to-cosmos-bg p-5 transition-all duration-300">
+            <div className="rounded-2xl border border-gray-100 dark:border-cosmos-border bg-gradient-to-br from-blue-50 to-white dark:from-slate-900/80 dark:to-slate-950 p-5 transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600 dark:text-cosmos-text-muted font-medium">航线</div>
                 <div className="w-10 h-10 rounded-2xl bg-blue-600 dark:bg-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 dark:shadow-cosmos-glow/20">
@@ -558,7 +558,7 @@ export const BookingDetailsPage: React.FC = () => {
               <div className="mt-1 text-xs text-gray-500 dark:text-slate-400">共 {flights.length || 0} 段</div>
             </div>
 
-            <div className="rounded-2xl border border-gray-100 dark:border-cosmos-border bg-gradient-to-br from-emerald-50 to-white dark:from-cosmos-surface-elevated/80 dark:to-cosmos-bg p-5 transition-all duration-300">
+            <div className="rounded-2xl border border-gray-100 dark:border-cosmos-border bg-gradient-to-br from-emerald-50 to-white dark:from-slate-900/80 dark:to-slate-950 p-5 transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600 dark:text-cosmos-text-muted font-medium">乘客</div>
                 <div className="w-10 h-10 rounded-2xl bg-emerald-600 dark:bg-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20 dark:shadow-cosmos-glow/20">
@@ -572,7 +572,7 @@ export const BookingDetailsPage: React.FC = () => {
               <div className="mt-2 text-xs text-gray-500 dark:text-slate-400">共 {Math.max(1, passengerList.length || 0)} 人</div>
             </div>
 
-            <div className="rounded-2xl border border-gray-100 dark:border-cosmos-border bg-gradient-to-br from-indigo-50 to-white dark:from-cosmos-surface-elevated/80 dark:to-cosmos-bg p-5 transition-all duration-300">
+            <div className="rounded-2xl border border-gray-100 dark:border-cosmos-border bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900/80 dark:to-slate-950 p-5 transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600 dark:text-cosmos-text-muted font-medium">价格</div>
                 <div className="w-10 h-10 rounded-2xl bg-indigo-600 dark:bg-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20 dark:shadow-cosmos-glow/20">
@@ -584,8 +584,8 @@ export const BookingDetailsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-6 rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/50 flex items-center justify-between gap-4">
+          <div className="mt-6 rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-950/40 overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-indigo-950/30 flex items-center justify-between gap-4">
               <div className="text-sm font-bold text-gray-900 dark:text-slate-100">乘客信息</div>
               {detailLoading && <div className="text-xs text-gray-500 dark:text-slate-500">加载中...</div>}
             </div>
@@ -606,8 +606,8 @@ export const BookingDetailsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-6 rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/50 flex items-center justify-between gap-4">
+          <div className="mt-6 rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-950/40 overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-indigo-950/30 flex items-center justify-between gap-4">
               <div>
                 <div className="text-sm font-bold text-gray-900 dark:text-slate-100">航段信息</div>
                 <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">

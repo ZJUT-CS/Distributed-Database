@@ -9,6 +9,26 @@ const toCity = (loc: string) => {
   return byCity ? byCity.city : loc;
 };
 
+export interface AirportLocation {
+  id: number;
+  airportCode: string;
+  airportName: string;
+  city: string;
+  country: string;
+  longitude: number;
+  latitude: number;
+  iataCode?: string;
+  icaoCode?: string;
+}
+
+export async function getAirportLocations(): Promise<AirportLocation[]> {
+  const data = await request<AirportLocation[]>({
+    method: 'GET',
+    url: '/api/v1/airports/locations',
+  });
+  return data;
+}
+
 export async function searchFlights(params: {
   origin: string;
   destination: string;
@@ -26,7 +46,7 @@ export async function searchFlights(params: {
     'business': 'J',
     'first': 'F'
   };
-  
+
   let cabinType: string | undefined = undefined;
   if (params.cabinClass) {
     const key = params.cabinClass.toLowerCase();
@@ -175,67 +195,67 @@ export async function searchFlights(params: {
 
   const interline = (data.interlineFlights ?? [])
     .map((it): Flight | null => {
-    const segs = it.segments ?? [];
-    const first = segs[0];
-    const last = segs[segs.length - 1];
+      const segs = it.segments ?? [];
+      const first = segs[0];
+      const last = segs[segs.length - 1];
 
-    if (!segs.length) return null;
-    const flightIds = segs.map((s) => String(s.flightId ?? '').trim()).filter(Boolean);
-    if (flightIds.length !== segs.length) return null;
-    const id = flightIds.join('+');
-    const airline = first?.airlineCompany || '';
-    const airlineCode = (first?.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2);
+      if (!segs.length) return null;
+      const flightIds = segs.map((s) => String(s.flightId ?? '').trim()).filter(Boolean);
+      if (flightIds.length !== segs.length) return null;
+      const id = flightIds.join('+');
+      const airline = first?.airlineCompany || '';
+      const airlineCode = (first?.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2);
 
-    // 将后端 segments 转换为 FlightSegment 格式
-    const flightSegments = segs.map((s) => ({
-      flightId: String(s.flightId ?? '').trim(),
-      flightNumber: s.flightNo,
-      origin: s.departurePlace,
-      destination: s.destination,
-      departureTime: s.departureTime,
-      arrivalTime: s.arrivalTime,
-      duration: computeDuration(s.departureTime, s.arrivalTime) || s.duration,
-      airline: s.airlineCompany,
-      airlineCode: (s.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
-    }));
+      // 将后端 segments 转换为 FlightSegment 格式
+      const flightSegments = segs.map((s) => ({
+        flightId: String(s.flightId ?? '').trim(),
+        flightNumber: s.flightNo,
+        origin: s.departurePlace,
+        destination: s.destination,
+        departureTime: s.departureTime,
+        arrivalTime: s.arrivalTime,
+        duration: computeDuration(s.departureTime, s.arrivalTime) || s.duration,
+        airline: s.airlineCompany,
+        airlineCode: (s.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
+      }));
 
-    // 计算最小剩余座位数（短板效应）
-    const minSeats = segs.reduce((min, s) => {
-      const seats = typeof s.remainingSeats === 'number' ? s.remainingSeats : Infinity;
-      return Math.min(min, seats);
-    }, Infinity);
+      // 计算最小剩余座位数（短板效应）
+      const minSeats = segs.reduce((min, s) => {
+        const seats = typeof s.remainingSeats === 'number' ? s.remainingSeats : Infinity;
+        return Math.min(min, seats);
+      }, Infinity);
 
-    // 从第一个 segment 获取行李和服务信息
-    const firstBaggageAllowance = first?.baggageAllowance;
-    const firstServices = first?.services;
+      // 从第一个 segment 获取行李和服务信息
+      const firstBaggageAllowance = first?.baggageAllowance;
+      const firstServices = first?.services;
 
-    const flightObj: Flight = {
-      id,
-      airline,
-      airlineCode,
-      flightNumber: segs.map((s) => s.flightNo).filter(Boolean).join('+') || 'INTERLINE',
-      cabinType: first?.cabinType,
-      origin: first?.departurePlace || toCity(o),
-      destination: last?.destination || toCity(d),
-      departureTime: first?.departureTime || '',
-      arrivalTime: last?.arrivalTime || '',
-      price: Number(it.totalPrice ?? 0),
-      remainingSeats: minSeats === Infinity ? undefined : minSeats,
-      duration: computeDuration(first?.departureTime, last?.arrivalTime) || it.transferDuration || '',
-      stops: Math.max(0, segs.length - 1),
-      baggageWeight: parseBaggageWeight(firstBaggageAllowance),
-      amenities: parseAmenities(firstServices),
-      aircraft: first?.aircraftModel,
-      baggageAllowance: firstBaggageAllowance,
-      services: firstServices,
-      // ✅ 联程专用字段
-      isInterline: true,
-      transferCity: it.transferCity,
-      transferDuration: it.transferDuration ? parseTransferDuration(it.transferDuration) : undefined,
-      segments: flightSegments,
-    };
-    return flightObj;
-  })
+      const flightObj: Flight = {
+        id,
+        airline,
+        airlineCode,
+        flightNumber: segs.map((s) => s.flightNo).filter(Boolean).join('+') || 'INTERLINE',
+        cabinType: first?.cabinType,
+        origin: first?.departurePlace || toCity(o),
+        destination: last?.destination || toCity(d),
+        departureTime: first?.departureTime || '',
+        arrivalTime: last?.arrivalTime || '',
+        price: Number(it.totalPrice ?? 0),
+        remainingSeats: minSeats === Infinity ? undefined : minSeats,
+        duration: computeDuration(first?.departureTime, last?.arrivalTime) || it.transferDuration || '',
+        stops: Math.max(0, segs.length - 1),
+        baggageWeight: parseBaggageWeight(firstBaggageAllowance),
+        amenities: parseAmenities(firstServices),
+        aircraft: first?.aircraftModel,
+        baggageAllowance: firstBaggageAllowance,
+        services: firstServices,
+        // ✅ 联程专用字段
+        isInterline: true,
+        transferCity: it.transferCity,
+        transferDuration: it.transferDuration ? parseTransferDuration(it.transferDuration) : undefined,
+        segments: flightSegments,
+      };
+      return flightObj;
+    })
     .filter(Boolean) as Flight[];
 
   // 🔧 去重：避免后端返回重复数据导致前端显示多个相同航班

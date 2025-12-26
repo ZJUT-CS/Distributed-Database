@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { FilterState } from '../types';
 import {
   SlidersHorizontal,
@@ -21,10 +21,13 @@ import {
 } from 'lucide-react';
 import { AIRLINES } from '@/config/data/airlines';
 import { POPULAR_AIRPORTS } from '@/config/data/airports';
+import { getAirportLocations, type AirportLocation } from '../api/search';
 
 interface FilterSidebarProps {
   filters: FilterState;
   onFilterChange: (filters: FilterState) => void;
+  originCity?: string;
+  destinationCity?: string;
 }
 
 const FilterSection = ({
@@ -60,7 +63,26 @@ const FilterSection = ({
   );
 };
 
-const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }) => {
+const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange, originCity, destinationCity }) => {
+  const [airports, setAirports] = useState<AirportLocation[]>([]);
+
+  useEffect(() => {
+    getAirportLocations()
+      .then(setAirports)
+      .catch((err) => {
+        console.error('Failed to fetch airports:', err);
+        // Fallback to static data
+        setAirports(POPULAR_AIRPORTS.map(a => ({
+          id: 0,
+          airportCode: a.code,
+          airportName: a.name,
+          city: a.city,
+          country: '中国',
+          longitude: a.lng,
+          latitude: a.lat
+        })));
+      });
+  }, []);
 
   const updateFilter = (key: keyof FilterState, value: any) => {
     onFilterChange({ ...filters, [key]: value });
@@ -218,36 +240,40 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
         <FilterSection title="出发/到达机场" icon={<MapPin className="w-4 h-4" />}>
           <div className="mb-4">
             <div className="text-xs font-bold text-gray-500 uppercase mb-2">出发机场</div>
-            <div className="space-y-1">
-              {POPULAR_AIRPORTS.slice(0, 4).map(a => (
-                <label key={`dep-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.originAirports.includes(a.code) ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800'}`}>
-                      {filters.originAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
+            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+              {airports
+                .filter(a => !originCity || a.city === originCity)
+                .map(a => (
+                  <label key={`dep-${a.airportCode}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.originAirports.includes(a.airportCode) ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800'}`}>
+                        {filters.originAirports.includes(a.airportCode) && <Check className="w-3.5 h-3.5 text-white" />}
+                      </div>
+                      <input type="checkbox" checked={filters.originAirports.includes(a.airportCode)} onChange={() => handleArrayToggle('originAirports', a.airportCode)} className="hidden" />
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{a.airportName}</span>
                     </div>
-                    <input type="checkbox" checked={filters.originAirports.includes(a.code)} onChange={() => handleArrayToggle('originAirports', a.code)} className="hidden" />
-                    <span className="text-sm text-gray-700 dark:text-gray-200">{a.name}</span>
-                  </div>
-                  <span className="text-xs text-gray-400 font-mono">{a.code}</span>
-                </label>
-              ))}
+                    <span className="text-xs text-gray-400 font-mono">{a.airportCode}</span>
+                  </label>
+                ))}
             </div>
           </div>
           <div>
             <div className="text-xs font-bold text-gray-500 uppercase mb-2">到达机场</div>
-            <div className="space-y-1">
-              {POPULAR_AIRPORTS.slice(0, 4).map(a => (
-                <label key={`arr-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.destinationAirports.includes(a.code) ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800'}`}>
-                      {filters.destinationAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
+            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+              {airports
+                .filter(a => !destinationCity || a.city === destinationCity)
+                .map(a => (
+                  <label key={`arr-${a.airportCode}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.destinationAirports.includes(a.airportCode) ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800'}`}>
+                        {filters.destinationAirports.includes(a.airportCode) && <Check className="w-3.5 h-3.5 text-white" />}
+                      </div>
+                      <input type="checkbox" checked={filters.destinationAirports.includes(a.airportCode)} onChange={() => handleArrayToggle('destinationAirports', a.airportCode)} className="hidden" />
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{a.airportName}</span>
                     </div>
-                    <input type="checkbox" checked={filters.destinationAirports.includes(a.code)} onChange={() => handleArrayToggle('destinationAirports', a.code)} className="hidden" />
-                    <span className="text-sm text-gray-700 dark:text-gray-200">{a.name}</span>
-                  </div>
-                  <span className="text-xs text-gray-400 font-mono">{a.code}</span>
-                </label>
-              ))}
+                    <span className="text-xs text-gray-400 font-mono">{a.airportCode}</span>
+                  </label>
+                ))}
             </div>
           </div>
         </FilterSection>
