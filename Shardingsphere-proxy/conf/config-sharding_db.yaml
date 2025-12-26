@@ -1,4 +1,5 @@
 databaseName: sharding_db
+
 dataSources:
   ds_0:
     url: jdbc:mysql://26.42.251.27:3306/zh_db_0?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
@@ -31,7 +32,9 @@ dataSources:
 rules:
 - !SHARDING
   tables:
-    # 1. 用户表
+    # -------------------------------------------------------
+    # 1. 用户域 (按 user_id 分片)
+    # -------------------------------------------------------
     users:
       actualDataNodes: ds_${0..2}.users
       databaseStrategy:
@@ -42,7 +45,9 @@ rules:
         column: user_id
         keyGeneratorName: snowflake
 
-    # 2. 航班表 (按 flight_id 分片)
+    # -------------------------------------------------------
+    # 2. 航班域 (按 flight_id 分片，航班和座位绑定)
+    # -------------------------------------------------------
     flights:
       actualDataNodes: ds_${0..2}.flights
       databaseStrategy:
@@ -53,51 +58,53 @@ rules:
         column: flight_id
         keyGeneratorName: snowflake
 
-    # 3. 座位表 (按 flight_id 分片，必须与 flights 在同库)
     seat:
       actualDataNodes: ds_${0..2}.seat
       databaseStrategy:
         standard:
-          shardingColumn: flight_id 
-          shardingAlgorithmName: flight_id_inline # 复用算法，确保同 flight_id 在同库
+          shardingColumn: flight_id
+          shardingAlgorithmName: flight_id_inline
       keyGenerateStrategy:
-        column: seat_id 
-        keyGeneratorName: snowflake 
+        column: seat_id
+        keyGeneratorName: snowflake
 
-    # 4. 订单表
+    # -------------------------------------------------------
+    # 3. 交易域 (全部按 user_id 分片 - 核心优化点)
+    # 前提：orders, payments, refund 表中都必须有 user_id 字段
+    # -------------------------------------------------------
     orders:
       actualDataNodes: ds_${0..2}.orders
       databaseStrategy:
         standard:
-          shardingColumn: user_id
+          shardingColumn: user_id   # 这里的关键改为 user_id
           shardingAlgorithmName: user_id_inline
       keyGenerateStrategy:
         column: order_id
         keyGeneratorName: snowflake
 
-    # 5. 支付表
     payments:
       actualDataNodes: ds_${0..2}.payments
       databaseStrategy:
         standard:
-          shardingColumn: order_id
-          shardingAlgorithmName: order_id_inline
+          shardingColumn: user_id   # 这里的关键改为 user_id
+          shardingAlgorithmName: user_id_inline
       keyGenerateStrategy:
         column: payment_id
         keyGeneratorName: snowflake
 
-    # 6. 退改签表
     refund_change_record:
       actualDataNodes: ds_${0..2}.refund_change_record
       databaseStrategy:
         standard:
-          shardingColumn: order_id
-          shardingAlgorithmName: order_id_inline 
+          shardingColumn: user_id   # 这里的关键改为 user_id
+          shardingAlgorithmName: user_id_inline
       keyGenerateStrategy:
         column: record_id
         keyGeneratorName: snowflake
 
-    # 7. 系统配置
+    # -------------------------------------------------------
+    # 4. 系统域 (保持原样或按 ID 分片)
+    # -------------------------------------------------------
     system_config:
       actualDataNodes: ds_${0..2}.system_config
       databaseStrategy:
@@ -108,7 +115,6 @@ rules:
         column: config_id
         keyGeneratorName: snowflake
 
-    # 8. 系统日志
     system_log:
       actualDataNodes: ds_${0..2}.system_log
       databaseStrategy:
@@ -119,50 +125,62 @@ rules:
         column: log_id
         keyGeneratorName: snowflake
 
-  # 绑定表规则
-  # 修改点：去掉了 cabins，只绑定 flights 和 seat
+  # -------------------------------------------------------
+  # 绑定表规则 (Binding Tables)
+  # -------------------------------------------------------
   bindingTables:
-    - flights, seat                      # 航班和座位强关联，分片键都是 flight_id
-    - orders, payments, refund_change_record # 交易链路绑定
+    # 航班信息与座位强关联，查询航班详情通常会连带查座位
+    - flights, seat
+    # 订单、支付、退款强关联，确保同 User 的数据在同库，避免笛卡尔积查询
+    - orders, payments, refund_change_record
 
   defaultDatabaseStrategy:
     none:
   defaultTableStrategy:
     none:
 
+  # -------------------------------------------------------
+  # 分片算法
+  # -------------------------------------------------------
   shardingAlgorithms:
     user_id_inline:
       type: INLINE
       props:
         algorithm-expression: ds_${user_id % 3}
+    
     flight_id_inline:
       type: INLINE
       props:
         algorithm-expression: ds_${flight_id % 3}
-    order_id_inline:
-      type: INLINE
-      props:
-        algorithm-expression: ds_${order_id % 3}
+    
+    # 虽然 log 和 config 也是 %3，但为了逻辑清晰，建议独立定义
+    # 方便未来如果日志表需要改为按日期分片时，不影响 flight/user
     log_id_inline:
       type: INLINE
       props:
         algorithm-expression: ds_${log_id % 3}
+        
     config_id_inline:
       type: INLINE
       props:
         algorithm-expression: ds_${config_id % 3}
 
+  # -------------------------------------------------------
+  # 主键生成策略
+  # -------------------------------------------------------
   keyGenerators:
     snowflake:
       type: SNOWFLAKE
       props:
         worker-id: 123
 
-# 广播表配置
+# -------------------------------------------------------
+# 广播表 (全局表)
+# -------------------------------------------------------
 - !BROADCAST
   tables:
     - admins
     - aircraft_models
-    - aircraft_cabin_configs # 配置表是广播表，没问题
-    - routes                 # 航线表是广播表，没问题
+    - aircraft_cabin_configs
+    - routes
     - LAL

@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CalendarDays, Check, Lock, Mail, Phone, Shield, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, Camera, Check, Lock, Mail, Phone, Shield, ShieldCheck, Upload, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { useToast } from '@/features/admin/components/Toast';
 import { useConfirm } from '@/features/admin';
@@ -53,6 +53,12 @@ const UserCenterPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [sendingPhone, setSendingPhone] = useState(false);
+
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [avatarUploadMode, setAvatarUploadMode] = useState<'file' | 'url'>('file');
+  const [avatarUrlDraft, setAvatarUrlDraft] = useState('');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -345,6 +351,107 @@ const UserCenterPage: React.FC = () => {
       .finally(() => setSaving(false));
   };
 
+  // Avatar upload handlers
+  const openAvatarModal = () => {
+    setAvatarUrlDraft('');
+    setAvatarPreview(null);
+    setAvatarUploadMode('file');
+    setIsAvatarModalOpen(true);
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showToast('error', '请选择图片文件');
+      return;
+    }
+
+    // Validate file size (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('error', '图片大小不能超过 2MB');
+      return;
+    }
+
+    try {
+      const compressed = await compressImage(file, 500, 0.8);
+      setAvatarPreview(compressed);
+    } catch (error: any) {
+      showToast('error', error?.message || '图片处理失败');
+    }
+  };
+
+  const compressImage = (file: File, maxWidth: number, quality: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas context not available'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressed);
+        };
+        img.onerror = () => reject(new Error('图片加载失败'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('文件读取失败'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAvatarSave = () => {
+    if (saving) return;
+
+    let avatarUrl = '';
+    if (avatarUploadMode === 'file') {
+      if (!avatarPreview) {
+        showToast('error', '请选择图片');
+        return;
+      }
+      avatarUrl = avatarPreview;
+    } else {
+      const url = avatarUrlDraft.trim();
+      if (!url) {
+        showToast('error', '请输入图片URL');
+        return;
+      }
+      if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:')) {
+        showToast('error', '请输入有效的图片URL');
+        return;
+      }
+      avatarUrl = url;
+    }
+
+    setSaving(true);
+    updateMyProfile({ avatarUrl })
+      .then((p) => {
+        applyProfileToLocalUser(p);
+        setIsAvatarModalOpen(false);
+        showToast('success', '✅ 头像已更新');
+      })
+      .catch((e: any) => showToast('error', e?.message || '保存失败'))
+      .finally(() => setSaving(false));
+  };
+
   if (!user) return <Navigate to="/login" replace />;
 
   return (
@@ -389,8 +496,30 @@ const UserCenterPage: React.FC = () => {
         <div className="rounded-3xl border border-sky-100 dark:border-slate-800 bg-white/90 dark:bg-slate-950/60 backdrop-blur shadow-sm overflow-hidden">
           <div className="p-6">
             <div className="flex items-center gap-4">
-              <div className={`w-14 h-14 rounded-2xl ${avatarColor} flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-sky-500/20`}>
-                {avatarChar}
+              <div className="relative group">
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt="Avatar"
+                    className="w-14 h-14 rounded-2xl object-cover shadow-lg shadow-sky-500/20"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={`w-14 h-14 rounded-2xl ${avatarColor} flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-sky-500/20 ${user.avatarUrl ? 'hidden' : ''}`}
+                >
+                  {avatarChar}
+                </div>
+                <button
+                  onClick={openAvatarModal}
+                  className="absolute inset-0 rounded-2xl bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Camera className="w-5 h-5 text-white" />
+                </button>
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -797,6 +926,108 @@ const UserCenterPage: React.FC = () => {
                   }`}
               >
                 {saving ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAvatarModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cosmos-bg/80 backdrop-blur-sm">
+          <div className="bg-white dark:bg-cosmos-surface rounded-3xl w-full max-w-md shadow-2xl dark:shadow-cosmos-glow/30 p-6 sm:p-8 border dark:border-cosmos-border">
+            <div className="text-lg font-bold text-gray-900 dark:text-cosmos-text-primary">更换头像</div>
+            <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">支持 JPG、PNG 格式，大小不超过 2MB</div>
+
+            <div className="mt-5">
+              <div className="grid grid-cols-2 bg-sky-50 dark:bg-cosmos-surface-elevated p-1 rounded-2xl border border-sky-100 dark:border-cosmos-border">
+                <button
+                  type="button"
+                  onClick={() => setAvatarUploadMode('file')}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${avatarUploadMode === 'file'
+                    ? 'bg-white dark:bg-cosmos-surface text-sky-700 dark:text-sky-300 shadow-sm'
+                    : 'text-slate-500 dark:text-cosmos-text-muted hover:text-slate-700 dark:hover:text-cosmos-text-secondary'
+                    }`}
+                >
+                  本地上传
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAvatarUploadMode('url')}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${avatarUploadMode === 'url'
+                    ? 'bg-white dark:bg-cosmos-surface text-sky-700 dark:text-sky-300 shadow-sm'
+                    : 'text-slate-500 dark:text-cosmos-text-muted hover:text-slate-700 dark:hover:text-cosmos-text-secondary'
+                    }`}
+                >
+                  URL 输入
+                </button>
+              </div>
+
+              {avatarUploadMode === 'file' ? (
+                <div className="mt-5">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-gray-300 dark:border-cosmos-border rounded-2xl p-8 text-center cursor-pointer hover:border-sky-500 dark:hover:border-sky-500 transition-colors"
+                  >
+                    {avatarPreview ? (
+                      <div className="flex flex-col items-center gap-3">
+                        <img src={avatarPreview} alt="Preview" className="w-32 h-32 rounded-2xl object-cover" />
+                        <div className="text-sm text-gray-600 dark:text-gray-400">点击重新选择</div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3">
+                        <Upload className="w-12 h-12 text-gray-400" />
+                        <div className="text-sm text-gray-600 dark:text-gray-400">点击选择图片</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">图片 URL</div>
+                  <input
+                    value={avatarUrlDraft}
+                    onChange={(e) => setAvatarUrlDraft(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-cosmos-border bg-white dark:bg-cosmos-surface-elevated dark:text-cosmos-text-primary focus:ring-2 focus:ring-sky-500 outline-none text-sm"
+                    placeholder="例如：https://example.com/avatar.jpg"
+                  />
+                  {avatarUrlDraft && (
+                    <div className="mt-3">
+                      <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">预览</div>
+                      <img
+                        src={avatarUrlDraft}
+                        alt="Preview"
+                        className="w-32 h-32 rounded-2xl object-cover"
+                        onError={() => showToast('error', '图片加载失败，请检查URL')}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-7 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsAvatarModalOpen(false)}
+                className="flex-1 px-4 py-2.5 rounded-2xl border border-gray-200 dark:border-cosmos-border text-gray-700 dark:text-cosmos-text-secondary font-bold hover:bg-gray-50 dark:hover:bg-cosmos-surface/50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleAvatarSave}
+                disabled={saving}
+                className={`flex-1 px-4 py-2.5 rounded-2xl bg-sky-600 text-white font-bold transition-colors ${saving ? 'opacity-60 cursor-not-allowed' : 'hover:bg-sky-700'
+                  }`}
+              >
+                {saving ? '保存中...' : '保存头像'}
               </button>
             </div>
           </div>

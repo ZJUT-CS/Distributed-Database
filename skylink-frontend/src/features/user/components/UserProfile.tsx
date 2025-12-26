@@ -74,8 +74,20 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onBack, mode = 'page' }
 
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-[0.32fr_0.68fr] gap-6">
             <div className="rounded-3xl bg-white/95 dark:bg-slate-800/95 border border-sky-100 dark:border-sky-900/50 p-6 sm:p-7 shadow-md shadow-sky-900/10 flex flex-col items-center text-center">
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={displayName}
+                  className="w-24 h-24 rounded-full object-cover shadow-lg shadow-sky-500/40"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              ) : null}
               <div
-                className={`w-24 h-24 rounded-full ${avatarColor} flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-sky-500/40`}
+                className={`w-24 h-24 rounded-full ${avatarColor} flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-sky-500/40 ${user.avatarUrl ? 'hidden' : ''}`}
               >
                 {lastChar}
               </div>

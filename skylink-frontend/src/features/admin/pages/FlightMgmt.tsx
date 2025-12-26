@@ -160,6 +160,12 @@ const FlightMgmt: React.FC = () => {
   const [selectedRouteId, setSelectedRouteId] = useState<number | ''>('');
   const [selectedModelId, setSelectedModelId] = useState<number | ''>('');
 
+  // 模糊搜索状态
+  const [routeSearchText, setRouteSearchText] = useState('');
+  const [modelSearchText, setModelSearchText] = useState('');
+  const [routeDropdownOpen, setRouteDropdownOpen] = useState(false);
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+
   // 加载原始数据用于 map 查找
   useEffect(() => {
     listRouteOptions().then(setRouteOptions).catch((e) => logger.error('加载航线选项失败', e));
@@ -189,6 +195,8 @@ const FlightMgmt: React.FC = () => {
     setEditingFlight(null);
     setSelectedRouteId('');
     setSelectedModelId('');
+    setRouteSearchText('');
+    setModelSearchText('');
     setIsFlightModalOpen(true);
   };
 
@@ -196,6 +204,11 @@ const FlightMgmt: React.FC = () => {
     setEditingFlight(flight);
     setSelectedRouteId(flight.routeId || '');
     setSelectedModelId(flight.modelId || '');
+    // 设置初始搜索文本
+    const route = routeOptions.find((r) => r.routeId === flight.routeId);
+    const model = modelOptions.find((m) => m.modelId === flight.modelId);
+    setRouteSearchText(route?.label || '');
+    setModelSearchText(model?.label || '');
     setIsFlightModalOpen(true);
     setActiveActionId(null);
   };
@@ -328,6 +341,11 @@ const FlightMgmt: React.FC = () => {
     });
     setSelectedRouteId(flight.routeId);
     setSelectedModelId(flight.modelId);
+    // 设置搜索文本
+    const route = routeOptions.find((r) => r.routeId === flight.routeId);
+    const model = modelOptions.find((m) => m.modelId === flight.modelId);
+    setRouteSearchText(route?.label || '');
+    setModelSearchText(model?.label || '');
     setIsFlightModalOpen(true);
     setActiveActionId(null);
   };
@@ -438,6 +456,36 @@ const FlightMgmt: React.FC = () => {
       </AdminBadge>
     );
   };
+
+  // 模糊搜索过滤（支持多关键词，空格分隔，全部匹配）
+  const filteredRouteOptions = useMemo(() => {
+    if (!routeSearchText.trim()) return routeOptions;
+    const keywords = routeSearchText.toLowerCase().split(/\s+/).filter(Boolean);
+    return routeOptions.filter((r) => {
+      const searchText = [
+        r.label,
+        r.departureCity,
+        r.arrivalCity,
+        r.departureAirport,
+        r.arrivalAirport
+      ].filter(Boolean).join(' ').toLowerCase();
+      // 所有关键词都必须匹配
+      return keywords.every(kw => searchText.includes(kw));
+    });
+  }, [routeOptions, routeSearchText]);
+
+  const filteredModelOptions = useMemo(() => {
+    if (!modelSearchText.trim()) return modelOptions;
+    const keywords = modelSearchText.toLowerCase().split(/\s+/).filter(Boolean);
+    return modelOptions.filter((m) => {
+      const searchText = [
+        m.label,
+        m.modelName,
+        m.manufacturer
+      ].filter(Boolean).join(' ').toLowerCase();
+      return keywords.every(kw => searchText.includes(kw));
+    });
+  }, [modelOptions, modelSearchText]);
 
   // 导出数据
   const handleExport = async (selectedOnly = false) => {
@@ -732,20 +780,41 @@ const FlightMgmt: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
+            <div className="space-y-1 relative">
               <label className="text-xs font-bold text-gray-500">选择航线</label>
-              <select
-                name="routeId"
-                value={selectedRouteId}
-                onChange={(e) => setSelectedRouteId(e.target.value ? Number(e.target.value) : '')}
-                required
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-              >
-                <option value="">请选择航线</option>
-                {routeOptions.map((r) => (
-                  <option key={r.routeId} value={r.routeId}>{r.label}</option>
-                ))}
-              </select>
+              <input type="hidden" name="routeId" value={selectedRouteId} />
+              <input
+                type="text"
+                value={routeSearchText}
+                onChange={(e) => {
+                  setRouteSearchText(e.target.value);
+                  setRouteDropdownOpen(true);
+                  if (!e.target.value.trim()) setSelectedRouteId('');
+                }}
+                onFocus={() => setRouteDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setRouteDropdownOpen(false), 200)}
+                placeholder="输入城市或机场代码搜索..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+              {routeDropdownOpen && routeSearchText.trim() && filteredRouteOptions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {filteredRouteOptions.slice(0, 10).map((r) => (
+                    <button
+                      key={r.routeId}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setSelectedRouteId(r.routeId);
+                        setRouteSearchText(r.label || '');
+                        setRouteDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 transition-colors ${selectedRouteId === r.routeId ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700'}`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {selectedRouteId !== '' && (() => {
                 const route = routeOptions.find((r) => r.routeId === selectedRouteId);
                 return route ? (
@@ -753,20 +822,41 @@ const FlightMgmt: React.FC = () => {
                 ) : null;
               })()}
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 relative">
               <label className="text-xs font-bold text-gray-500">选择机型</label>
-              <select
-                name="modelId"
-                value={selectedModelId}
-                onChange={(e) => setSelectedModelId(e.target.value ? Number(e.target.value) : '')}
-                required
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-              >
-                <option value="">请选择机型</option>
-                {modelOptions.map((m) => (
-                  <option key={m.modelId} value={m.modelId}>{m.label}</option>
-                ))}
-              </select>
+              <input type="hidden" name="modelId" value={selectedModelId} />
+              <input
+                type="text"
+                value={modelSearchText}
+                onChange={(e) => {
+                  setModelSearchText(e.target.value);
+                  setModelDropdownOpen(true);
+                  if (!e.target.value.trim()) setSelectedModelId('');
+                }}
+                onFocus={() => setModelDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setModelDropdownOpen(false), 200)}
+                placeholder="输入机型名称或制造商搜索..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+              {modelDropdownOpen && modelSearchText.trim() && filteredModelOptions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {filteredModelOptions.slice(0, 10).map((m) => (
+                    <button
+                      key={m.modelId}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setSelectedModelId(m.modelId);
+                        setModelSearchText(m.label || '');
+                        setModelDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 transition-colors ${selectedModelId === m.modelId ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700'}`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {selectedModelId !== '' && (() => {
                 const model = modelOptions.find((m) => m.modelId === selectedModelId);
                 return model ? (
