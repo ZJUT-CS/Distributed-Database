@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import TopHeader from '../components/TopHeader';
 import { useAuth } from '../../auth/hooks/useAuth';
 
 const AdminLayout: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [showTopHeader, setShowTopHeader] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -33,19 +34,24 @@ const AdminLayout: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
+  const isDashboard = location.pathname === '/admin';
+
   return (
-    <div className="min-h-screen bg-slate-50 flex overflow-hidden">
-      <Sidebar />
-      <TopHeader isVisible={showTopHeader} />
-      <div
-        ref={scrollRef}
-        className="flex-1 ml-64 p-8 overflow-y-auto h-screen scroll-smooth custom-scrollbar"
-        style={{ paddingTop: '6rem' }}
-      >
-        <Outlet />
+    <div className={isDashboard ? 'dark' : 'light'}>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden text-slate-900 dark:text-slate-100">
+        <Sidebar isDashboard={isDashboard} />
+        <TopHeader isVisible={showTopHeader} isDashboard={isDashboard} />
+        <div
+          ref={scrollRef}
+          className="flex-1 ml-64 p-8 overflow-y-auto h-screen scroll-smooth custom-scrollbar"
+          style={{ paddingTop: '6rem' }}
+        >
+          <Outlet />
+        </div>
       </div>
     </div>
   );
 };
 export default AdminLayout;
+
 

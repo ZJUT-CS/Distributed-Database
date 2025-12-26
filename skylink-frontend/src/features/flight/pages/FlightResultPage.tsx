@@ -448,6 +448,8 @@ const FlightResultPage: React.FC = () => {
               <FilterSidebar
                 filters={filters}
                 onFilterChange={setFilters}
+                originCity={getCityName(origin)}
+                destinationCity={getCityName(destination)}
               />
             </div>
 

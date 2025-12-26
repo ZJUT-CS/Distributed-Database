@@ -19,19 +19,24 @@ module.exports = {
           indigo: '#4f46e5',
         },
         cosmos: {
-          bg: '#020617',
+          bg: '#020617', // Deepest Azure
           surface: {
-            DEFAULT: '#0f172a',
-            elevated: '#1e293b',
-            glass: 'rgba(15, 23, 42, 0.4)',
-            'glass-light': 'rgba(30, 41, 59, 0.4)',
+            DEFAULT: '#0f172a', // Rich Blue
+            elevated: '#1e293b', // Elevated Blue
+            glass: 'rgba(15, 23, 42, 0.6)', // Increased opacity for depth
+            'glass-light': 'rgba(30, 41, 59, 0.6)',
           },
           text: {
-            primary: '#f8fafc',
-            secondary: '#cbd5e1',
-            muted: '#94a3b8',
+            primary: '#f0f9ff', // Alice Blue
+            secondary: '#bae6fd', // Light Sky
+            muted: '#7dd3fc', // Muted Sky
           },
-          border: 'rgba(255, 255, 255, 0.1)',
+          border: 'rgba(56, 189, 248, 0.1)', // Sky blue tint
+        },
+        azure: {
+          deep: '#020617',
+          night: '#0f172a',
+          twilight: '#1e293b',
         },
       },
       borderRadius: {

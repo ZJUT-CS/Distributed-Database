@@ -38,9 +38,9 @@ const AdminModal: React.FC<AdminModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div
-        className={`bg-white rounded-2xl shadow-2xl w-full ${maxWidthCls[maxWidth]} overflow-hidden animate-scale-in max-h-[90vh] flex flex-col`}
+        className={`bg-white dark:bg-slate-900 border border-transparent dark:border-slate-700 rounded-2xl shadow-2xl w-full ${maxWidthCls[maxWidth]} overflow-hidden animate-scale-in max-h-[90vh] flex flex-col`}
       >
         {/* Header */}
         <div

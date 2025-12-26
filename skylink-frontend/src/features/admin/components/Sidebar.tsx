@@ -14,12 +14,31 @@ import {
   Home,
   MapPin,
   Sliders,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { Image } from '@/components/common';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isDashboard: boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isDashboard }) => {
   const { user, logout } = useAuth();
+  const [sidebarDark, setSidebarDark] = React.useState(() => {
+    // 默认暗色，从 localStorage 读取用户偏好
+    const saved = localStorage.getItem('adminSidebarTheme');
+    return saved === 'light' ? false : true; // 默认 true (暗色)
+  });
+
+  const toggleSidebarTheme = () => {
+    setSidebarDark(prev => {
+      const newValue = !prev;
+      localStorage.setItem('adminSidebarTheme', newValue ? 'dark' : 'light');
+      return newValue;
+    });
+  };
 
   const navGroups = [
     {
@@ -55,21 +74,48 @@ const Sidebar: React.FC = () => {
   ];
 
   return (
-    <div className="w-64 bg-white dark:bg-slate-900 h-screen fixed left-0 top-0 text-slate-900 dark:text-white flex flex-col shadow-2xl z-50 transition-colors duration-300 border-r border-slate-200 dark:border-slate-800">
-      <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+    <div
+      className="w-64 h-screen fixed left-0 top-0 flex flex-col shadow-2xl z-50 transition-all duration-300 border-r"
+      style={sidebarDark ? {
+        backgroundColor: '#0f172a', // slate-900
+        borderColor: '#1e293b', // slate-800
+        color: '#ffffff'
+      } : {
+        backgroundColor: '#ffffff',
+        borderColor: '#e2e8f0', // slate-200
+        color: '#0f172a' // slate-900
+      }}
+    >
+      <div className="p-6 border-b flex items-center gap-3" style={{ borderColor: sidebarDark ? '#1e293b' : '#f1f5f9' }}>
         <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-2 rounded-xl shadow-lg shadow-blue-500/20">
           <Plane className="w-6 h-6 text-white" />
         </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">SkyLink</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-widest font-semibold">Admin Panel</p>
+        <div className="flex-1">
+          <h1 className="text-xl font-bold tracking-tight" style={{ color: sidebarDark ? '#ffffff' : '#0f172a' }}>SkyLink</h1>
+          <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: sidebarDark ? '#94a3b8' : '#64748b' }}>Admin Panel</p>
         </div>
+        {/* 主题切换按钮 */}
+        <button
+          onClick={toggleSidebarTheme}
+          className="p-2 rounded-lg transition-all hover:scale-110"
+          style={{
+            backgroundColor: sidebarDark ? 'rgba(148, 163, 184, 0.1)' : 'rgba(100, 116, 139, 0.1)',
+            color: sidebarDark ? '#94a3b8' : '#64748b'
+          }}
+          title={sidebarDark ? '切换到浅色模式' : '切换到深色模式'}
+        >
+          {sidebarDark ? (
+            <Sun className="w-4 h-4" />
+          ) : (
+            <Moon className="w-4 h-4" />
+          )}
+        </button>
       </div>
 
       <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar">
         {navGroups.map((group, groupIndex) => (
           <div key={group.title} className={groupIndex > 0 ? 'mt-6' : ''}>
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-2">{group.title}</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 px-2" style={{ color: sidebarDark ? '#64748b' : '#94a3b8' }}>{group.title}</h3>
             <div className="space-y-1">
               {group.items.map((item) => (
                 <NavLink
@@ -78,9 +124,25 @@ const Sidebar: React.FC = () => {
                   end={item.id === 'dashboard'}
                   className={({ isActive }) =>
                     `w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
-                      ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 font-bold shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                      ? 'font-bold shadow-sm border'
+                      : ''
                     }`
+                  }
+                  style={({ isActive }) => isActive
+                    ? (sidebarDark ? {
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      color: '#60a5fa',
+                      borderColor: 'rgba(59, 130, 246, 0.2)'
+                    } : {
+                      backgroundColor: '#eff6ff',
+                      color: '#2563eb',
+                      borderColor: '#bfdbfe'
+                    })
+                    : (sidebarDark ? {
+                      color: '#94a3b8'
+                    } : {
+                      color: '#475569'
+                    })
                   }
                 >
                   <div className="flex items-center gap-3">
@@ -95,26 +157,44 @@ const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+      <div className="p-4 border-t" style={{ borderColor: sidebarDark ? '#1e293b' : '#f1f5f9', backgroundColor: sidebarDark ? 'rgba(15, 23, 42, 0.5)' : 'rgba(248, 250, 252, 0.5)' }}>
         <div className="flex items-center gap-3 mb-4 px-2">
-          <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 border-2 border-white dark:border-slate-600 overflow-hidden shadow-sm">
+          <div className="w-10 h-10 rounded-full border-2 overflow-hidden shadow-sm" style={{ backgroundColor: sidebarDark ? '#334155' : '#e2e8f0', borderColor: sidebarDark ? '#475569' : '#ffffff' }}>
             <Image src={user?.avatarUrl || ''} alt="Admin" loading="eager" />
           </div>
           <div>
-            <p className="font-bold text-sm text-slate-900 dark:text-white">{user?.username}</p>
+            <p className="font-bold text-sm" style={{ color: sidebarDark ? '#ffffff' : '#0f172a' }}>{user?.username}</p>
             <p className="text-xs text-slate-500">System Administrator</p>
           </div>
         </div>
 
         <Link
           to="/"
-          className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-200 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 p-3 rounded-xl transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] mb-3 shadow-sm"
+          className="w-full flex items-center justify-center gap-2 text-sm font-semibold p-3 rounded-xl transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] mb-3 shadow-sm border"
+          style={sidebarDark ? {
+            color: '#e2e8f0',
+            backgroundColor: 'rgba(30, 41, 59, 0.6)',
+            borderColor: '#475569'
+          } : {
+            color: '#475569',
+            backgroundColor: '#ffffff',
+            borderColor: '#e2e8f0'
+          }}
         >
           <Home className="w-4 h-4" /> 返回主页面
         </Link>
         <button
           onClick={logout}
-          className="w-full flex items-center justify-center gap-2 text-sm font-semibold bg-white dark:bg-slate-800/60 hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-600 dark:text-slate-200 hover:text-red-600 dark:hover:text-red-300 p-3 rounded-xl transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-500/30 shadow-sm"
+          className="w-full flex items-center justify-center gap-2 text-sm font-semibold p-3 rounded-xl transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] border shadow-sm"
+          style={sidebarDark ? {
+            backgroundColor: 'rgba(30, 41, 59, 0.6)',
+            color: '#e2e8f0',
+            borderColor: '#475569'
+          } : {
+            backgroundColor: '#ffffff',
+            color: '#475569',
+            borderColor: '#e2e8f0'
+          }}
         >
           <LogOut className="w-4 h-4" /> 退出登录
         </button>

@@ -21,7 +21,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transform scale-105"
         style={{ backgroundImage: `url("${backgroundUrl}")` }}
       >
-        <div className={`absolute inset-0 ${overlayColor} dark:bg-cosmos-bg/80 ${overlayBlur}`}></div>
+        <div className={`absolute inset-0 ${overlayColor} dark:bg-slate-900/60 dark:bg-gradient-to-tr dark:from-cosmos-bg/90 dark:via-cosmos-bg/70 dark:to-transparent ${overlayBlur}`}></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md px-4">

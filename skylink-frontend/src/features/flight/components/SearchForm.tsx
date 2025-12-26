@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Calendar, ChevronDown, Minus, Plus, ChevronRight, ChevronLeft, ArrowRightLeft, X, MapPin, Building2, Plane, Sparkles } from 'lucide-react';
 import { POPULAR_AIRPORTS } from '@/config/data/airports';
+import { getAirportLocations, type AirportLocation } from '@/features/flight/api/search';
 import type { SearchParams } from '../types';
 import Loading from '@/components/common/Loading';
 
@@ -18,7 +19,7 @@ interface SearchFormProps {
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-const CITY_GROUPS = {
+const STATIC_CITY_GROUPS = {
   domestic: ['北京', '上海', '广州', '深圳', '成都', '杭州', '西安', '重庆', '香港'],
   international: ['东京', '新加坡', '曼谷', '伦敦', '纽约', '悉尼']
 };
@@ -91,6 +92,46 @@ const SearchForm: React.FC<SearchFormProps> = ({
   const [infants, setInfants] = useState(initialValues?.passengerDetails?.infants || 0);
   const [cabinClass, setCabinClass] = useState<'economy' | 'business' | 'first'>(initialValues?.cabinClass || 'economy');
   const [isPassengerOpen, setIsPassengerOpen] = useState(false);
+
+  // Dynamic city data state
+  const [cityGroups, setCityGroups] = useState<{
+    domestic: string[];
+    international: string[];
+  }>(STATIC_CITY_GROUPS);
+
+  useEffect(() => {
+    const fetchAirports = async () => {
+      try {
+        const data = await getAirportLocations();
+
+        const domestic = new Set<string>();
+        const international = new Set<string>();
+
+        data.forEach(airport => {
+          const isDomestic = airport.country === '中国' ||
+            airport.country === 'CN' ||
+            airport.country === 'China';
+          if (isDomestic) {
+            domestic.add(airport.city);
+          } else {
+            international.add(airport.city);
+          }
+        });
+
+        // If we got data, update state
+        if (domestic.size > 0 || international.size > 0) {
+          setCityGroups({
+            domestic: Array.from(domestic),
+            international: Array.from(international)
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch airport data, using static fallback:', error);
+      }
+    };
+
+    fetchAirports();
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -245,7 +286,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
     return (
       <div
         ref={cityPickerRef}
-        className="absolute top-full z-50 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 w-[400px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0"
+        className="absolute top-full z-50 bg-white dark:bg-slate-950 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 w-[400px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-4 border-b border-gray-100 dark:border-slate-800 pb-2">
@@ -265,8 +306,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-4 gap-3">
-          {CITY_GROUPS[cityTab].map((city) => (
+        <div className="grid grid-cols-4 gap-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+          {cityGroups[cityTab].map((city) => (
             <button
               key={city}
               type="button"
@@ -363,7 +404,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
     return (
       <div
         ref={calendarContainerRef}
-        className="absolute top-full z-50 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 w-[650px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0 md:left-auto"
+        className="absolute top-full z-50 bg-white dark:bg-slate-950 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 w-[650px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0 md:left-auto"
         style={activeCalendarId && activeCalendarId !== segments[0].id ? { left: '0', zIndex: 60 } : { left: '50%', transform: 'translateX(-50%)', zIndex: 60 }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -417,10 +458,10 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
   return (
     <div className={`-mt-24 relative z-30 w-full`}>
-      <div className={`bg-white/80 dark:bg-slate-900/95 ${containerRadius} shadow-xl shadow-blue-900/5 dark:shadow-none border border-white/60 dark:border-slate-800/60 backdrop-blur-xl relative overflow-visible transition-all duration-300 ease-in-out`}>
+      <div className={`bg-white/80 dark:bg-slate-950/90 ${containerRadius} shadow-xl shadow-blue-900/5 dark:shadow-cosmos-glow/20 border border-white/60 dark:border-slate-800/60 backdrop-blur-xl relative overflow-visible transition-all duration-300 ease-in-out`}>
 
         <div className={`${headerPadding} flex flex-col md:flex-row justify-between items-center gap-4`}>
-          <div className="bg-gray-100/80 dark:bg-gray-800/80 p-1 rounded-full flex items-center shadow-inner dark:shadow-none">
+          <div className="bg-gray-100/80 dark:bg-slate-900/50 p-1 rounded-full flex items-center shadow-inner dark:shadow-none">
             {[
               { id: 'oneWay', label: '单程' },
               { id: 'roundTrip', label: '往返' },
@@ -500,7 +541,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
                     <div
                       onClick={(e) => { e.stopPropagation(); setActiveCityPickerId(segment.id); setActiveCityPickerType('origin'); }}
-                      className={`flex-1 relative group bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-blue-900/30 rounded-2xl transition-all duration-300 border cursor-pointer ${inputHeight} ${activeCityPickerId === segment.id && activeCityPickerType === 'origin' ? 'border-blue-400 dark:border-blue-500 ring-2 ring-blue-100 dark:ring-blue-900/50 animate-focus-border shadow-md' : 'border-slate-100 dark:border-transparent shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-900'}`}
+                      className={`flex-1 relative group bg-white dark:bg-slate-950/50 hover:bg-slate-50 dark:hover:bg-blue-900/20 rounded-2xl transition-all duration-300 border cursor-pointer ${inputHeight} ${activeCityPickerId === segment.id && activeCityPickerType === 'origin' ? 'border-blue-400 dark:border-blue-500 ring-2 ring-blue-100 dark:ring-blue-900/30 animate-focus-border shadow-md' : 'border-slate-100 dark:border-slate-800/50 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800/50'}`}
                     >
                       <div className={`absolute ${labelTop} left-5 ${labelTextSize} font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider`}>出发地</div>
                       <div className={`h-full flex items-center pl-5 pr-10 ${compact ? 'pt-1' : 'pt-3'}`}>
@@ -513,14 +554,14 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     </div>
 
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 hidden md:block">
-                      <button type="button" onClick={(e) => { e.stopPropagation(); index === 0 ? handleSwap() : handleSegmentSwap(segment.id); }} className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-blue-600 hover:text-blue-700 hover:rotate-180 transition-all duration-300 hover:scale-110 group`}>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); index === 0 ? handleSwap() : handleSegmentSwap(segment.id); }} className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} bg-white dark:bg-slate-800 rounded-full shadow-lg border border-gray-100 dark:border-slate-700 flex items-center justify-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:rotate-180 transition-all duration-300 hover:scale-110 group`}>
                         <ArrowRightLeft className={`${compact ? 'w-3 h-3' : 'w-4 h-4'} group-hover:text-blue-700`} />
                       </button>
                     </div>
 
                     <div
                       onClick={(e) => { e.stopPropagation(); setActiveCityPickerId(segment.id); setActiveCityPickerType('destination'); }}
-                      className={`flex-1 relative group bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-emerald-900/30 rounded-2xl transition-all duration-300 border cursor-pointer ${inputHeight} ${activeCityPickerId === segment.id && activeCityPickerType === 'destination' ? 'border-emerald-400 dark:border-emerald-500 ring-2 ring-emerald-100 dark:ring-emerald-900/50 animate-focus-border shadow-md' : 'border-slate-100 dark:border-transparent shadow-sm hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-900'}`}
+                      className={`flex-1 relative group bg-white dark:bg-slate-950/50 hover:bg-slate-50 dark:hover:bg-emerald-900/20 rounded-2xl transition-all duration-300 border cursor-pointer ${inputHeight} ${activeCityPickerId === segment.id && activeCityPickerType === 'destination' ? 'border-emerald-400 dark:border-emerald-500 ring-2 ring-emerald-100 dark:ring-emerald-900/30 animate-focus-border shadow-md' : 'border-slate-100 dark:border-slate-800/50 shadow-sm hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-800/50'}`}
                     >
                       <div className={`absolute ${labelTop} left-5 ${labelTextSize} font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider`}>目的地</div>
                       <div className={`h-full flex items-center pl-5 pr-10 ${compact ? 'pt-1' : 'pt-3'}`}>
@@ -537,9 +578,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveCalendarId(activeCalendarId === segment.id ? null : segment.id)}
-                      className={`w-full h-full bg-white dark:bg-slate-900 rounded-2xl p-1 flex items-stretch border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700 transition-all duration-300 group ${activeCalendarId === segment.id ? 'border-blue-400 dark:border-blue-500 bg-blue-50/10 dark:bg-blue-900/20 animate-focus-border shadow-md' : ''}`}
+                      className={`w-full h-full bg-white dark:bg-slate-950/50 rounded-2xl p-1 flex items-stretch border border-slate-100 dark:border-slate-800/50 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800/50 transition-all duration-300 group ${activeCalendarId === segment.id ? 'border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-slate-950/80 animate-focus-border shadow-md' : ''}`}
                     >
-                      <div className={`flex-1 flex flex-col justify-center px-5 rounded-xl transition-all ${activeCalendarId === segment.id ? 'bg-white shadow-sm' : ''}`}>
+                      <div className={`flex-1 flex flex-col justify-center px-5 rounded-xl transition-all ${activeCalendarId === segment.id ? 'bg-white dark:bg-slate-900/50 shadow-sm' : ''}`}>
                         <div className="flex items-center gap-2 mb-0.5">
                           <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-slate-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
                           <span className={`${labelTextSize} font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider`}>
@@ -585,7 +626,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                           <button
                             type="button"
                             onClick={() => setIsPassengerOpen(!isPassengerOpen)}
-                            className={`w-full h-full bg-white dark:bg-slate-900 border border-slate-100 shadow-sm rounded-2xl text-left pl-5 pr-4 outline-none transition-all duration-300 hover:shadow-md hover:bg-slate-50 dark:hover:bg-purple-900/30 flex flex-col justify-center ${isPassengerOpen ? 'bg-white dark:bg-slate-900 ring-2 ring-purple-100 dark:ring-purple-900/50 border-purple-200 dark:border-purple-700 animate-focus-border shadow-md' : ''}`}
+                            className={`w-full h-full bg-white dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/50 shadow-sm rounded-2xl text-left pl-5 pr-4 outline-none transition-all duration-300 hover:shadow-md hover:bg-slate-50 dark:hover:bg-purple-900/20 flex flex-col justify-center ${isPassengerOpen ? 'bg-white dark:bg-slate-950/50 ring-2 ring-purple-100 dark:ring-purple-900/30 border-purple-200 dark:border-purple-700 animate-focus-border shadow-md' : ''}`}
                           >
                             <label className={`block ${labelTextSize} font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider mb-0.5`}>旅客 & 舱位</label>
                             <div className="flex items-center justify-between gap-2">
@@ -599,7 +640,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                             </div>
                           </button>
                           {isPassengerOpen && (
-                            <div className="absolute top-full right-0 mt-3 w-80 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 z-50 p-6 animate-in fade-in slide-in-from-top-4 duration-200">
+                            <div className="absolute top-full right-0 mt-3 w-80 bg-white dark:bg-slate-950 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 z-50 p-6 animate-in fade-in slide-in-from-top-4 duration-200">
                               <div className="space-y-6">
                                 <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-slate-800">
                                   <h4 className="font-bold text-gray-900 dark:text-slate-100 text-lg">旅客选择</h4>

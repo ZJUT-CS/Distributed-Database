@@ -94,16 +94,24 @@ const Navbar: React.FC = () => {
 
   const handleAiRecommendation = (rec: AIRecommendation) => {
     setIsAiModalOpen(false);
-    // Navigate to results with destination. 
-    // Note: This is a simple redirect. The Results page will need to parse query params.
-    navigate(`/results?origin=PEK&destination=${rec.airportCode}&date=${formatLocalYmd(new Date())}`);
+    // Navigate to results with destination city name
+    navigate(`/results?origin=北京&destination=${rec.city}&date=${formatLocalYmd(new Date())}`, {
+      state: {
+        searchParams: {
+          tripType: 'oneWay',
+          segments: [{ origin: '北京', destination: rec.city, date: formatLocalYmd(new Date()) }],
+          passengers: 1,
+          cabinClass: 'economy'
+        }
+      }
+    });
   };
 
   return (
     <>
       <nav
         className={`backdrop-blur-md border-b sticky top-0 z-40 transition-all duration-300 transform ${isVisible ? 'translate-y-0' : '-translate-y-full'
-          } ${isResultsPage ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/70 dark:bg-gray-900/80 border-slate-200/50 dark:border-gray-800 text-slate-800 dark:text-gray-100 shadow-sm'
+          } ${isResultsPage ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/70 dark:bg-cosmos-surface/60 border-slate-200/50 dark:border-cosmos-border/30 text-slate-800 dark:text-gray-100 shadow-sm'
           }`}
       >
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -153,7 +161,7 @@ const Navbar: React.FC = () => {
 
                 {/* User Menu Popover */}
                 {isUserMenuOpen && user && (
-                  <div className="absolute right-0 top-full mt-3 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-gray-900/50 border border-gray-100 dark:border-gray-700 overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
+                  <div className="absolute right-0 top-full mt-3 w-64 bg-white dark:bg-cosmos-surface/95 backdrop-blur-xl rounded-2xl shadow-xl dark:shadow-cosmos-glow/20 border border-gray-100 dark:border-cosmos-border overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
                     <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/50">
                       <p className="font-bold text-gray-800 dark:text-gray-100 truncate">{user.username}</p>
                       <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${user.role === 'admin'
