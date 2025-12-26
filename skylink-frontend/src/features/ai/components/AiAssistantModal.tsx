@@ -81,8 +81,8 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ isOpen, onClose, on
 
           {loading && (
             <div className="text-center py-10">
-              <Loader2 className="w-8 h-8 text-purple-600 animate-spin mx-auto mb-2" />
-              <p className="text-gray-500 text-sm animate-pulse">正在分析您的需求并寻找最佳目的地...</p>
+              <Loader2 className="w-8 h-8 text-purple-600 dark:text-purple-400 animate-spin mx-auto mb-2" />
+              <p className="text-gray-500 dark:text-gray-400 text-sm animate-pulse">正在分析您的需求并寻找最佳目的地...</p>
             </div>
           )}
 
@@ -118,7 +118,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ isOpen, onClose, on
           )}
 
           {!loading && recommendations.length === 0 && !query && (
-            <div className="text-center text-gray-400 py-10">
+            <div className="text-center text-gray-400 dark:text-gray-500 py-10">
               <p>尝试搜索："适合家庭出游的历史名城" 或 "九月份去哪里看红叶"</p>
             </div>
           )}

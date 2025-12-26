@@ -30,12 +30,12 @@ const HomePage: React.FC = () => {
         className="h-[500px] bg-cover bg-center relative flex items-center justify-center transition-all duration-700"
         style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop")' }}
       >
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60 dark:from-black/70 dark:via-black/60 dark:to-black/80" />
         <div className="relative z-10 text-center text-white -mt-20 px-4">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg tracking-tight">
             探索世界，智享旅程
           </h1>
-          <p className="text-lg md:text-xl opacity-90 font-light">
+          <p className="text-lg md:text-xl opacity-90 font-light tracking-wide">
             智能航班搜索平台
           </p>
         </div>

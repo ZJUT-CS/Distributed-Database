@@ -16,6 +16,7 @@ import {
   Sliders,
 } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { Image } from '@/components/common';
 
 const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -98,7 +99,7 @@ const Sidebar: React.FC = () => {
       <div className="p-4 border-t border-slate-800 bg-slate-900/50">
         <div className="flex items-center gap-3 mb-4 px-2">
           <div className="w-10 h-10 rounded-full bg-slate-700 border-2 border-slate-600 overflow-hidden">
-            <img src={user?.avatarUrl} alt="Admin" className="w-full h-full object-cover" />
+            <Image src={user?.avatarUrl || ''} alt="Admin" loading="eager" />
           </div>
           <div>
             <p className="font-bold text-sm text-white">{user?.username}</p>

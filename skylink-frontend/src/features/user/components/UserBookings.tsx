@@ -10,6 +10,15 @@ import { API_CONFIG } from '@/config/constants';
 import { InterlineOrderBadge } from '../../booking/components/booking-ui';
 import { useToast } from '@/features/admin/components/Toast';
 import { useConfirm } from '@/features/admin';
+import { EmptyStateBookings, EmptyStateOrders } from '@/components/common';
+
+// Helper to ensure dark mode texts are readable
+const ensureDarkText = (classes: string) => {
+  if (classes.includes('text-gray-600') && !classes.includes('dark:text')) return classes + ' dark:text-gray-300';
+  if (classes.includes('text-gray-500') && !classes.includes('dark:text')) return classes + ' dark:text-gray-400';
+  if (classes.includes('text-gray-900') && !classes.includes('dark:text')) return classes + ' dark:text-gray-100';
+  return classes;
+};
 
 interface UserBookingsProps {
   bookings: ConfirmedBooking[];
@@ -167,25 +176,25 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
         );
       case 'cancelled':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-50 text-gray-600 border border-gray-100">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-600">
             <XCircle className="w-3.5 h-3.5" /> 已取消
           </span>
         );
       case 'refunding':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
             <RefreshCw className="w-3.5 h-3.5" /> 退改审核中
           </span>
         );
       case 'refunded':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-50 text-gray-500 border border-gray-100">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 border border-gray-100 dark:border-gray-600">
             <CheckCircle className="w-3.5 h-3.5" /> 已退款
           </span>
         );
       case 'changed':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
             <CheckCircle className="w-3.5 h-3.5" /> 改签完成
           </span>
         );
@@ -203,7 +212,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
             <button
               onClick={() => handleCancelOrder(booking)}
               disabled={actionLoading}
-              className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-bold hover:bg-gray-50 transition-all"
+              className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
             >
               取消订单
             </button>
@@ -223,7 +232,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
       case 'confirmed':
         return (
           <div className="mt-4 lg:mt-0 lg:ml-auto flex flex-col items-end gap-2">
-            <div className="text-xs text-gray-500">退改签入口在订单详情页</div>
+            <div className="text-xs text-gray-500 dark:text-gray-300">退改签入口在订单详情页</div>
             <div className="flex gap-3">
               <button
                 onClick={() => navigate(`/my-bookings/${booking.id}`, { state: { booking } })}
@@ -237,7 +246,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
       case 'refunding':
         return (
           <div className="mt-4 lg:mt-0 lg:ml-auto text-right">
-            <div className="text-sm text-purple-600 mb-2 font-medium">申请已提交</div>
+            <div className="text-sm text-purple-600 dark:text-purple-400 mb-2 font-medium">申请已提交</div>
             <button
               onClick={() => navigate('/refunds-help')}
               className="px-4 py-2 rounded-xl bg-purple-50 text-purple-700 text-sm font-bold hover:bg-purple-100 transition-all"
@@ -251,13 +260,13 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
           <div className="flex gap-3 mt-4 lg:mt-0 lg:ml-auto">
             <button
               onClick={() => navigate('/')}
-              className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all"
+              className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
             >
               再次预订
             </button>
             <button
               onClick={() => navigate(`/my-bookings/${booking.id}`, { state: { booking } })}
-              className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold hover:bg-gray-200 transition-all"
+              className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
             >
               查看详情
             </button>
@@ -306,47 +315,47 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
         </div>
       </div>
 
-      <div className="rounded-3xl border border-sky-100 bg-white/90 backdrop-blur shadow-sm">
+      <div className="rounded-3xl border border-sky-100 dark:border-sky-900/30 bg-white/90 dark:bg-gray-900/90 backdrop-blur shadow-sm">
         <div className="p-6 sm:p-8">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-5">
+            <div className="rounded-2xl border border-sky-100 dark:border-sky-900/30 bg-gradient-to-br from-sky-50 to-white dark:from-sky-900/20 dark:to-gray-800 p-5">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600 font-medium">订单数量</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 font-medium">订单数量</div>
                 <div className="w-10 h-10 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-lg shadow-sky-500/20">
                   <Ticket className="w-5 h-5" />
                 </div>
               </div>
-              <div className="mt-2 text-3xl font-bold text-gray-900">{totalCount}</div>
-              <div className="mt-1 text-xs text-gray-500">已确认 {confirmedCount} 单</div>
+              <div className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{totalCount}</div>
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-300">已确认 {confirmedCount} 单</div>
             </div>
 
-            <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-cyan-50 to-white p-5">
+            <div className="rounded-2xl border border-sky-100 dark:border-sky-900/30 bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-900/20 dark:to-gray-800 p-5">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600 font-medium">累计支出</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 font-medium">累计支出</div>
                 <div className="w-10 h-10 rounded-2xl bg-cyan-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/20">
                   <CircleDollarSign className="w-5 h-5" />
                 </div>
               </div>
-              <div className="mt-2 text-3xl font-bold text-gray-900">¥{totalAmount.toLocaleString()}</div>
-              <div className="mt-1 text-xs text-gray-500">含税总价</div>
+              <div className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">¥{totalAmount.toLocaleString()}</div>
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-300">含税总价</div>
             </div>
 
-            <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-blue-50 to-white p-5">
+            <div className="rounded-2xl border border-sky-100 dark:border-sky-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 p-5">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600 font-medium">行程概览</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 font-medium">行程概览</div>
                 <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
                   <Route className="w-5 h-5" />
                 </div>
               </div>
-              <div className="mt-2 text-3xl font-bold text-gray-900">{Math.max(0, totalCount)}</div>
-              <div className="mt-1 text-xs text-gray-500">随时查看详情与凭证</div>
+              <div className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">{Math.max(0, totalCount)}</div>
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-300">随时查看详情与凭证</div>
             </div>
           </div>
 
           {/* Filters & Search */}
           <div className="mt-6 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="flex bg-gray-100 p-1 rounded-2xl w-fit overflow-x-auto">
+            <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl w-fit overflow-x-auto">
               {[
                 { id: 'all' as const, label: '全部' },
                 { id: 'confirmed' as const, label: '已确认' },
@@ -358,7 +367,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
                   key={opt.id}
                   type="button"
                   onClick={() => setStatusFilter(opt.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${statusFilter === opt.id ? 'bg-white text-sky-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${statusFilter === opt.id ? 'bg-white dark:bg-gray-700 text-sky-700 dark:text-sky-400 shadow-sm' : 'text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200'
                     }`}
                 >
                   {opt.label}
@@ -371,7 +380,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="搜索订单号 / 乘客 / 航线"
-                className="flex-1 lg:w-72 px-4 py-2.5 rounded-2xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                className="flex-1 lg:w-72 px-4 py-2.5 rounded-2xl border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-gray-800 dark:text-gray-100"
               />
               <button
                 type="button"
@@ -387,7 +396,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
                   ];
                   exportToCSV(filteredBookings, `我的订单_${statusFilter}`, columns);
                 }}
-                className="px-4 py-2.5 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 text-sm font-bold hover:bg-emerald-100 transition-all flex items-center gap-2"
+                className="px-4 py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 text-sm font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 导出
@@ -395,41 +404,43 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
             </div>
           </div>
 
-          <div className="mt-2 text-xs text-gray-500">
+          <div className="mt-2 text-xs text-gray-500 dark:text-gray-300">
             显示 {filteredBookings.length} / {totalCount} 条
           </div>
 
           {/* Booking List */}
-          <div className="mt-4 rounded-3xl border border-gray-100 bg-white overflow-hidden">
+          <div className="mt-4 rounded-3xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800/50 overflow-hidden">
             {bookings.length === 0 ? (
-              <div className="p-12 text-center text-gray-400">
-                <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-4">
-                  <Plane className="w-7 h-7 opacity-40" />
-                </div>
-                <div className="text-gray-700 font-bold">暂无订单</div>
-                <div className="text-sm text-gray-500 mt-1">从首页开始搜索并预订航班</div>
-              </div>
+              <EmptyStateBookings
+                variant="illustrated"
+                size="lg"
+                className="rounded-none border-none"
+                actionLabel="去搜索航班"
+                onAction={() => navigate('/')}
+              />
             ) : filteredBookings.length === 0 ? (
-              <div className="p-12 text-center text-gray-400">
-                <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-4">
-                  <Ticket className="w-7 h-7 opacity-40" />
-                </div>
-                <div className="text-gray-700 font-bold">暂无匹配订单</div>
-                <div className="text-sm text-gray-500 mt-1">尝试切换状态或修改关键词</div>
+              <div className="p-8">
+                <EmptyStateOrders
+                  variant="minimal"
+                  size="md"
+                  title="暂无匹配订单"
+                  description="尝试切换状态或修改关键词"
+                  className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50"
+                />
               </div>
             ) : (
-              <ul className="divide-y divide-gray-50">
+              <ul className="divide-y divide-gray-50 dark:divide-gray-800">
                 {filteredBookings.map((b) => {
                   const flights = b.flights && b.flights.length > 0 ? b.flights : b.flight ? [b.flight] : [];
                   const first = flights[0];
                   const last = flights[flights.length - 1];
 
                   return (
-                    <li key={b.id} className="p-6 sm:p-7 hover:bg-gray-50/50 transition-colors">
+                    <li key={b.id} className="p-6 sm:p-7 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-3 flex-wrap mb-3">
-                            <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full font-mono">
+                            <span className="text-xs font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 px-2.5 py-1 rounded-full font-mono">
                               {b.id}
                             </span>
                             {renderStatusBadge(b)}
@@ -440,19 +451,19 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
                             {flights.length > 1 && flights[0]?.segments && flights[0].segments.length > 1 && (
                               <InterlineOrderBadge totalSegments={flights[0].segments.length} />
                             )}
-                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <span className="text-xs text-gray-500 dark:text-gray-300 flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5" /> {formatDateTime(b.bookingDate)}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="text-lg sm:text-xl font-bold text-gray-900 truncate">
+                            <div className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
                               {first?.origin || '-'} → {last?.destination || '-'}
                             </div>
-                            <div className="text-lg font-bold text-gray-900 ml-4">¥{(b.totalPrice || 0).toLocaleString()}</div>
+                            <div className="text-lg font-bold text-gray-900 dark:text-gray-100 ml-4">¥{(b.totalPrice || 0).toLocaleString()}</div>
                           </div>
 
-                          <div className="mt-1 text-sm text-gray-500">乘客: {b.passengerName}</div>
+                          <div className="mt-1 text-sm text-gray-500 dark:text-gray-300">乘客: {b.passengerName}</div>
                         </div>
 
                         {/* Dynamic Action Buttons */}
@@ -469,7 +480,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
 
       {payModalOpen && payToken && payBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-scale-up">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-scale-up">
             <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-5 flex items-start justify-between">
               <div>
                 <div className="text-white text-lg font-extrabold">支付确认</div>
@@ -487,43 +498,43 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
 
             <div className="p-6 space-y-4">
               {(payError || null) && (
-                <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{payError}</div>
+                <div className="rounded-2xl border border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-300">{payError}</div>
               )}
 
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                <div className="text-xs text-gray-500">订单号</div>
-                <div className="font-mono text-sm text-gray-800 mt-1 break-all">{payBooking.id}</div>
+              <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 p-4">
+                <div className="text-xs text-gray-500 dark:text-gray-300">订单号</div>
+                <div className="font-mono text-sm text-gray-800 dark:text-gray-200 mt-1 break-all">{payBooking.id}</div>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <div>
-                    <div className="text-xs text-gray-500">支付金额</div>
-                    <div className="text-lg font-extrabold text-gray-900 mt-0.5">¥{Number(payBooking.totalPrice || 0).toLocaleString()}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-300">支付金额</div>
+                    <div className="text-lg font-extrabold text-gray-900 dark:text-gray-100 mt-0.5">¥{Number(payBooking.totalPrice || 0).toLocaleString()}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-500">支付方式</div>
-                    <div className="text-sm font-bold text-gray-900 mt-1">银行卡/信用卡</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-300">支付方式</div>
+                    <div className="text-sm font-bold text-gray-900 dark:text-gray-100 mt-1">银行卡/信用卡</div>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-white p-4">
-                <div className="text-sm font-bold text-gray-900">行程摘要</div>
-                <div className="text-sm text-gray-600 mt-2">
+              <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-gray-900 p-4">
+                <div className="text-sm font-bold text-gray-900 dark:text-gray-100">行程摘要</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
                   {(payBooking.flights?.[0]?.origin || payBooking.flight?.origin || '-') +
                     ' → ' +
                     (payBooking.flights?.[(payBooking.flights?.length ?? 0) - 1]?.destination || payBooking.flight?.destination || '-')}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">乘客：{payBooking.passengerName}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-300 mt-1">乘客：{payBooking.passengerName}</div>
               </div>
 
-              <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 text-xs text-orange-800">支付确认令牌有效期 30 分钟，且仅可使用一次。</div>
+              <div className="rounded-2xl border border-orange-100 dark:border-orange-900/30 bg-orange-50 dark:bg-orange-900/20 p-4 text-xs text-orange-800 dark:text-orange-300">支付确认令牌有效期 30 分钟，且仅可使用一次。</div>
             </div>
 
-            <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex items-center gap-3">
+            <div className="px-6 py-5 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex items-center gap-3">
               <button
                 type="button"
                 onClick={closePayModal}
                 disabled={payConfirming}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-100 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 取消
               </button>

@@ -542,7 +542,7 @@ const UserCenterPage: React.FC = () => {
 
                   {!isVerified && (
                     <div className="mt-4 flex items-center justify-between gap-3">
-                      <div className="text-xs text-gray-500">提交后将用于购票与退改签实名核验</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">提交后将用于购票与退改签实名核验</div>
                       <button
                         type="button"
                         onClick={handleSubmitRealName}
@@ -580,7 +580,7 @@ const UserCenterPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <div className="text-xs font-bold text-gray-500 mb-2">性别</div>
+                    <div className="text-xs font-bold text-gray-500 mb-2 dark:text-gray-400">性别</div>
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
@@ -692,7 +692,7 @@ const UserCenterPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 sm:p-8">
             <div className="text-lg font-bold text-gray-900">{user.email ? '修改邮箱' : '绑定邮箱'}</div>
-            <div className="mt-1 text-sm text-gray-500">验证码为模拟发送（固定为 123456）</div>
+            <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">验证码为模拟发送（固定为 123456）</div>
 
             <div className="mt-5 space-y-4">
               <div className="text-xs font-bold text-gray-500 mb-1">邮箱</div>
@@ -721,7 +721,7 @@ const UserCenterPage: React.FC = () => {
                 </button>
               </div>
               {isEmailCodeSent && (
-                <div className="text-xs text-gray-500 flex items-center gap-2">
+                <div className="text-xs text-gray-500 flex items-center gap-2 dark:text-gray-400">
                   <Check className="w-4 h-4 text-emerald-500" /> 已发送验证码
                 </div>
               )}
@@ -758,7 +758,7 @@ const UserCenterPage: React.FC = () => {
 
             <div className="mt-5 space-y-4">
               <div>
-                <div className="text-xs font-bold text-gray-500 mb-1">新手机号</div>
+                <div className="text-xs font-bold text-gray-500 mb-1 dark:text-gray-400">新手机号</div>
                 <input
                   value={phoneDraft}
                   onChange={(e) => setPhoneDraft(e.target.value)}
@@ -834,7 +834,7 @@ const UserCenterPage: React.FC = () => {
                 />
               </div>
               <div>
-                <div className="text-xs font-bold text-gray-500 mb-1">新密码</div>
+                <div className="text-xs font-bold text-gray-500 mb-1 dark:text-gray-400">新密码</div>
                 <input
                   type="password"
                   value={newPassword}
@@ -844,7 +844,7 @@ const UserCenterPage: React.FC = () => {
                 />
               </div>
               <div>
-                <div className="text-xs font-bold text-gray-500 mb-1">确认新密码</div>
+                <div className="text-xs font-bold text-gray-500 mb-1 dark:text-gray-400">确认新密码</div>
                 <input
                   type="password"
                   value={confirmPassword}

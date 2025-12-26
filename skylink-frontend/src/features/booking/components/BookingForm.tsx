@@ -266,11 +266,11 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   const StepIndicator = () => (
     <div className="flex items-center justify-center mb-8 px-4 relative">
       <div className="flex items-center w-full max-w-lg">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all z-10 ${step >= 1 ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30' : 'bg-gray-200 text-gray-500'}`}>1</div>
-        <div className="flex-1 h-1 mx-2 relative bg-gray-200 rounded-full overflow-hidden">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all z-10 ${step >= 1 ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30' : 'bg-gray-200 dark:bg-slate-800 text-gray-500'}`}>1</div>
+        <div className="flex-1 h-1 mx-2 relative bg-gray-200 dark:bg-slate-800 rounded-full overflow-hidden">
           <div className={`absolute top-0 left-0 h-full bg-sky-600 transition-all duration-500 ease-in-out ${step === 2 ? 'w-full' : 'w-0'}`} />
         </div>
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all z-10 ${step >= 2 ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30' : 'bg-gray-200 text-gray-500'}`}>2</div>
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all z-10 ${step >= 2 ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30' : 'bg-gray-200 dark:bg-slate-800 text-gray-500'}`}>2</div>
       </div>
       <div className="absolute flex w-full max-w-lg justify-between mt-14 text-xs font-bold text-gray-500 uppercase tracking-wide">
         <span className={step >= 1 ? 'text-sky-600' : ''}>填写信息</span>
@@ -282,14 +282,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   const SummaryCard = () => {
     const meta = cabinMeta(cabinClass);
     return (
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm sticky top-24 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 bg-gray-50/60">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm sticky top-24 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/40">
           <div className="flex items-center justify-between">
-            <h3 className="font-extrabold text-gray-900 text-sm uppercase tracking-wider flex items-center gap-2">
-              <Plane className="w-4 h-4 text-gray-400" /> 行程清单
+            <h3 className="font-extrabold text-gray-900 dark:text-gray-100 text-sm uppercase tracking-wider flex items-center gap-2">
+              <Plane className="w-4 h-4 text-gray-400 dark:text-gray-500" /> 行程清单
             </h3>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-extrabold text-gray-700">
+              <span className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs font-extrabold text-gray-700 dark:text-gray-200">
                 {meta.name} ({meta.code})
               </span>
               <span className="inline-flex items-center px-3 py-2 rounded-2xl bg-sky-600 text-white text-xs font-extrabold shadow-lg shadow-sky-500/25">
@@ -314,39 +314,39 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
 
           <div className="mt-4 flex flex-wrap gap-2">
             {meta.benefits.map((b) => (
-              <span key={b} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-white border border-sky-100 text-sky-700">
+              <span key={b} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-white dark:bg-slate-800 border border-sky-100 dark:border-sky-900/30 text-sky-700 dark:text-sky-300">
                 <BadgeCheck className="w-3.5 h-3.5" />
                 {b}
               </span>
             ))}
           </div>
 
-          <div className="pt-4 border-t border-gray-100 mt-4 space-y-2">
+          <div className="pt-4 border-t border-gray-100 dark:border-slate-800 mt-4 space-y-2">
             <div className="text-xs font-bold text-gray-500 mb-1">费用明细</div>
-            <div className="flex justify-between items-center text-sm text-gray-700">
+            <div className="flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
               <span>机票 (×{passengerCount})</span>
               <span className="font-extrabold">¥{pricing.ticketAmount.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center text-sm text-gray-700">
+            <div className="flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
               <span>机建燃油 (×{passengerCount})</span>
               <span className="font-extrabold">¥{pricing.taxAmount.toLocaleString()}</span>
             </div>
             {addons.insurance && (
-              <div className="flex justify-between items-center text-sm text-gray-700">
+              <div className="flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
                 <span>航空意外险</span>
                 <span className="font-extrabold">¥{pricing.insuranceAmount.toLocaleString()}</span>
               </div>
             )}
             {addons.fastTicket && (
-              <div className="flex justify-between items-center text-sm text-gray-700">
+              <div className="flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
                 <span>极速出票</span>
                 <span className="font-extrabold">¥{pricing.fastTicketAmount.toLocaleString()}</span>
               </div>
             )}
-            <div className="h-px bg-gray-100 my-2" />
+            <div className="h-px bg-gray-100 dark:bg-slate-800 my-2" />
             <div className="flex justify-between items-center">
-              <span className="text-gray-900 font-extrabold">应付总额</span>
-              <span className="text-2xl font-extrabold text-orange-600">¥{pricing.totalAmount.toLocaleString()}</span>
+              <span className="text-gray-900 dark:text-gray-100 font-extrabold">应付总额</span>
+              <span className="text-2xl font-extrabold text-orange-600 dark:text-orange-500">¥{pricing.totalAmount.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -364,18 +364,18 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
         <div className="lg:col-span-8 space-y-6">
           {step === 1 ? (
             <div className="space-y-6 animate-in fade-in slide-in-from-left-8 duration-500">
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between gap-4">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+                <div className="px-8 py-6 border-b border-gray-100 dark:border-slate-800 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800/50 dark:to-slate-900 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="bg-sky-600 p-2 rounded-xl text-white shadow-lg shadow-sky-500/20">
                       <User className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-extrabold text-gray-900">乘机人</h2>
-                      <p className="text-xs text-gray-500">共 {passengerCount} 人，信息需与证件一致</p>
+                      <h2 className="text-lg font-extrabold text-gray-900 dark:text-gray-100">乘机人</h2>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">共 {passengerCount} 人，信息需与证件一致</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-3 py-2 rounded-2xl">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-3 py-2 rounded-2xl">
                     <Lock className="w-4 h-4 text-gray-400" />
                     人数已锁定，需修改请返回搜索页
                   </div>
@@ -403,7 +403,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                             <select
                               value={p.type || 'adult'}
                               onChange={(e) => updatePassenger(idx, { type: e.target.value === 'child' ? 'child' : 'adult' })}
-                              className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 bg-white outline-none focus:ring-2 focus:ring-sky-500"
+                              className="px-3 py-2 rounded-xl border border-gray-200 dark:border-slate-700 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-sky-500"
                             >
                               <option value="adult">成人</option>
                               <option value="child">儿童</option>
@@ -479,14 +479,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                 </div>
               </div>
 
-              <div id="contact-section" className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center gap-3">
+              <div id="contact-section" className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+                <div className="px-8 py-6 border-b border-gray-100 dark:border-slate-800 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800/50 dark:to-slate-900 flex items-center gap-3">
                   <div className="bg-sky-600 p-2 rounded-xl text-white shadow-lg shadow-sky-500/20">
                     <Phone className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-extrabold text-gray-900">联系人</h2>
-                    <p className="text-xs text-gray-500">用于接收出票短信与航班动态</p>
+                    <h2 className="text-lg font-extrabold text-gray-900 dark:text-gray-100">联系人</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">用于接收出票短信与航班动态</p>
                   </div>
                 </div>
 
@@ -544,59 +544,59 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                 </div>
               </div>
 
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center gap-3">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+                <div className="px-8 py-6 border-b border-gray-100 dark:border-slate-800 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800/50 dark:to-slate-900 flex items-center gap-3">
                   <div className="bg-sky-600 p-2 rounded-xl text-white shadow-lg shadow-sky-500/20">
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-extrabold text-gray-900">增值服务</h2>
-                    <p className="text-xs text-gray-500">按乘机人数计费，可随时取消勾选</p>
+                    <h2 className="text-lg font-extrabold text-gray-900 dark:text-gray-100">增值服务</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">按乘机人数计费，可随时取消勾选</p>
                   </div>
                 </div>
 
                 <div className="p-8 space-y-4">
-                  <label className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-gray-100 hover:border-sky-100 hover:bg-sky-50/30 transition-colors cursor-pointer">
+                  <label className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-sky-100 dark:hover:border-sky-900/40 hover:bg-sky-50/30 dark:hover:bg-sky-900/20 transition-colors cursor-pointer">
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
                         checked={addons.insurance}
                         onChange={(e) => setAddons((prev) => ({ ...prev, insurance: e.target.checked }))}
-                        className="w-4 h-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                        className="w-4 h-4 rounded border-gray-300 dark:border-slate-700 text-sky-600 shadow-sm"
                       />
                       <div>
-                        <div className="font-extrabold text-gray-900">航空意外险</div>
-                        <div className="text-xs text-gray-500 mt-0.5">保障更安心，建议购买</div>
+                        <div className="font-extrabold text-gray-900 dark:text-gray-100">航空意外险</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">保障更安心，建议购买</div>
                       </div>
                     </div>
-                    <div className="text-sm font-extrabold text-gray-900">
+                    <div className="text-sm font-extrabold text-gray-900 dark:text-gray-100">
                       ¥30/份 × {passengerCount}
                     </div>
                   </label>
 
-                  <label className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-gray-100 hover:border-sky-100 hover:bg-sky-50/30 transition-colors cursor-pointer">
+                  <label className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-sky-100 dark:hover:border-sky-900/40 hover:bg-sky-50/30 dark:hover:bg-sky-900/20 transition-colors cursor-pointer">
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
                         checked={addons.fastTicket}
                         onChange={(e) => setAddons((prev) => ({ ...prev, fastTicket: e.target.checked }))}
-                        className="w-4 h-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                        className="w-4 h-4 rounded border-gray-300 dark:border-slate-700 text-sky-600 shadow-sm"
                       />
                       <div>
-                        <div className="font-extrabold text-gray-900">极速出票</div>
-                        <div className="text-xs text-gray-500 mt-0.5">优先处理出票，节省等待</div>
+                        <div className="font-extrabold text-gray-900 dark:text-gray-100">极速出票</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">优先处理出票，节省等待</div>
                       </div>
                     </div>
-                    <div className="text-sm font-extrabold text-gray-900">
+                    <div className="text-sm font-extrabold text-gray-900 dark:text-gray-100">
                       ¥20/份 × {passengerCount}
                     </div>
                   </label>
                 </div>
 
-                <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                <div className="px-8 py-6 bg-gray-50 dark:bg-slate-800/60 border-t border-gray-100 dark:border-slate-800 flex justify-between items-center">
                   <button
                     onClick={onCancel}
-                    className="text-gray-600 font-extrabold text-sm hover:text-gray-900 px-4 py-2 rounded-xl hover:bg-gray-200/50 transition-colors"
+                    className="text-gray-600 dark:text-gray-400 font-extrabold text-sm hover:text-gray-900 dark:hover:text-gray-100 px-4 py-2 rounded-xl hover:bg-gray-200/50 dark:hover:bg-slate-700/50 transition-colors"
                   >
                     返回修改人数
                   </button>
@@ -604,7 +604,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                     onClick={handleNextStep}
                     aria-disabled={validation.hasErrors}
                     className={`text-white px-8 py-3.5 rounded-2xl font-extrabold shadow-xl flex items-center gap-2 transition-all transform hover:-translate-y-1 active:scale-95 ${validation.hasErrors
-                      ? 'bg-gray-300 shadow-none hover:-translate-y-0 cursor-pointer'
+                      ? 'bg-gray-300 dark:bg-slate-800 shadow-none hover:-translate-y-0 cursor-not-allowed'
                       : 'bg-sky-600 hover:bg-sky-700 shadow-sky-500/30'
                       }`}
                   >
@@ -615,20 +615,20 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
             </div>
           ) : (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
-              <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex gap-4 min-w-0">
-                    <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 border border-emerald-100 shrink-0">
+                    <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 shrink-0">
                       <CheckCircle2 className="w-6 h-6" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-extrabold text-gray-900">信息复核</h3>
-                      <div className="mt-1 text-sm text-gray-600">
+                      <h3 className="font-extrabold text-gray-900 dark:text-gray-100">信息复核</h3>
+                      <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                         乘机人：{normalizeName(passengers[0]?.name || '-')}
                         {passengers.length > 1 ? ` 等 ${passengers.length} 人` : ''}
                       </div>
-                      <div className="mt-0.5 text-xs text-gray-500">手机号：{contact.phone.trim() || '-'}</div>
-                      <div className="mt-0.5 text-xs text-gray-500">邮箱：{contact.email.trim() || '-'}</div>
+                      <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-500">手机号：{contact.phone.trim() || '-'}</div>
+                      <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-500">邮箱：{contact.email.trim() || '-'}</div>
                     </div>
                   </div>
                   <button
@@ -636,7 +636,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                       setStep(1);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="text-sky-700 text-xs font-extrabold hover:underline px-3 py-2 bg-sky-50 rounded-xl hover:bg-sky-100 transition-colors shrink-0"
+                    className="text-sky-700 dark:text-sky-400 text-xs font-extrabold hover:underline px-3 py-2 bg-sky-50 dark:bg-sky-900/30 rounded-xl hover:bg-sky-100 dark:hover:bg-sky-900/50 transition-colors shrink-0"
                   >
                     返回修改
                   </button>
@@ -644,12 +644,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
 
                 <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {passengers.map((p, idx) => (
-                    <div key={idx} className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                    <div key={idx} className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/40 p-4">
                       <div className="flex items-center justify-between">
-                        <div className="font-extrabold text-gray-900 truncate">{normalizeName(p.name) || `乘机人 ${idx + 1}`}</div>
-                        <div className="text-xs font-bold text-gray-500">{p.type === 'child' ? '儿童' : '成人'}</div>
+                        <div className="font-extrabold text-gray-900 dark:text-gray-100 truncate">{normalizeName(p.name) || `乘机人 ${idx + 1}`}</div>
+                        <div className="text-xs font-bold text-gray-500 dark:text-gray-400">{p.type === 'child' ? '儿童' : '成人'}</div>
                       </div>
-                      <div className="mt-1 text-xs text-gray-500 font-mono break-all">
+                      <div className="mt-1 text-xs text-gray-500 dark:text-gray-500 font-mono break-all">
                         {normalizeIdCard(p.idCard) ? `身份证：${normalizeIdCard(p.idCard).slice(0, 6)}********${normalizeIdCard(p.idCard).slice(-4)}` : '身份证：-'}
                       </div>
                     </div>
@@ -657,59 +657,59 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                 </div>
               </div>
 
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center gap-3">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+                <div className="px-8 py-6 border-b border-gray-100 dark:border-slate-800 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800/50 dark:to-slate-900 flex items-center gap-3">
                   <div className="bg-orange-500 p-2 rounded-xl text-white shadow-lg shadow-orange-500/20">
                     <Wallet className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-extrabold text-gray-900">选择支付方式</h2>
-                    <p className="text-xs text-gray-500">支付安全由平台保障</p>
+                    <h2 className="text-lg font-extrabold text-gray-900 dark:text-gray-100">选择支付方式</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">支付安全由平台保障</p>
                   </div>
                 </div>
 
                 <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <button
                     onClick={() => setPaymentMethod('alipay')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'alipay' ? 'border-sky-500 bg-sky-50/50' : 'border-gray-100 hover:border-sky-200 hover:bg-gray-50'}`}
+                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'alipay' ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-900/20' : 'border-gray-100 dark:border-slate-800 hover:border-sky-200 dark:hover:border-sky-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
                   >
                     {paymentMethod === 'alipay' && <div className="absolute top-3 right-3 text-sky-500"><CheckCircle2 className="w-5 h-5" /></div>}
-                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center p-2">
+                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm flex items-center justify-center p-2">
                       <QrCode className="w-8 h-8 text-sky-500" />
                     </div>
-                    <span className={`font-extrabold ${paymentMethod === 'alipay' ? 'text-sky-700' : 'text-gray-600'}`}>支付宝</span>
+                    <span className={`font-extrabold ${paymentMethod === 'alipay' ? 'text-sky-700 dark:text-sky-400' : 'text-gray-600 dark:text-gray-400'}`}>支付宝</span>
                   </button>
 
                   <button
                     onClick={() => setPaymentMethod('wechat')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'wechat' ? 'border-emerald-500 bg-emerald-50/50' : 'border-gray-100 hover:border-emerald-200 hover:bg-gray-50'}`}
+                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'wechat' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20' : 'border-gray-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
                   >
                     {paymentMethod === 'wechat' && <div className="absolute top-3 right-3 text-emerald-500"><CheckCircle2 className="w-5 h-5" /></div>}
-                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center p-2">
+                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm flex items-center justify-center p-2">
                       <Smartphone className="w-8 h-8 text-emerald-600" />
                     </div>
-                    <span className={`font-extrabold ${paymentMethod === 'wechat' ? 'text-emerald-700' : 'text-gray-600'}`}>微信支付</span>
+                    <span className={`font-extrabold ${paymentMethod === 'wechat' ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`}>微信支付</span>
                   </button>
 
                   <button
                     onClick={() => setPaymentMethod('credit_card')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'credit_card' ? 'border-purple-500 bg-purple-50/50' : 'border-gray-100 hover:border-purple-200 hover:bg-gray-50'}`}
+                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'credit_card' ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20' : 'border-gray-100 dark:border-slate-800 hover:border-purple-200 dark:hover:border-purple-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
                   >
                     {paymentMethod === 'credit_card' && <div className="absolute top-3 right-3 text-purple-500"><CheckCircle2 className="w-5 h-5" /></div>}
-                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center p-2">
+                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm flex items-center justify-center p-2">
                       <CreditCard className="w-8 h-8 text-purple-600" />
                     </div>
-                    <span className={`font-extrabold ${paymentMethod === 'credit_card' ? 'text-purple-700' : 'text-gray-600'}`}>信用卡/银联</span>
+                    <span className={`font-extrabold ${paymentMethod === 'credit_card' ? 'text-purple-700 dark:text-purple-400' : 'text-gray-600 dark:text-gray-400'}`}>信用卡/银联</span>
                   </button>
                 </div>
 
-                <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                <div className="px-8 py-6 bg-gray-50 dark:bg-slate-800/60 border-t border-gray-100 dark:border-slate-800 flex justify-between items-center">
                   <button
                     onClick={() => {
                       setStep(1);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="text-gray-600 font-extrabold text-sm hover:text-gray-900 px-4 py-2 rounded-xl hover:bg-gray-200/50 transition-colors flex items-center gap-2"
+                    className="text-gray-600 dark:text-gray-400 font-extrabold text-sm hover:text-gray-900 dark:hover:text-gray-100 px-4 py-2 rounded-xl hover:bg-gray-200/50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-2"
                   >
                     <ArrowLeft className="w-4 h-4" /> 返回上一步
                   </button>
