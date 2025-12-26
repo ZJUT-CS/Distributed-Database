@@ -35,6 +35,8 @@ public interface SeatService extends IService<Seat> {
 
     Map<Long, Map<String, Integer>> getAvailableCountBatch(List<Long> flightIds);
 
+    Map<Long, Integer> getBookedCountBatch(List<Long> flightIds);
+
     // Get Seat Map using Redis BitMap
     List<Seat> getSeatMap(Long flightId);
 }

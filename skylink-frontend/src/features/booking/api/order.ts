@@ -1,4 +1,4 @@
-﻿import { request } from '@/shared/api/axios';
+import { request } from '@/shared/api/axios';
 
 export interface OrderSearchResult {
   orderNo: string;
@@ -84,6 +84,8 @@ export async function searchOrders(params: {
   createTimeEnd?: string;
   flightNo?: string;
   cabinType?: string;
+  page?: number;
+  size?: number;
 }): Promise<OrderSearchResult[]> {
   const res = await request<OrderSearchResult[] | { total: number; data: OrderSearchResult[] }>({
     method: 'GET',

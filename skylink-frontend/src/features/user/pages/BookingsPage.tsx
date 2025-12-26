@@ -101,7 +101,7 @@ export const BookingsPage: React.FC = () => {
     if (!user?.id) return;
     setLoading(true);
     setError(null);
-    searchOrders({ userId: user.id })
+    searchOrders({ userId: user.id, size: 1000 })
       .then((res) => setBookings(Array.isArray(res) ? res.map(mapOrderToBooking) : []))
       .catch((e: any) => setError(e?.message || '加载订单失败'))
       .finally(() => setLoading(false));
@@ -111,7 +111,7 @@ export const BookingsPage: React.FC = () => {
     if (!user?.id) return;
     setLoading(true);
     setError(null);
-    searchOrders({ userId: user.id })
+    searchOrders({ userId: user.id, size: 1000 })
       .then((res) => setBookings(Array.isArray(res) ? res.map(mapOrderToBooking) : []))
       .catch((e: any) => setError(e?.message || '刷新订单失败'))
       .finally(() => setLoading(false));

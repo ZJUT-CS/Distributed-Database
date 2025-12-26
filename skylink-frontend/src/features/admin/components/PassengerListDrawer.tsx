@@ -34,12 +34,13 @@ export interface PassengerInfo {
 }
 
 const STATUS_MAP: Record<number, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' }> = {
-  0: { label: '待支付', variant: 'warning' },
-  1: { label: '已支付', variant: 'success' },
-  2: { label: '已取消', variant: 'danger' },
-  3: { label: '已退票', variant: 'danger' },
-  4: { label: '已完成', variant: 'info' },
-  5: { label: '已删除', variant: 'danger' },
+  0: { label: '待审核', variant: 'warning' },
+  1: { label: '待支付', variant: 'warning' },
+  2: { label: '已支付', variant: 'success' },
+  3: { label: '审核拒绝', variant: 'danger' },
+  4: { label: '退款审核中', variant: 'info' },
+  5: { label: '已退款', variant: 'danger' },
+  6: { label: '已取消', variant: 'danger' },
 };
 
 const toPassengerInfo = (item: FlightPassengerItem): PassengerInfo => ({

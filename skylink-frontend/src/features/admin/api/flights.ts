@@ -1,6 +1,7 @@
 ﻿import { request, type PageResult } from '@/shared/api/axios';
 
 export interface AdminFlightItem {
+  soldCount: number;
   flightId: string | number;
   flightNo: string;
   modelId: number;

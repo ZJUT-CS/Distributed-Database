@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.common.PageResult;
 import com.team.skylink.common.Result;
+import com.team.skylink.module.admin.dto.AdminFlightListVO;
 import com.team.skylink.module.admin.dto.FlightPassengerDto;
 import com.team.skylink.module.admin.dto.FlightPassengerQuery;
 import com.team.skylink.module.admin.service.AdminFlightService;
@@ -11,12 +12,20 @@ import com.team.skylink.module.flight.dto.FlightCreateRequest;
 import com.team.skylink.module.flight.entity.Flight;
 import com.team.skylink.module.flight.mapper.FlightMapper;
 import com.team.skylink.module.flight.service.FlightService;
+import com.team.skylink.module.flight.service.SeatService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/admins/flights")
@@ -25,16 +34,21 @@ public class AdminFlightController {
     private final FlightMapper flightMapper;
     private final FlightService flightService;
     private final AdminFlightService adminFlightService;
+    private final SeatService seatService;
 
-    public AdminFlightController(FlightMapper flightMapper, FlightService flightService, AdminFlightService adminFlightService) {
+    public AdminFlightController(FlightMapper flightMapper, 
+                                 FlightService flightService, 
+                                 AdminFlightService adminFlightService,
+                                 SeatService seatService) {
         this.flightMapper = flightMapper;
         this.flightService = flightService;
         this.adminFlightService = adminFlightService;
+        this.seatService = seatService;
     }
 
     // 1. 航班列表
     @GetMapping
-    public Result<PageResult<Flight>> list(
+    public Result<PageResult<AdminFlightListVO>> list(
             HttpServletRequest request,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size,
@@ -44,7 +58,7 @@ public class AdminFlightController {
             @RequestParam(required = false) String arrivalCity
     ) {
         Result<?> adminGuard = ensureAdmin(request);
-        if (adminGuard != null) return (Result<PageResult<Flight>>) adminGuard;
+        if (adminGuard != null) return (Result<PageResult<AdminFlightListVO>>) adminGuard;
 
         int offset = (page - 1) * size;
         LambdaQueryWrapper<Flight> qw = Wrappers.lambdaQuery();
@@ -69,8 +83,40 @@ public class AdminFlightController {
 
         // 最后查询列表数据
         List<Flight> list = flightMapper.selectList(qw);
+        
+        // 转换为 VO 并计算客座率
+        List<AdminFlightListVO> voList = new ArrayList<>();
+        if (!list.isEmpty()) {
+            List<Long> flightIds = list.stream().map(Flight::getFlightId).collect(Collectors.toList());
+            Map<Long, Integer> bookedMap = seatService.getBookedCountBatch(flightIds);
 
-        return Result.ok(new PageResult<>(total, list));
+            for (Flight f : list) {
+                AdminFlightListVO vo = new AdminFlightListVO();
+                BeanUtils.copyProperties(f, vo);
+
+                // 计算客座率
+                // 直接使用已售/锁定座位数计算，不再依赖 Total - Available
+                int occupied = bookedMap.getOrDefault(f.getFlightId(), 0);
+
+                vo.setSoldCount(occupied);
+                
+                // 获取总座位数
+                int totalSeats = f.getTotalSeats() != null ? f.getTotalSeats() : 0;
+                
+                // 计算占用率 = Occupied / Total
+                if (totalSeats > 0) {
+                    BigDecimal rate = BigDecimal.valueOf(occupied)
+                            .divide(BigDecimal.valueOf(totalSeats), 4, RoundingMode.HALF_UP);
+                    vo.setOccupancyRate(rate);
+                } else {
+                    vo.setOccupancyRate(BigDecimal.ZERO);
+                }
+                
+                voList.add(vo);
+            }
+        }
+
+        return Result.ok(new PageResult<>(total, voList));
     }
 
     // 2. 创建航班

@@ -30,6 +30,17 @@ public interface SeatMapper extends BaseMapper<Seat> {
             "</script>")
     List<java.util.Map<String, Object>> countAvailableSeatsBatch(@Param("flightIds") List<Long> flightIds);
 
+    @Select("<script>" +
+            "SELECT flight_id as flightId, COUNT(*) as count " +
+            "FROM seat " +
+            "WHERE status IN (2, 3) AND flight_id IN " +
+            "<foreach item='item' index='index' collection='flightIds' open='(' separator=',' close=')'>" +
+            "#{item}" +
+            "</foreach>" +
+            "GROUP BY flight_id" +
+            "</script>")
+    List<java.util.Map<String, Object>> countBookedSeatsBatch(@Param("flightIds") List<Long> flightIds);
+
     @Insert("<script>" +
             "INSERT INTO seat (flight_id, seat_number, cabin_type, status, update_time) VALUES " +
             "<foreach collection='seats' item='seat' separator=','>" +

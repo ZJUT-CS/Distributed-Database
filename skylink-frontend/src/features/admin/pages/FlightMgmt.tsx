@@ -101,7 +101,7 @@ const mapAdminFlight = (f: AdminFlightItem): UiFlight => {
     aircraft: String(f.modelId ?? ''),
     price: normalizePrice(f.lowestPrice),
     seats: Number.isFinite(totalSeats) ? totalSeats : 0,
-    sold: 0, // 暂无销量
+    sold: Number(f.soldCount ?? 0),
     status: toFlightStatus(f.status),
     modelId: Number(f.modelId),
     routeId: Number(f.routeId),
