@@ -94,9 +94,17 @@ const Navbar: React.FC = () => {
 
   const handleAiRecommendation = (rec: AIRecommendation) => {
     setIsAiModalOpen(false);
-    // Navigate to results with destination. 
-    // Note: This is a simple redirect. The Results page will need to parse query params.
-    navigate(`/results?origin=PEK&destination=${rec.airportCode}&date=${formatLocalYmd(new Date())}`);
+    // Navigate to results with destination city name
+    navigate(`/results?origin=北京&destination=${rec.city}&date=${formatLocalYmd(new Date())}`, {
+      state: {
+        searchParams: {
+          tripType: 'oneWay',
+          segments: [{ origin: '北京', destination: rec.city, date: formatLocalYmd(new Date()) }],
+          passengers: 1,
+          cabinClass: 'economy'
+        }
+      }
+    });
   };
 
   return (
