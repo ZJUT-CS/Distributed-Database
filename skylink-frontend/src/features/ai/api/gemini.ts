@@ -204,7 +204,8 @@ export interface ChatMessage {
 export const chatWithAI = async (
   message: string,
   history: ChatMessage[],
-  context?: { destination?: string; flightInfo?: string }
+  context?: { destination?: string; flightInfo?: string },
+  provider: AIProvider = 'gemini'
 ): Promise<string> => {
   const contextInfo = context?.destination
     ? `当前用户正在查看前往${context.destination}的航班。`
@@ -225,28 +226,24 @@ ${historyText}
 
 请用中文简洁回答，不超过200字。如果问题与旅行无关，礼貌地引导用户回到旅行话题。`;
 
-  // Try Gemini first
-  if (geminiApiKey) {
-    try {
-      const ai = createGeminiClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
-      if (response.text) return response.text;
-    } catch (error) {
-      logger.warn('Gemini API failed, trying DeepSeek fallback:', error);
-    }
-  }
+  const tryGemini = async () => {
+    if (!geminiApiKey) return null;
+    const ai = createGeminiClient();
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text;
+  };
 
-  // Fallback to DeepSeek
-  if (deepseekApiKey) {
-    try {
-      return await callDeepSeek(prompt);
-    } catch (error) {
-      logger.error('DeepSeek API also failed:', error);
-      throw error;
-    }
+  const tryDeepSeek = async () => {
+    if (!deepseekApiKey) return null;
+    return await callDeepSeek(prompt);
+  };
+
+  if (provider === 'gemini') {
+    const res = await tryGemini() || await tryDeepSeek();
+    if (res) return res;
+  } else {
+    const res = await tryDeepSeek() || await tryGemini();
+    if (res) return res;
   }
 
   throw new Error('No AI provider configured');
