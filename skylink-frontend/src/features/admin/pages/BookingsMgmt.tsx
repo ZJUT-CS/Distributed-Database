@@ -15,12 +15,12 @@ import {
   useToast,
   useSensitiveAudit,
 } from '@/features/admin';
-import { ORDER_STATUS, ORDER_STATUS_MAP, CHANGE_REQUEST_STATUS_MAP } from '@/config/features/admin/constants';
+import { ORDER_STATUS, ORDER_STATUS_MAP, CHANGE_REQUEST_STATUS_MAP } from '@/features/admin/constants';
 import EntityCell from '@/components/common/EntityCell';
 import { exportToCSV } from '@/utils/export';
 import { useAdminBookings, useCancelAdminBooking, useAuditAdminBooking } from '@/features/admin/hooks/useAdminBookings';
 import { listRefundChangeRequests } from '@/features/admin/api/refundChangeRequests';
-import type { RefundChangeRecord } from '@/features/refund/types';
+import type { RefundChangeRecord } from '@/features/user/components/refund/types';
 
 const BookingsMgmt: React.FC = () => {
   const { confirm } = useConfirm();

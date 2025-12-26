@@ -16,7 +16,7 @@ import {
   useToast,
   useSensitiveAudit,
 } from '@/features/admin';
-import { GENDER_MAP, GENDER_OPTIONS, type SelectOption } from '@/config/features/admin/constants';
+import { GENDER_MAP, GENDER_OPTIONS, type SelectOption } from '@/features/admin/constants';
 import EntityCell from '@/components/common/EntityCell';
 import { exportToCSV } from '@/utils/export';
 import { useAdminUsers, useCreateAdminUser, useUpdateAdminUser, useResetAdminUserPassword, useDeleteAdminUser } from '@/features/admin/hooks/useAdminUsers';

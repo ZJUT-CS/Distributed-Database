@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles, MapPin, Loader2, Send } from 'lucide-react';
-import { getSmartRecommendations, type AIRecommendation } from '../../features/ai/api/gemini';
+import { getSmartRecommendations, type AIRecommendation } from '@/features/ai/api/gemini';
 import { logger } from '@/lib/logger';
 
 interface AiAssistantModalProps {
@@ -89,8 +89,8 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ isOpen, onClose, on
           {!loading && recommendations.length > 0 && (
             <div className="grid grid-cols-1 gap-4">
               {recommendations.map((rec, idx) => (
-                <div 
-                  key={idx} 
+                <div
+                  key={idx}
                   onClick={() => onSelectRecommendation(rec)}
                   className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-purple-200 cursor-pointer transition-all group"
                 >

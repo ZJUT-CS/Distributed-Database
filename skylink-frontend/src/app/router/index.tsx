@@ -3,8 +3,8 @@ import { createBrowserRouter, useRouteError, isRouteErrorResponse } from 'react-
 import App from '@/App';
 import { AlertTriangle, RefreshCw, Home as HomeIcon } from 'lucide-react';
 import { homeRoutes } from '@/features/home/routes';
-import { flightResultRoutes } from '@/features/flight-result/routes';
-import { authRoutes } from '@/features/user-auth/routes';
+import { flightResultRoutes } from '@/features/flight/routes';
+import { authRoutes } from '@/features/auth/routes';
 import { adminRoutes } from '@/features/admin/routes';
 import { bookingRoutes } from '@/features/booking/routes';
 import { userRoutes } from '@/features/user/routes';

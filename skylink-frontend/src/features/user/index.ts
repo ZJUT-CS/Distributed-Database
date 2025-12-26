@@ -1,4 +1,4 @@
-import type { RefundChangeRecord, AuditStatus } from '../refund/types';
+import type { RefundChangeRecord, AuditStatus } from './components/refund/types';
 
 export type { RefundChangeRecord, AuditStatus };
 

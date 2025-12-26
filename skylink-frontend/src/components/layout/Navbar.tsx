@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Plane, Sparkles, User as UserIcon, LayoutDashboard, Ticket, RefreshCw, LogOut } from 'lucide-react';
 import { useAuth } from '@/features/auth';
-import { AiAssistantModal } from '@/components';
+import AiAssistantModal from '@/features/ai/components/AiAssistantModal';
 import { type AIRecommendation } from '@/features/ai';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -154,8 +154,8 @@ const Navbar: React.FC = () => {
                     <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
                       <p className="font-bold text-gray-800 truncate">{user.username}</p>
                       <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${user.role === 'admin'
-                          ? 'bg-purple-50 text-purple-600 border-purple-100'
-                          : 'bg-blue-50 text-blue-600 border-blue-100'
+                        ? 'bg-purple-50 text-purple-600 border-purple-100'
+                        : 'bg-blue-50 text-blue-600 border-blue-100'
                         }`}>
                         {user.role === 'admin' ? 'Administrator' : 'Verified User'}
                       </span>

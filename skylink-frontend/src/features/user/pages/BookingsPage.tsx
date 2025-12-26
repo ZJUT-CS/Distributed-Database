@@ -4,7 +4,7 @@ import UserBookingsComponent from '../components/UserBookings';
 import { useAuth } from '@/features/auth';
 import { type ConfirmedBooking } from '@/features/booking';
 import { searchOrders, type OrderSearchResult } from '@/features/booking/api/order';
-import { ORDER_STATUS } from '@/config/features/admin/constants';
+import { ORDER_STATUS } from '@/features/admin/constants';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 

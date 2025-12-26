@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { request } from '@/lib/axios';
-import { applyRefundChange } from '../../user/api/refund';
+import { applyRefundChange } from '@/features/user/api/refund';
 import type { RefundChange } from '../types';
 
 export const useRefundChanges = (userId: number | string, enabled = true) => {
@@ -40,7 +40,7 @@ export const useApplyRefundChange = () => {
 export const useRevokeRefundChange = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number | string) => 
+    mutationFn: (id: number | string) =>
       request({ method: 'DELETE', url: `/api/v1/refund-change-requests/${id}` }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['refundChanges'] });
@@ -51,7 +51,7 @@ export const useRevokeRefundChange = () => {
 export const useUpdateRefundChange = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number | string; data: Partial<RefundChange> }) => 
+    mutationFn: ({ id, data }: { id: number | string; data: Partial<RefundChange> }) =>
       request<RefundChange>({ method: 'PUT', url: `/api/v1/refund-change-requests/${id}`, data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['refundChanges'] });
@@ -67,7 +67,7 @@ export const useInvalidateRefundChanges = () => {
 export const useApproveRefundChange = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (recordId: number | string) => 
+    mutationFn: (recordId: number | string) =>
       request({ method: 'POST', url: `/api/v1/refund-change-requests/${recordId}/approvals` }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['refundChanges'] });
@@ -79,7 +79,7 @@ export const useApproveRefundChange = () => {
 export const useRejectRefundChange = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (recordId: number | string) => 
+    mutationFn: (recordId: number | string) =>
       request({ method: 'POST', url: `/api/v1/refund-change-requests/${recordId}/rejections` }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['refundChanges'] });

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { SearchForm, FilterSidebar, FlightList, FlightListSkeleton, TripSummary, type Flight, type SearchParams, type FilterState, type MapPoint } from '@/features/flight';
-import { WorldMap } from '@/components';
+import WorldMap from '@/features/map/components/WorldMap';
 import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '@/config/data/airports';
 import { Plane, Filter, MoveRight } from 'lucide-react';
 import { useAuth } from '@/features/auth';
@@ -62,11 +62,11 @@ const FlightResultPage: React.FC = () => {
     setLoadingFlights(true);
     setFlightError(null);
     try {
-      const mapped = await searchFlights({ 
-        origin: o, 
-        destination: d, 
+      const mapped = await searchFlights({
+        origin: o,
+        destination: d,
         departureDate: dateStr,
-        cabinClass: cabin 
+        cabinClass: cabin
       });
       setFlights(mapped);
     } catch (e: any) {

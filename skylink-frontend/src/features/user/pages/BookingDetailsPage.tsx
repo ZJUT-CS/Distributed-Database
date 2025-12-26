@@ -7,7 +7,7 @@ import { searchOrders, type OrderSearchResult, cancelOrder } from '@/features/bo
 import { confirmPayment, createPaymentConfirmToken, type PaymentConfirmToken } from '@/features/booking/api/payment';
 import { applyRefundChange } from '@/features/user/api/refund';
 import { loadOrderPassengers } from '@/utils/storage';
-import { ORDER_STATUS } from '@/config/features/admin/constants';
+import { ORDER_STATUS } from '@/features/admin/constants';
 import { API_CONFIG } from '@/config/constants';
 import { InterlineJourneyTimeline } from '@/features/booking/components/booking-ui';
 import { useToast } from '@/features/admin/components/Toast';
@@ -106,35 +106,35 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
 
 const mapOrdersToBooking = (orders: OrderSearchResult[]): ConfirmedBooking | null => {
   if (!orders || orders.length === 0) return null;
-  
-  const sortedOrders = [...orders].sort((a, b) => 
+
+  const sortedOrders = [...orders].sort((a, b) =>
     (a.departureTime || '').localeCompare(b.departureTime || '')
   );
 
   const firstOrder = sortedOrders[0];
   const compositeId = sortedOrders.map(o => o.orderNo).join('+');
-  
+
   const totalPrice = sortedOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-  
+
   const flights = sortedOrders.map(o => {
-      const dbFlightId = o.flightId || '';
-      return {
-          id: dbFlightId,
-          airline: '',
-          airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
-          flightNumber: o.flightNo || '',
-          cabinType: 'economy', 
-          origin: o.origin || '',
-          destination: o.destination || '',
-          departureTime: o.departureTime || '',
-          arrivalTime: o.arrivalTime || '',
-          price: Number(o.totalAmount || 0),
-          remainingSeats: 0,
-          duration: '',
-          stops: 0,
-          baggageWeight: 23,
-          amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
-      };
+    const dbFlightId = o.flightId || '';
+    return {
+      id: dbFlightId,
+      airline: '',
+      airlineCode: (o.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
+      flightNumber: o.flightNo || '',
+      cabinType: 'economy',
+      origin: o.origin || '',
+      destination: o.destination || '',
+      departureTime: o.departureTime || '',
+      arrivalTime: o.arrivalTime || '',
+      price: Number(o.totalAmount || 0),
+      remainingSeats: 0,
+      duration: '',
+      stops: 0,
+      baggageWeight: 23,
+      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+    };
   });
 
   const passengers = parsePassengersJson(firstOrder.passengersJson) ?? loadOrderPassengers(compositeId) ?? loadOrderPassengers(String(firstOrder.orderNo)) ?? [];
@@ -161,17 +161,17 @@ const mapOrdersToBooking = (orders: OrderSearchResult[]): ConfirmedBooking | nul
 };
 
 const fetchBookingDetails = async (userId: string | number, bookingId: string): Promise<ConfirmedBooking | null> => {
-    if (bookingId.includes('+')) {
-        const ids = bookingId.split('+');
-        const results = await Promise.all(ids.map(id => searchOrders({ userId, orderNo: id })));
-        const flatOrders = results.flat();
-        if (flatOrders.length === 0) return null;
-        return mapOrdersToBooking(flatOrders);
-    } else {
-        const res = await searchOrders({ userId, orderNo: bookingId });
-        if (res.length === 0) return null;
-        return mapOrderToBooking(res[0]);
-    }
+  if (bookingId.includes('+')) {
+    const ids = bookingId.split('+');
+    const results = await Promise.all(ids.map(id => searchOrders({ userId, orderNo: id })));
+    const flatOrders = results.flat();
+    if (flatOrders.length === 0) return null;
+    return mapOrdersToBooking(flatOrders);
+  } else {
+    const res = await searchOrders({ userId, orderNo: bookingId });
+    if (res.length === 0) return null;
+    return mapOrderToBooking(res[0]);
+  }
 };
 
 const formatLocalYmd = (d: Date) => {

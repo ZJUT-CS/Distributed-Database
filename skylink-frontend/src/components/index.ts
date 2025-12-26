@@ -7,6 +7,5 @@ export { default as Navbar } from './layout/Navbar';
 export { default as Footer } from './layout/Footer';
 
 // Common 组件
-export { default as AiAssistantModal } from './common/AiAssistantModal';
-export { default as WorldMap } from '@/features/map/WorldMap';
 export { default as Countdown } from './common/Countdown';
+export { default as EntityCell } from './common/EntityCell';

@@ -42,7 +42,7 @@ export * from './api/payments';
 export * from './api/admins';
 
 // Payment Hooks
-export { useAdminPayments } from '../payment/hooks/usePayments';
+export { useAdminPayments } from '../booking/components/payment/hooks/usePayments';
 
 // Routes
 export { adminRoutes } from './routes';

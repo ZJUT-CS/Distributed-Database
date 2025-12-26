@@ -7,7 +7,7 @@ import { request } from '@/lib/axios';
 import { applyRefundChange } from '@/features/user/api/refund';
 import { useAuth } from '@/features/auth';
 import { searchOrders, type OrderSearchResult } from '@/features/booking/api/order';
-import { ORDER_STATUS } from '@/config/features/admin/constants';
+import { ORDER_STATUS } from '@/features/admin/constants';
 
 type Step = 1 | 2 | 3;
 type CabinType = 'economy' | 'business' | 'first';
@@ -534,11 +534,10 @@ const ChangeFlightPage: React.FC = () => {
                         key={ct}
                         type="button"
                         onClick={() => setCabinType(ct)}
-                        className={`w-full rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
-                          cabinType === ct
+                        className={`w-full rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${cabinType === ct
                             ? 'bg-sky-600 text-white'
                             : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                        }`}
+                          }`}
                       >
                         {ct === 'economy' ? '经济舱' : ct === 'business' ? '公务舱' : '头等舱'}
                       </button>

@@ -13,8 +13,8 @@ import {
   useToast,
   useConfirm,
 } from '@/features/admin';
-import { CHANGE_REQUEST_STATUS_MAP, ORDER_STATUS } from '@/config/features/admin/constants';
-import type { RefundChangeRecord, AuditStatus } from '@/features/refund/types';
+import { CHANGE_REQUEST_STATUS_MAP, ORDER_STATUS } from '@/features/admin/constants';
+import type { RefundChangeRecord, AuditStatus } from '@/features/user/components/refund/types';
 import EntityCell from '@/components/common/EntityCell';
 import { auditAdminOrder, listAdminOrders, type AdminOrderItem } from '@/features/admin/api/orders';
 import { exportToCSV } from '@/utils/export';

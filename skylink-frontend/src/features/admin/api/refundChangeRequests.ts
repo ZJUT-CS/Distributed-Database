@@ -1,5 +1,5 @@
 import { request } from '../../../lib/axios';
-import type { RefundChangeRecord } from '../../refund/types';
+import type { RefundChangeRecord } from '@/features/user/components/refund/types';
 
 export async function listRefundChangeRequests(params: {
   userId?: string | number;
