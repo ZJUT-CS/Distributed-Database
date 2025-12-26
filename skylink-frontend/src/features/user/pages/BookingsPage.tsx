@@ -122,19 +122,18 @@ export const BookingsPage: React.FC = () => {
     return null;
   }
 
-  return (
-    <div>
-      {error && (
-        <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-slate-500 text-sm">加载中...</span>
         </div>
-      )}
-      <UserBookingsComponent bookings={bookings} onBack={() => navigate('/')} onUpdateBooking={handleUpdateBooking} />
-      {loading && (
-        <div className="mt-4 text-sm text-gray-500">加载中...</div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  return <UserBookingsComponent bookings={bookings} onBack={() => navigate('/')} onUpdateBooking={handleUpdateBooking} />;
 };
 
 export default BookingsPage;
