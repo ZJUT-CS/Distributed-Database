@@ -165,3 +165,4 @@ rules:
     - aircraft_models
     - aircraft_cabin_configs # 配置表是广播表，没问题
     - routes                 # 航线表是广播表，没问题
+    - LAL

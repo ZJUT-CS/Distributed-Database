@@ -37,9 +37,9 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
   }) => {
     if (!active) return null;
     return (
-      <div className="group relative">
-        <Icon className="w-3.5 h-3.5 text-blue-500 cursor-help" />
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20">
+      <div className="relative">
+        <Icon className="w-3.5 h-3.5 text-blue-500 cursor-help peer" />
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden peer-hover:block z-20">
           <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap relative">
             {label}
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>

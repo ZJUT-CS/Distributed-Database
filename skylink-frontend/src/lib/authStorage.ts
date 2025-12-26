@@ -47,7 +47,7 @@ export const readStoredUserHeaderInfo = (): StoredUserHeaderInfo | null => {
   const parsed = readStoredUserRaw() as any;
   if (!parsed) return null;
 
-  const id = parsed.id ?? parsed.userId;
+  const id = parsed.id ?? parsed.userId ?? parsed.adminId;
   const role = normalizeUserRole(parsed.role);
   const adminRoleRaw = parsed.adminRole ?? parsed.admin_role ?? parsed.roleId ?? parsed.role_id;
   const adminRole = adminRoleRaw == null ? undefined : String(adminRoleRaw).trim();

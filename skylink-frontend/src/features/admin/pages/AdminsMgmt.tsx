@@ -166,8 +166,8 @@ const AdminsMgmt: React.FC = () => {
     setActiveActionId(null);
     try {
       const res = await listSystemLogs({
-        adminId: Number(admin.adminId),
-        module: 'admin',
+        adminId: admin.adminId,
+        module: undefined,
         page: 1,
         size: 100,
       });
