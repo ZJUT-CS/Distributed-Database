@@ -67,6 +67,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
   const [activeCityPickerId, setActiveCityPickerId] = useState<string | null>(null);
   const [activeCityPickerType, setActiveCityPickerType] = useState<'origin' | 'destination' | null>(null);
   const [cityTab, setCityTab] = useState<'domestic' | 'international'>('domestic');
+  const [citySearchText, setCitySearchText] = useState('');
 
   const calendarContainerRef = useRef<HTMLDivElement>(null);
   const passengerRef = useRef<HTMLDivElement>(null);
@@ -238,6 +239,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
       updateSegment(activeCityPickerId, activeCityPickerType, city);
       setActiveCityPickerId(null);
       setActiveCityPickerType(null);
+      setCitySearchText('');
     }
   };
 
@@ -282,41 +284,77 @@ const SearchForm: React.FC<SearchFormProps> = ({
     return false;
   };
 
+  // 模糊搜索过滤城市（支持多关键词）
+  const getFilteredCities = (cities: string[]) => {
+    if (!citySearchText.trim()) return cities;
+    const keywords = citySearchText.toLowerCase().split(/\s+/).filter(Boolean);
+    return cities.filter((city) => {
+      const cityLower = city.toLowerCase();
+      return keywords.every(kw => cityLower.includes(kw));
+    });
+  };
+
   const renderCityPicker = () => {
+    const currentCities = cityGroups[cityTab];
+    const filteredCities = getFilteredCities(currentCities);
+
     return (
       <div
         ref={cityPickerRef}
         className="absolute top-full z-50 bg-white dark:bg-slate-950 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 w-[400px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* 搜索输入框 */}
+        <div className="mb-4">
+          <input
+            type="text"
+            value={citySearchText}
+            onChange={(e) => setCitySearchText(e.target.value)}
+            placeholder="输入城市名称搜索..."
+            className="w-full px-4 py-2.5 border border-gray-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 outline-none bg-gray-50 dark:bg-slate-900 text-gray-700 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500"
+            autoFocus
+          />
+        </div>
+
         <div className="flex items-center gap-2 mb-4 border-b border-gray-100 dark:border-slate-800 pb-2">
           <button
             type="button"
-            onClick={() => setCityTab('domestic')}
+            onClick={() => { setCityTab('domestic'); setCitySearchText(''); }}
             className={`pb-2 px-2 text-sm font-bold transition-colors border-b-2 ${cityTab === 'domestic' ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400' : 'text-gray-500 dark:text-slate-400 border-transparent hover:text-gray-700 dark:hover:text-slate-200'}`}
           >
             热门国内
           </button>
           <button
             type="button"
-            onClick={() => setCityTab('international')}
+            onClick={() => { setCityTab('international'); setCitySearchText(''); }}
             className={`pb-2 px-2 text-sm font-bold transition-colors border-b-2 ${cityTab === 'international' ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400' : 'text-gray-500 dark:text-slate-400 border-transparent hover:text-gray-700 dark:hover:text-slate-200'}`}
           >
             热门国际
           </button>
+          {citySearchText && (
+            <span className="ml-auto text-xs text-gray-400 dark:text-slate-500">
+              找到 {filteredCities.length} 个城市
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-4 gap-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-          {cityGroups[cityTab].map((city) => (
-            <button
-              key={city}
-              type="button"
-              onClick={() => handleCitySelect(city)}
-              className="py-2 px-1 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-center truncate"
-            >
-              {city}
-            </button>
-          ))}
+          {filteredCities.length > 0 ? (
+            filteredCities.slice(0, 40).map((city) => (
+              <button
+                key={city}
+                type="button"
+                onClick={() => handleCitySelect(city)}
+                className="py-2 px-1 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-center truncate"
+              >
+                {city}
+              </button>
+            ))
+          ) : (
+            <div className="col-span-4 text-center py-8 text-gray-400 dark:text-slate-500">
+              未找到匹配的城市
+            </div>
+          )}
         </div>
       </div>
     );
