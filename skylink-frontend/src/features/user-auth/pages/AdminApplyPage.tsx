@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Lock, ArrowRight, ShieldAlert } from 'lucide-react';
-import { adminRegisterApi } from '../../features/auth/api/auth';
+import { adminRegisterApi } from '@/features/auth/api/auth';
 import { useToast } from '@/features/admin/components/Toast';
 import { PageLayout } from '@/features/auth';
 
@@ -49,7 +49,6 @@ const AdminApplyPage: React.FC = () => {
     <PageLayout>
       <div className="min-h-[600px] flex items-center justify-center p-4 animate-fade-in-up">
         <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
-            {/* Header */}
             <div className="p-8 text-center relative overflow-hidden transition-colors duration-500 bg-gradient-to-br from-blue-700 to-indigo-800">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-8 -mt-8 blur-2xl"></div>
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-8 -mb-8 blur-xl"></div>
@@ -63,7 +62,6 @@ const AdminApplyPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Form */}
             <div className="p-8">
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-1">

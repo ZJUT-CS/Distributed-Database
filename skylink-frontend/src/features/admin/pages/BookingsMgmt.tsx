@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Eye, Download, XCircle, ShoppingCart, CheckSquare, Square, X, RefreshCw, History } from 'lucide-react';
-import { type AdminOrderItem } from '../../features/admin/api/orders';
+import { type AdminOrderItem } from '../api/orders';
 import {
   Pagination,
   TableActionMenu,
@@ -165,7 +165,7 @@ const BookingsMgmt: React.FC = () => {
     }
     try {
       toast.info('正在导出数据...');
-      const { listAdminOrders } = await import('../../features/admin/api/orders');
+      const { listAdminOrders } = await import('../api/orders');
       const res = await listAdminOrders({ page: 1, size: 1000, orderNo: parsedOrderNo, orderStatus: mappedOrderStatus });
       const data = res.data?.filter(item => ids.includes(String(item.orderNo))) ?? [];
       if (!data.length) {
@@ -213,7 +213,7 @@ const BookingsMgmt: React.FC = () => {
   const handleExport = async () => {
     try {
       toast.info('正在导出数据...');
-      const { listAdminOrders } = await import('../../features/admin/api/orders');
+      const { listAdminOrders } = await import('../api/orders');
       const res = await listAdminOrders({ page: 1, size: 1000, orderNo: parsedOrderNo, orderStatus: mappedOrderStatus });
       const data = res.data ?? [];
       if (!data.length) {

@@ -10,7 +10,6 @@ const HomePage: React.FC = () => {
   const [destination, setDestination] = useState('SHA');
 
   const handleSearch = (params: SearchParams) => {
-    // Navigate to results with query params
     const queryString = new URLSearchParams();
     queryString.append('origin', params.segments[0].origin);
     queryString.append('destination', params.segments[0].destination);
@@ -27,7 +26,6 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col relative">
-      {/* Hero Background */}
       <div
         className="h-[500px] bg-cover bg-center relative flex items-center justify-center transition-all duration-700"
         style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop")' }}

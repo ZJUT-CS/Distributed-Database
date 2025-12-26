@@ -43,3 +43,6 @@ export * from './api/admins';
 
 // Payment Hooks
 export { useAdminPayments } from '../payment/hooks/usePayments';
+
+// Routes
+export { adminRoutes } from './routes';

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { SearchForm, FilterSidebar, FlightList, FlightListSkeleton, TripSummary, type Flight, type SearchParams, type FilterState, type MapPoint } from '@/features/flight';
@@ -20,7 +19,6 @@ const FlightResultPage: React.FC = () => {
   const [urlParams] = useSearchParams();
   const { user } = useAuth();
 
-  // State
   const [origin, setOrigin] = useState(urlParams.get('origin') || 'PEK');
   const [destination, setDestination] = useState(urlParams.get('destination') || 'SHA');
   const [date, setDate] = useState(urlParams.get('date') || formatLocalYmd(new Date()));
@@ -39,7 +37,7 @@ const FlightResultPage: React.FC = () => {
   const [flightError, setFlightError] = useState<string | null>(null);
   const [selectedFlights, setSelectedFlights] = useState<Flight[]>([]);
   const [currentLegIndex, setCurrentLegIndex] = useState(0);
-  const [tripSegments, setTripSegments] = useState<any[]>([]); // Should be TripSegment[]
+  const [tripSegments, setTripSegments] = useState<any[]>([]);
 
   const [filters, setFilters] = useState<FilterState>({
     stops: 'all',
@@ -79,28 +77,24 @@ const FlightResultPage: React.FC = () => {
     }
   };
 
-  // Initialize from location state or URL
   useEffect(() => {
     const stateParams = location.state?.searchParams as SearchParams;
     if (stateParams) {
       setTripSegments(stateParams.segments);
       setPassengers(stateParams.passengers);
       setCabinClass(stateParams.cabinClass || 'economy');
-      // Initial search for first leg
       const firstLeg = stateParams.segments[0];
       setOrigin(firstLeg.origin);
       setDestination(firstLeg.destination);
       setDate(firstLeg.date);
       fetchFlights(firstLeg.origin, firstLeg.destination, firstLeg.date, stateParams.cabinClass || 'economy');
     } else {
-      // Fallback to URL params for single leg
       const segs = [{ origin, destination, date }];
       setTripSegments(segs);
       fetchFlights(origin, destination, date, cabinClass);
     }
-  }, [location.state, urlParams]); // Re-run if URL changes (e.g. from Navbar search)
+  }, [location.state, urlParams]);
 
-  // Handle Search Form Update
   const handleSearch = (params: SearchParams) => {
     setTripSegments(params.segments);
     setSelectedFlights([]);
@@ -114,7 +108,6 @@ const FlightResultPage: React.FC = () => {
     setDate(firstLeg.date);
     fetchFlights(firstLeg.origin, firstLeg.destination, firstLeg.date, params.cabinClass || 'economy');
 
-    // Update URL without reload
     const newParams = new URLSearchParams();
     newParams.set('origin', firstLeg.origin);
     newParams.set('destination', firstLeg.destination);
@@ -126,11 +119,9 @@ const FlightResultPage: React.FC = () => {
 
   const handleFlightSelect = async (flight: Flight) => {
     try {
-      // 🆕 获取该航班的可用舱位配置（使用数据库ID）
       const { getAvailableCabins } = await import('@/features/booking/api/cabin');
-      const availableCabins = await getAvailableCabins(flight.id);  // ✅ 使用唯一数字ID
+      const availableCabins = await getAvailableCabins(flight.id);
 
-      // 根据用户选择的舱位等级选择对应的配置
       const cabinTypeMap: Record<string, string> = {
         'economy': 'Y',
         'business': 'J',
@@ -145,14 +136,12 @@ const FlightResultPage: React.FC = () => {
         return [t];
       })();
 
-      // 查找匹配的舱位配置
       const matchedCabin = availableCabins.find(c => {
         const ct = (c.cabinType || '').toUpperCase();
         return targetCabinTypes.includes(ct);
       });
 
       if (!matchedCabin) {
-        // 如果没有找到匹配的舱位,使用第一个可用舱位
         if (availableCabins.length > 0) {
           flight.selectedCabinId = availableCabins[0].configId;
         } else {
@@ -167,7 +156,6 @@ const FlightResultPage: React.FC = () => {
       setSelectedFlights(newSelected);
 
       if (currentLegIndex < tripSegments.length - 1) {
-        // Next leg
         const nextIndex = currentLegIndex + 1;
         const nextLeg = tripSegments[nextIndex];
         setCurrentLegIndex(nextIndex);
@@ -177,7 +165,6 @@ const FlightResultPage: React.FC = () => {
         fetchFlights(nextLeg.origin, nextLeg.destination, nextLeg.date, cabinClass);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        // Complete
         if (!user) {
           navigate('/login');
         } else {
@@ -198,13 +185,11 @@ const FlightResultPage: React.FC = () => {
       setDate(leg.date);
       fetchFlights(leg.origin, leg.destination, leg.date, cabinClass);
 
-      // Truncate selection
       setSelectedFlights(prev => prev.slice(0, index));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  // Helper to parse duration string "X小时 Y分" to minutes
   const parseDuration = (dur: string): number => {
     const cnH = dur.match(/(\d+)小时/);
     const cnM = dur.match(/(\d+)分/);
@@ -221,16 +206,14 @@ const FlightResultPage: React.FC = () => {
     return h * 60 + m;
   };
 
-  // Filter Logic
   const filteredFlights = useMemo(() => {
-    // 时段判断辅助函数
     const getTimeSlot = (timeStr: string): string => {
       if (!timeStr) return '';
       const hour = new Date(timeStr).getHours();
       if (hour >= 6 && hour < 12) return 'morning';
       if (hour >= 12 && hour < 18) return 'afternoon';
       if (hour >= 18 && hour < 24) return 'evening';
-      return 'night'; // 00:00-06:00
+      return 'night';
     };
 
     return flights
@@ -243,20 +226,17 @@ const FlightResultPage: React.FC = () => {
         if (filters.airlines.length > 0 && !filters.airlines.includes(flight.airlineCode)) return false;
         if (parseDuration(flight.duration) > filters.durationMax) return false;
 
-        // 🔧 起飞时段筛选（兼容联程航班：取第一段起飞时间）
         if (filters.departureTime.length > 0) {
           const depTime = (flight as any).segments?.[0]?.departureTime || flight.departureTime;
           const slot = getTimeSlot(depTime);
           if (slot && !filters.departureTime.includes(slot)) return false;
         }
 
-        // 🔧 出发机场筛选（兼容联程航班：取第一段出发机场）
         if (filters.originAirports.length > 0) {
           const originCode = (flight as any).segments?.[0]?.origin || flight.origin;
           if (originCode && !filters.originAirports.includes(originCode)) return false;
         }
 
-        // 🔧 到达机场筛选（兼容联程航班：取最后一段到达机场）
         if (filters.destinationAirports.length > 0) {
           const segments = (flight as any).segments || [];
           const destCode = segments.length > 0
@@ -269,12 +249,10 @@ const FlightResultPage: React.FC = () => {
       })
       .map((flight) => ({
         ...flight,
-        // Remove client-side multiplier since backend already returns price for selected cabin
         price: flight.price,
       }));
   }, [flights, filters, passengers, cabinClass]);
 
-  // Map Data
   const getCityName = (code: string) => AIRPORTS_CONST.find(a => a.code === code)?.city || code;
 
   const findAirport = (codeOrCity: string) => {
@@ -286,7 +264,6 @@ const FlightResultPage: React.FC = () => {
   const getBestItineraryRoutes = () => {
     if (!filteredFlights || filteredFlights.length === 0) return [] as Array<{ from: string; to: string; active?: boolean }>;
 
-    // 取当前筛选结果中“最低价”的一条，若为联程则画多段
     const cheapest = [...filteredFlights].sort((a, b) => a.price - b.price)[0];
     const segs = (cheapest as any).segments as any[] | undefined;
     if (cheapest.isInterline && Array.isArray(segs) && segs.length > 0) {
@@ -300,12 +277,10 @@ const FlightResultPage: React.FC = () => {
         .filter((x) => x.from && x.to);
     }
 
-    // 直飞：单段
     return [{ from: origin, to: destination, active: true, id: `${origin}-${destination}` }];
   };
 
   const getHeatPoints = () => {
-    // 仅对当前结果涉及到的“目的地/中转”做热力点（最小改动，不额外打接口）
     const airportMinPrice = new Map<string, number>();
 
     filteredFlights.forEach((f: any) => {
@@ -313,14 +288,12 @@ const FlightResultPage: React.FC = () => {
       if (!Number.isFinite(price)) return;
 
       const segs = Array.isArray(f.segments) ? f.segments : [];
-      // 目的地：联程取最后一段目的地，否则用 flight.destination
       const destCode = segs.length > 0 ? String(segs[segs.length - 1].destination) : String(f.destination);
       if (destCode) {
         const prev = airportMinPrice.get(destCode);
         if (prev == null || price < prev) airportMinPrice.set(destCode, price);
       }
 
-      // 中转点：segments 的中间 destination 作为 transfer
       if (segs.length > 1) {
         for (let i = 0; i < segs.length - 1; i++) {
           const mid = String(segs[i].destination);
@@ -364,7 +337,6 @@ const FlightResultPage: React.FC = () => {
       ? getBestItineraryRoutes().map(r => ({ from: r.from, to: r.to, id: (r as any).id, active: (r as any).active }))
       : [{ from: originAirport.code, to: destAirport.code, active: true, id: `${originAirport.code}-${destAirport.code}` }];
 
-    // 若路线包含中转点，把中转点也加入 points（用于展示/tooltip）
     const extraCodes = routes
       .map((r) => r.from)
       .concat(routes.map((r) => r.to))
@@ -391,7 +363,6 @@ const FlightResultPage: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col relative">
-      {/* Map Banner */}
       <div className="w-full h-[640px] bg-gradient-to-br from-slate-900 via-[#0f172a] to-indigo-950 relative overflow-hidden border-b border-gray-800 shadow-inner group">
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/30 via-transparent to-transparent pointer-events-none"></div>
 
@@ -415,7 +386,6 @@ const FlightResultPage: React.FC = () => {
           }}
         />
 
-        {/* Overlay */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-slate-800/80 backdrop-blur-md px-6 py-3 rounded-full border border-slate-600 shadow-2xl flex items-center gap-8 animate-fade-in-down z-10 pointer-events-none">
           <div className="flex flex-col items-end">
             <span className="text-xs text-blue-400 font-mono tracking-wider">出发地</span>
@@ -492,24 +462,39 @@ const FlightResultPage: React.FC = () => {
                 </span>
               </div>
 
-              {loadingFlights && (
-                <FlightListSkeleton count={4} />
-              )}
-
-              {!loadingFlights && flightError && (
-                <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-                  <span>{flightError}</span>
-                  <button
-                    type="button"
-                    onClick={() => fetchFlights(origin, destination, date)}
-                    className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold"
-                  >
-                    重试
-                  </button>
+              {flightError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 flex items-center gap-2">
+                  <span className="font-medium">{flightError}</span>
                 </div>
               )}
 
-              <FlightList flights={filteredFlights} onSelect={handleFlightSelect} />
+              {loadingFlights ? (
+                <FlightListSkeleton />
+              ) : filteredFlights.length === 0 ? (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+                  <p className="text-gray-500 mb-4">没有找到符合条件的航班</p>
+                  <button
+                    onClick={() => setFilters({
+                      stops: 'all',
+                      airlines: [],
+                      priceMax: 10000,
+                      departureTime: [],
+                      arrivalTime: [],
+                      originAirports: [],
+                      destinationAirports: [],
+                      durationMax: 1440
+                    })}
+                    className="text-blue-600 hover:underline"
+                  >
+                    清除所有筛选条件
+                  </button>
+                </div>
+              ) : (
+                <FlightList
+                  flights={filteredFlights}
+                  onSelect={handleFlightSelect}
+                />
+              )}
             </div>
           </div>
         </div>

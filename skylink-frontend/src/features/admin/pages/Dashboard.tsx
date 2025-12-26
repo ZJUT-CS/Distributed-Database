@@ -1,17 +1,18 @@
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { useAdminDashboardMetrics } from '../../features/admin/hooks/useAdminDashboard';
-import { buildAdminDashboardViewModel } from '../../features/admin/dashboard/viewModel';
-import { AIRPORT_COORDS } from '../../features/admin/dashboard/airports';
-import { useRouteDict } from '../../features/flight/hooks/useRouteDict';
-import { useCityDict } from '../../features/admin/hooks/useCityDict';
-import { DashboardErrorBanner } from './Dashboard/components/DashboardErrorBanner';
-import { DashboardHeaderSection } from './Dashboard/components/DashboardHeaderSection';
-import { OrdersTrendPanel } from './Dashboard/components/OrdersTrendPanel';
-import { FlightStatusPanel } from './Dashboard/components/FlightStatusPanel';
-import { MapPanel } from './Dashboard/components/MapPanel';
-import { GmvTrendPanel } from './Dashboard/components/GmvTrendPanel';
-import { SystemOpsPanel } from './Dashboard/components/SystemOpsPanel';
+import { useAdminDashboardMetrics } from '../hooks/useAdminDashboard';
+import { buildAdminDashboardViewModel } from '../dashboard/viewModel';
+import { AIRPORT_COORDS } from '../dashboard/airports';
+import { useRouteDict } from '../../flight/hooks/useRouteDict';
+import { useCityDict } from '../hooks/useCityDict';
+import { DashboardErrorBanner } from '../components/dashboard/DashboardErrorBanner';
+import { DashboardHeaderSection } from '../components/dashboard/DashboardHeaderSection';
+import { OrdersTrendPanel } from '../components/dashboard/OrdersTrendPanel';
+import { FlightStatusPanel } from '../components/dashboard/FlightStatusPanel';
+import { MapPanel } from '../components/dashboard/MapPanel';
+import { GmvTrendPanel } from '../components/dashboard/GmvTrendPanel';
+import { SystemOpsPanel } from '../components/dashboard/SystemOpsPanel';
+import type { DashboardRouteItem } from '../components/dashboard/viewModel';
 
 // 数字增长动画Hook
 function useCountUp(target: number, duration: number = 1000) {
@@ -118,6 +119,16 @@ const Dashboard: React.FC = () => {
   const flightPieTotal = vm.flightStatus.pieTotal;
 
   const mapPointsAndRoutes = vm.routes.map;
+  
+  const topRoutes7d: DashboardRouteItem[] = vm.routes.topRoutes7d.map(route => ({
+    routeId: String(route.routeId),
+    departureCity: route.departureCity,
+    departureAirport: route.departureAirport,
+    arrivalCity: route.arrivalCity,
+    arrivalAirport: route.arrivalAirport,
+    orders: route.orders,
+    gmv: route.gmv,
+  }));
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -157,7 +168,7 @@ const Dashboard: React.FC = () => {
         totalOrders={totalOrders}
         totalGmv7d={totalGmv7d}
         map={mapPointsAndRoutes}
-        topRoutes7d={vm.routes.topRoutes7d}
+        topRoutes7d={topRoutes7d}
       />
 
       {/* 第三行：GMV趋势 + 系统统计 */}

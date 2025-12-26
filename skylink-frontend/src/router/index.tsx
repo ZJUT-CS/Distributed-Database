@@ -2,6 +2,12 @@ import React, { Suspense } from 'react';
 import { createBrowserRouter, useRouteError, isRouteErrorResponse } from 'react-router-dom';
 import App from '@/App';
 import { AlertTriangle, RefreshCw, Home as HomeIcon } from 'lucide-react';
+import { homeRoutes } from '@/features/home/routes';
+import { flightResultRoutes } from '@/features/flight-result/routes';
+import { authRoutes } from '@/features/user-auth/routes';
+import { adminRoutes } from '@/features/admin/routes';
+import { bookingRoutes } from '@/features/booking/routes';
+import { userRoutes } from '@/features/user/routes';
 
 // =====================
 // 错误边界组件
@@ -86,50 +92,16 @@ const PageLoading: React.FC = () => (
 );
 
 // =====================
-// 懒加载组件 - 主站页面
+// 懒加载组件 - 管理后台布局
 // =====================
-const Home = React.lazy(() => import('@/pages/Home'));
-const FlightResult = React.lazy(() => import('@/pages/FlightResult'));
-const Booking = React.lazy(() => import('@/features/booking/pages/BookingPage'));
-const Confirmation = React.lazy(() => import('@/features/booking/pages/ConfirmationPage'));
-const ChangeFlight = React.lazy(() => import('@/features/booking/pages/ChangeFlightPage'));
-const SeatSelection = React.lazy(() => import('@/features/booking/pages/SeatSelectionPage'));
-
-// =====================
-// 懒加载组件 - 用户页面
-// =====================
-const Login = React.lazy(() => import('@/pages/User/Login'));
-const AdminApply = React.lazy(() => import('@/pages/User/AdminApply'));
-const Profile = React.lazy(() => import('@/pages/User/Profile'));
-const Settings = React.lazy(() => import('@/pages/User/Settings'));
-const UserCenter = React.lazy(() => import('@/features/user/pages/UserCenterPage'));
-const RefundsHelp = React.lazy(() => import('@/features/user/pages/RefundsHelpPage'));
-const UserBookingsPage = React.lazy(() => import('@/features/user/pages/BookingsPage'));
-const BookingDetailsPage = React.lazy(() => import('@/features/user/pages/BookingDetailsPage').then(m => ({ default: m.BookingDetailsPage })));
-
-// =====================
-// 懒加载组件 - 管理后台
-// =====================
-const AdminLayout = React.lazy(() => import('@/pages/Admin'));
-const Dashboard = React.lazy(() => import('@/pages/Admin/Dashboard'));
-const FlightMgmt = React.lazy(() => import('@/pages/Admin/FlightMgmt'));
-const BookingsMgmt = React.lazy(() => import('@/pages/Admin/BookingsMgmt'));
-const UsersMgmt = React.lazy(() => import('@/pages/Admin/UsersMgmt'));
-const PaymentsMgmt = React.lazy(() => import('@/pages/Admin/PaymentsMgmt'));
-const AdminSettings = React.lazy(() => import('@/pages/Admin/Settings'));
-const OrderAudit = React.lazy(() => import('@/pages/Admin/OrderAudit'));
-const AdminsMgmt = React.lazy(() => import('@/pages/Admin/AdminsMgmt'));
-const SystemLogs = React.lazy(() => import('@/pages/Admin/SystemLogs'));
-const RoutesMgmt = React.lazy(() => import('@/pages/Admin/RoutesMgmt'));
-const AircraftModelsMgmt = React.lazy(() => import('@/pages/Admin/AircraftModelsMgmt'));
-const CabinConfigsMgmt = React.lazy(() => import('@/pages/Admin/CabinConfigsMgmt'));
+const AdminLayout = React.lazy(() => import('@/features/admin/pages/AdminLayout'));
 
 // =====================
 // 辅助函数：包装懒加载组件
 // =====================
-const withSuspense = (Component: React.LazyExoticComponent<React.ComponentType>) => (
+const withSuspense = (Component: React.LazyExoticComponent<React.ComponentType> | React.ReactElement) => (
   <Suspense fallback={<PageLoading />}>
-    <Component />
+    {React.isValidElement(Component) ? Component : React.createElement(Component as React.LazyExoticComponent<React.ComponentType>)}
   </Suspense>
 );
 
@@ -142,20 +114,11 @@ export const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorPage />,
     children: [
-      { index: true, element: withSuspense(Home) },
-      { path: 'login', element: withSuspense(Login) },
-      { path: 'admin-apply', element: withSuspense(AdminApply) },
-      { path: 'results', element: withSuspense(FlightResult) },
-      { path: 'booking', element: withSuspense(Booking) },
-      { path: 'booking/confirmation', element: withSuspense(Confirmation) },
-      { path: 'booking/change', element: withSuspense(ChangeFlight) },
-      { path: 'booking/seat-selection', element: withSuspense(SeatSelection) },
-      { path: 'profile', element: withSuspense(Profile) },
-      { path: 'settings', element: withSuspense(Settings) },
-      { path: 'my-bookings', element: withSuspense(UserBookingsPage) },
-      { path: 'my-bookings/:bookingId', element: withSuspense(BookingDetailsPage) },
-      { path: 'user-center', element: withSuspense(UserCenter) },
-      { path: 'refunds-help', element: withSuspense(RefundsHelp) },
+      ...homeRoutes.map(route => ({ ...route, element: withSuspense(route.element as any) })),
+      { path: 'results', ...flightResultRoutes[0], element: withSuspense(flightResultRoutes[0].element as any) },
+      ...authRoutes.map(route => ({ ...route, element: withSuspense(route.element as any) })),
+      ...bookingRoutes.map(route => ({ ...route, element: withSuspense(route.element as any) })),
+      ...userRoutes.map(route => ({ ...route, element: withSuspense(route.element as any) })),
     ]
   },
   {
@@ -163,18 +126,7 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
     element: withSuspense(AdminLayout),
     children: [
-      { index: true, element: withSuspense(Dashboard) },
-      { path: 'flights', element: withSuspense(FlightMgmt) },
-      { path: 'orders', element: withSuspense(BookingsMgmt) },
-      { path: 'orders/audit', element: withSuspense(OrderAudit) },
-      { path: 'users', element: withSuspense(UsersMgmt) },
-      { path: 'admins', element: withSuspense(AdminsMgmt) },
-      { path: 'payments', element: withSuspense(PaymentsMgmt) },
-      { path: 'system/config', element: withSuspense(AdminSettings) },
-      { path: 'system/logs', element: withSuspense(SystemLogs) },
-      { path: 'routes', element: withSuspense(RoutesMgmt) },
-      { path: 'aircraft-models', element: withSuspense(AircraftModelsMgmt) },
-      { path: 'cabin-configs', element: withSuspense(CabinConfigsMgmt) },
+      ...adminRoutes[0].children!.map(route => ({ ...route, element: withSuspense(route.element as any) })),
     ]
   }
 ]);

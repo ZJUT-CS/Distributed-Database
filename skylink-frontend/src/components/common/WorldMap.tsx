@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Minus, Plus, RotateCcw } from 'lucide-react';
 import type { MapPoint } from '@/features/flight';
-import { WorldMapRender } from './world-map/WorldMapRender';
-import { useWorldMapControls } from './world-map/useWorldMapControls';
-import type { WorldMapView } from './world-map/geometry';
-import { computeAutoFitView } from './world-map/geometry';
+import { WorldMapRender } from '@/features/map/world-map/WorldMapRender';
+import { useWorldMapControls } from '@/features/map/world-map/useWorldMapControls';
+import type { WorldMapView } from '@/features/map/world-map/geometry';
+import { computeAutoFitView } from '@/features/map/world-map/geometry';
 import { useMapDataIncremental } from '@/features/map/hooks/useMapDataIncremental';
 import type { RouteDictItem, CityDictItem } from '@/features/admin/dashboard/map';
 
@@ -201,7 +201,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
         isDragging={isDragging}
         hoveredPoint={hoveredPoint}
         elastic={elastic}
-        onPointMouseEnter={(point, rect) => {
+        onPointMouseEnter={(point: MapPoint, rect: DOMRect) => {
           setTooltipPos({ x: rect.left + window.scrollX, y: rect.top + window.scrollY - 10 });
           setHoveredPoint(point);
           triggerHoverScale(1.5);
@@ -210,7 +210,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
           setHoveredPoint(null);
           triggerHoverScale(1);
         }}
-        onPointDoubleClick={(point, projected) => {
+        onPointDoubleClick={(point: MapPoint, projected: { x: number; y: number }) => {
           focusOnPoint(projected.x, projected.y, 2);
         }}
       />

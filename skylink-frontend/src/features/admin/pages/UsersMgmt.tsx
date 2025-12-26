@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Edit, Trash2, Shield, Mail, Ban, Lock, Users, Download, Phone, CreditCard, Eye, CheckSquare, Square, X, RefreshCw } from 'lucide-react';
-import { listAdminUsers, type AdminUserItem } from '../../features/admin/api/users';
+import { listAdminUsers, type AdminUserItem } from '../api/users';
 import {
   Pagination,
   TableActionMenu,
