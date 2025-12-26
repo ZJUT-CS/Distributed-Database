@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Lock, ArrowRight, ShieldAlert, Mail } from 'lucide-react';
-import { adminLoginApi, loginApi, registerApi } from '../api/auth';
+import { adminLoginApi, loginApi, registerApi, getMyProfile } from '../api/auth';
 import type { User } from '../types';
 import { useToast } from '@/features/admin/components/Toast';
 
@@ -78,6 +78,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
       const resolvedUserId = (res as any).userId ?? (res as any).id ?? (res as any).adminId;
       const resolvedUsername = (res as any).username ?? (res as any).displayName ?? account;
 
+      // 获取用户完整资料（包括头像）
+      let avatarUrl: string | undefined;
+      try {
+        if (!isAdminMode && res.token) {
+          const profile = await getMyProfile();
+          avatarUrl = profile.avatarUrl || undefined;
+        }
+      } catch (e) {
+        // 获取资料失败，使用默认头像
+        console.log('获取用户资料失败，使用默认头像');
+      }
+
       onLogin({
         id: resolvedUserId,
         username: resolvedUsername,
@@ -86,7 +98,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
         createdAt: new Date().toISOString(),
         role: res.role,
         adminRole: isAdminMode ? (res as any).adminRole : undefined,
-        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedUsername)}&background=${isRegisterMode ? 'random' : '0D8ABC'}&color=fff`,
+        avatarUrl: avatarUrl, // 使用从API获取的真实头像，如果没有则为undefined
       }, res.token);
     } catch (err: any) {
       toast.error(err?.message || '请求失败，请稍后再试');

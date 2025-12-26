@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Calendar, ChevronDown, Minus, Plus, ChevronRight, ChevronLeft, ArrowRightLeft, X, MapPin, Building2, Plane, Sparkles } from 'lucide-react';
 import { POPULAR_AIRPORTS } from '@/config/data/airports';
-import { getAirportLocations, type AirportLocation } from '@/features/flight/api/search';
+import { getAirportLocations, getLowestPricesForDates, type AirportLocation } from '@/features/flight/api/search';
 import type { SearchParams } from '../types';
 import Loading from '@/components/common/Loading';
 
@@ -100,6 +100,10 @@ const SearchForm: React.FC<SearchFormProps> = ({
     international: string[];
   }>(STATIC_CITY_GROUPS);
 
+  // 日期价格数据（从API获取）
+  const [datePrices, setDatePrices] = useState<Record<string, number | null>>({});
+  const [loadingPrices, setLoadingPrices] = useState(false);
+
   useEffect(() => {
     const fetchAirports = async () => {
       try {
@@ -133,6 +137,39 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
     fetchAirports();
   }, []);
+
+  // 获取日期范围的最低价格
+  useEffect(() => {
+    const fetchPrices = async () => {
+      if (!origin || !destination || origin === destination) {
+        setDatePrices({});
+        return;
+      }
+
+      setLoadingPrices(true);
+      try {
+        // 生成需要查询的日期列表（当前日期前后各2天，共5天）
+        const dates: string[] = [];
+        for (let i = -1; i <= 3; i++) {
+          dates.push(addDaysToYmd(date, i));
+        }
+
+        const prices = await getLowestPricesForDates({
+          origin,
+          destination,
+          dates,
+        });
+        setDatePrices(prices);
+      } catch (error) {
+        console.error('Failed to fetch date prices:', error);
+        setDatePrices({});
+      } finally {
+        setLoadingPrices(false);
+      }
+    };
+
+    fetchPrices();
+  }, [origin, destination, date]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -755,7 +792,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
                   const dStr = addDaysToYmd(date, i - 1);
                   const d = parseYmdToLocalDate(dStr);
                   const isSelected = dStr === date;
-                  const price = 180 + (d.getDate() % 5) * 50;
+                  const realPrice = datePrices[dStr];
+                  const hasPrice = realPrice !== null && realPrice !== undefined && realPrice > 0;
                   return (
                     <button
                       key={i}
@@ -769,8 +807,14 @@ const SearchForm: React.FC<SearchFormProps> = ({
                       <div className={`text-xs font-medium mb-1 whitespace-nowrap ${isSelected ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                         {d.getMonth() + 1}月{d.getDate()}日 <span className="opacity-75 hidden sm:inline">{d.toLocaleDateString('zh-CN', { weekday: 'short' })}</span>
                       </div>
-                      <div className={`text-sm font-bold ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-500 dark:text-slate-400'}`}>
-                        ¥{price * 7}
+                      <div className={`text-sm font-bold ${isSelected ? 'text-blue-700 dark:text-blue-400' : hasPrice ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-slate-500'}`}>
+                        {loadingPrices ? (
+                          <span className="animate-pulse">...</span>
+                        ) : hasPrice ? (
+                          `¥${realPrice}`
+                        ) : (
+                          <span className="text-xs">暂无航班</span>
+                        )}
                       </div>
                     </button>
                   );

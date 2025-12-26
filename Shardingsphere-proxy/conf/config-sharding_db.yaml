@@ -183,4 +183,4 @@ rules:
     - aircraft_models
     - aircraft_cabin_configs
     - routes
-    - LAL
+    - lal

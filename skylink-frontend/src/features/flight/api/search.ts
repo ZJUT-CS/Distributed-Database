@@ -277,3 +277,38 @@ function parseTransferDuration(durationStr: string): number | undefined {
   return undefined;
 }
 
+/** 获取指定日期范围内每天的最低票价 */
+export async function getLowestPricesForDates(params: {
+  origin: string;
+  destination: string;
+  dates: string[]; // YYYY-MM-DD 格式的日期数组
+}): Promise<Record<string, number | null>> {
+  const result: Record<string, number | null> = {};
+
+  // 并行查询每个日期的最低价格
+  const pricePromises = params.dates.map(async (dateStr) => {
+    try {
+      const flights = await searchFlights({
+        origin: params.origin,
+        destination: params.destination,
+        departureDate: dateStr,
+      });
+
+      if (flights.length > 0) {
+        const prices = flights.map(f => f.price).filter(p => p > 0);
+        return { date: dateStr, price: prices.length > 0 ? Math.min(...prices) : null };
+      }
+      return { date: dateStr, price: null };
+    } catch (e) {
+      return { date: dateStr, price: null };
+    }
+  });
+
+  const results = await Promise.all(pricePromises);
+  results.forEach(r => {
+    result[r.date] = r.price;
+  });
+
+  return result;
+}
+
