@@ -75,7 +75,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onCancel }) => {
         localStorage.setItem('token', res.token);
       }
 
-      const resolvedUserId = (res as any).userId ?? (res as any).id;
+      const resolvedUserId = (res as any).userId ?? (res as any).id ?? (res as any).adminId;
       const resolvedUsername = (res as any).username ?? (res as any).displayName ?? account;
 
       onLogin({

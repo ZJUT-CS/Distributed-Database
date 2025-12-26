@@ -27,7 +27,7 @@ const parseStoredUser = (): { user: User | null; token: string | null } => {
     const parsed = raw as any;
 
     const user: User = {
-      id: parsed.id ?? parsed.userId,
+      id: parsed.id ?? parsed.userId ?? parsed.adminId,
       username: parsed.username,
       email: parsed.email,
       phoneNumber: parsed.phoneNumber,

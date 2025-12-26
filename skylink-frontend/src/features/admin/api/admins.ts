@@ -112,7 +112,7 @@ export interface SystemLogItem {
  * 获取系统日志列表
  */
 export async function listSystemLogs(params: {
-  adminId?: number;
+  adminId?: string;
   keyword?: string;
   module?: string;
   operResult?: number;

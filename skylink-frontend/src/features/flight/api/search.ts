@@ -94,15 +94,45 @@ export async function searchFlights(params: {
     return match ? parseInt(match[1]) : 23;
   };
 
-  // ✅ 解析服务项目
+  // ✅ 解析服务项目（更健壮，按分隔符拆分逐项匹配）
   const parseAmenities = (services?: string) => {
-    const s = (services || '').toLowerCase();
-    return {
-      hasPower: s.includes('电源') || s.includes('power') || s.includes('usb'),
-      hasMeal: s.includes('餐') || s.includes('meal') || s.includes('食'),
-      hasWifi: s.includes('wifi') || s.includes('无线'),
-      hasEntertainment: s.includes('娱乐') || s.includes('entertainment') || s.includes('影音'),
-    };
+    const raw = (services || '').toLowerCase();
+    const tokens = raw
+      .split(/[，,;；、\/\|\s]+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const includesAny = (t: string, kws: string[]) => kws.some((k) => t.includes(k));
+    const hasPower =
+      tokens.length > 0
+        ? tokens.some((t) => includesAny(t, ['电源', 'power', 'usb', '插座']))
+        : raw.includes('电源') || raw.includes('power') || raw.includes('usb') || raw.includes('插座');
+    const hasMeal =
+      tokens.length > 0
+        ? tokens.some((t) => includesAny(t, ['餐', 'meal', '餐饮', '食']))
+        : raw.includes('餐') || raw.includes('meal') || raw.includes('餐饮') || raw.includes('食');
+    const hasWifi =
+      tokens.length > 0
+        ? tokens.some((t) => includesAny(t, ['wifi', '无线', 'wi-fi']))
+        : raw.includes('wifi') || raw.includes('无线') || raw.includes('wi-fi');
+    const hasEntertainment =
+      tokens.length > 0
+        ? tokens.some((t) => includesAny(t, ['娱乐', 'entertainment', '影音']))
+        : raw.includes('娱乐') || raw.includes('entertainment') || raw.includes('影音');
+    return { hasPower, hasMeal, hasWifi, hasEntertainment };
+  };
+
+  // 统一计算并规范化时长，避免负值显示
+  const computeDuration = (dep?: string, arr?: string): string => {
+    if (!dep || !arr) return '';
+    const depDate = new Date(dep);
+    const arrDate = new Date(arr);
+    if (Number.isNaN(depDate.getTime()) || Number.isNaN(arrDate.getTime())) return '';
+    let diffMin = Math.round((arrDate.getTime() - depDate.getTime()) / 60000);
+    if (!Number.isFinite(diffMin)) return '';
+    if (diffMin < 0) diffMin = Math.abs(diffMin);
+    const h = Math.floor(diffMin / 60);
+    const m = diffMin % 60;
+    return `${h}h ${m}m`;
   };
 
   const toFlight = (r: {
@@ -132,7 +162,7 @@ export async function searchFlights(params: {
     arrivalTime: r.arrivalTime,
     price: Number(r.price ?? 0),
     remainingSeats: typeof r.remainingSeats === 'number' ? r.remainingSeats : undefined,
-    duration: r.duration || '',
+    duration: computeDuration(r.departureTime, r.arrivalTime) || r.duration || '',
     stops: 0,
     baggageWeight: parseBaggageWeight(r.baggageAllowance),
     amenities: parseAmenities(r.services),
@@ -164,7 +194,7 @@ export async function searchFlights(params: {
       destination: s.destination,
       departureTime: s.departureTime,
       arrivalTime: s.arrivalTime,
-      duration: s.duration,
+      duration: computeDuration(s.departureTime, s.arrivalTime) || s.duration,
       airline: s.airlineCompany,
       airlineCode: (s.flightNo || '').replace(/[^A-Z]/g, '').slice(0, 2),
     }));
@@ -179,7 +209,7 @@ export async function searchFlights(params: {
     const firstBaggageAllowance = first?.baggageAllowance;
     const firstServices = first?.services;
 
-    return {
+    const flightObj: Flight = {
       id,
       airline,
       airlineCode,
@@ -191,7 +221,7 @@ export async function searchFlights(params: {
       arrivalTime: last?.arrivalTime || '',
       price: Number(it.totalPrice ?? 0),
       remainingSeats: minSeats === Infinity ? undefined : minSeats,
-      duration: it.transferDuration || '',
+      duration: computeDuration(first?.departureTime, last?.arrivalTime) || it.transferDuration || '',
       stops: Math.max(0, segs.length - 1),
       baggageWeight: parseBaggageWeight(firstBaggageAllowance),
       amenities: parseAmenities(firstServices),
@@ -203,7 +233,8 @@ export async function searchFlights(params: {
       transferCity: it.transferCity,
       transferDuration: it.transferDuration ? parseTransferDuration(it.transferDuration) : undefined,
       segments: flightSegments,
-    } satisfies Flight;
+    };
+    return flightObj;
   })
     .filter(Boolean) as Flight[];
 
