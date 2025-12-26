@@ -55,14 +55,14 @@ const Sidebar: React.FC = () => {
   ];
 
   return (
-    <div className="w-64 bg-slate-900 h-screen fixed left-0 top-0 text-white flex flex-col shadow-2xl z-50">
-      <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-2 rounded-xl shadow-lg shadow-blue-500/20">
+    <div className="w-64 bg-white dark:bg-slate-900 h-screen fixed left-0 top-0 text-slate-900 dark:text-white flex flex-col shadow-2xl z-50 transition-colors duration-300 border-r border-slate-200 dark:border-slate-800">
+      <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-2 rounded-xl shadow-lg shadow-blue-500/20">
           <Plane className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight">SkyLink</h1>
-          <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Admin Panel</p>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">SkyLink</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-widest font-semibold">Admin Panel</p>
         </div>
       </div>
 
@@ -77,10 +77,9 @@ const Sidebar: React.FC = () => {
                   to={item.path}
                   end={item.id === 'dashboard'}
                   className={({ isActive }) =>
-                    `w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group ${
-                      isActive
-                        ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20'
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                    `w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
+                      ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 font-bold shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                     }`
                   }
                 >
@@ -96,26 +95,26 @@ const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
         <div className="flex items-center gap-3 mb-4 px-2">
-          <div className="w-10 h-10 rounded-full bg-slate-700 border-2 border-slate-600 overflow-hidden">
+          <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 border-2 border-white dark:border-slate-600 overflow-hidden shadow-sm">
             <Image src={user?.avatarUrl || ''} alt="Admin" loading="eager" />
           </div>
           <div>
-            <p className="font-bold text-sm text-white">{user?.username}</p>
+            <p className="font-bold text-sm text-slate-900 dark:text-white">{user?.username}</p>
             <p className="text-xs text-slate-500">System Administrator</p>
           </div>
         </div>
 
         <Link
           to="/"
-          className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-slate-200 bg-slate-800/60 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 p-3 rounded-xl transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] mb-3"
+          className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-200 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 p-3 rounded-xl transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] mb-3 shadow-sm"
         >
           <Home className="w-4 h-4" /> 返回主页面
         </Link>
         <button
           onClick={logout}
-          className="w-full flex items-center justify-center gap-2 text-sm font-semibold bg-slate-800/60 hover:bg-red-500/10 text-slate-200 hover:text-red-300 p-3 rounded-xl transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] border border-slate-700 hover:border-red-500/30"
+          className="w-full flex items-center justify-center gap-2 text-sm font-semibold bg-white dark:bg-slate-800/60 hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-600 dark:text-slate-200 hover:text-red-600 dark:hover:text-red-300 p-3 rounded-xl transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.99] border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-500/30 shadow-sm"
         >
           <LogOut className="w-4 h-4" /> 退出登录
         </button>

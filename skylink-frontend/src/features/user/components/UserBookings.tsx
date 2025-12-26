@@ -12,13 +12,6 @@ import { useToast } from '@/features/admin/components/Toast';
 import { useConfirm } from '@/features/admin';
 import { EmptyStateBookings, EmptyStateOrders } from '@/components/common';
 
-// Helper to ensure dark mode texts are readable
-const ensureDarkText = (classes: string) => {
-  if (classes.includes('text-gray-600') && !classes.includes('dark:text')) return classes + ' dark:text-gray-300';
-  if (classes.includes('text-gray-500') && !classes.includes('dark:text')) return classes + ' dark:text-gray-400';
-  if (classes.includes('text-gray-900') && !classes.includes('dark:text')) return classes + ' dark:text-gray-100';
-  return classes;
-};
 
 interface UserBookingsProps {
   bookings: ConfirmedBooking[];
@@ -151,13 +144,13 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
     switch (booking.status) {
       case 'confirmed':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50">
             <CheckCircle className="w-3.5 h-3.5" /> 出票成功
           </span>
         );
       case 'pending_payment':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-100">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border border-orange-100 dark:border-orange-800/50">
             <Clock className="w-3.5 h-3.5" /> 待支付 (
             <Countdown
               targetTime={getPaymentDeadlineMs(booking.bookingDate)}
@@ -232,11 +225,11 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
       case 'confirmed':
         return (
           <div className="mt-4 lg:mt-0 lg:ml-auto flex flex-col items-end gap-2">
-            <div className="text-xs text-gray-500 dark:text-gray-300">退改签入口在订单详情页</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">退改签入口在订单详情页</div>
             <div className="flex gap-3">
               <button
                 onClick={() => navigate(`/my-bookings/${booking.id}`, { state: { booking } })}
-                className="px-4 py-2 rounded-xl bg-sky-50 text-sky-700 text-sm font-bold hover:bg-sky-100 transition-all"
+                className="px-4 py-2 rounded-xl bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 text-sm font-bold hover:bg-sky-100 dark:hover:bg-sky-800/50 transition-all border border-sky-100 dark:border-sky-800"
               >
                 详情
               </button>
@@ -249,7 +242,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
             <div className="text-sm text-purple-600 dark:text-purple-400 mb-2 font-medium">申请已提交</div>
             <button
               onClick={() => navigate('/refunds-help')}
-              className="px-4 py-2 rounded-xl bg-purple-50 text-purple-700 text-sm font-bold hover:bg-purple-100 transition-all"
+              className="px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-bold hover:bg-purple-100 dark:hover:bg-purple-800/50 transition-all border border-purple-100 dark:border-purple-800"
             >
               查看进度
             </button>
@@ -315,7 +308,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
         </div>
       </div>
 
-      <div className="rounded-3xl border border-sky-100 dark:border-sky-900/30 bg-white/90 dark:bg-gray-900/90 backdrop-blur shadow-sm">
+      <div className="rounded-3xl border border-sky-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-sm">
         <div className="p-6 sm:p-8">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -480,7 +473,7 @@ const UserBookings: React.FC<UserBookingsProps> = ({ bookings, onBack, onUpdateB
 
       {payModalOpen && payToken && payBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-scale-up">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-scale-up border border-slate-200 dark:border-slate-800">
             <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-5 flex items-start justify-between">
               <div>
                 <div className="text-white text-lg font-extrabold">支付确认</div>

@@ -4,7 +4,7 @@ import { Plane, Mail, Phone, Github, Twitter, Heart, MapPin, Shield, Star } from
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 py-12 mt-auto transition-colors duration-300 relative overflow-hidden">
+    <footer className="bg-slate-50/50 dark:bg-gray-900 border-t border-slate-200/60 dark:border-gray-800 text-slate-600 dark:text-gray-400 py-12 mt-auto transition-colors duration-300 relative overflow-hidden">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>

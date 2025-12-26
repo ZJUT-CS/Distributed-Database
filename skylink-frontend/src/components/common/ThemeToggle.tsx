@@ -77,10 +77,10 @@ export function ThemeToggle({ className = '', size = 'md' }: ThemeToggleProps) {
         ${sizeStyles[size]}
         relative inline-flex items-center justify-center
         rounded-full
-        bg-gray-100 dark:bg-gray-800
-        hover:bg-gray-200 dark:hover:bg-gray-700
+        bg-slate-100 dark:bg-slate-800
+        hover:bg-slate-200 dark:hover:bg-slate-700
         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-        dark:focus:ring-offset-gray-900
+        dark:focus:ring-offset-slate-900
         transition-all duration-300
         ${className}
       `}

@@ -54,7 +54,8 @@
 }
 
 /* ========== 暗黑模式 - 手动切换 ========== */
-[data-theme='dark'] {
+[data-theme='dark'],
+.dark {
     --color-primary: #3b82f6;
     --color-primary-light: #60a5fa;
     --color-primary-dark: #2563eb;

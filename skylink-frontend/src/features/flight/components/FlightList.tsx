@@ -17,7 +17,7 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
 
   if (flights.length === 0) {
     return (
-      <EmptyStateFlights 
+      <EmptyStateFlights
         variant="illustrated"
         size="lg"
         className="rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-blue-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-gray-900/50"
@@ -53,7 +53,7 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
       {flights.map((flight, idx) => (
         <div
           key={flight.id}
-          className="bg-gradient-to-br from-white via-white to-blue-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-gray-900/50 rounded-2xl p-4 md:p-6 shadow-lg dark:shadow-gray-900/30 hover:shadow-xl dark:hover:shadow-gray-800/50 transition-all duration-300 border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-sm flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 group hover:-translate-y-1 animate-fade-in"
+          className="bg-white dark:bg-gray-800 rounded-2xl p-4 md:p-6 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 dark:shadow-gray-900/30 dark:hover:shadow-gray-800/50 transition-all duration-300 border border-slate-100 dark:border-gray-700/50 backdrop-blur-sm flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 group hover:-translate-y-1 animate-fade-in"
           style={{ animationDelay: `${idx * 100}ms` }}
         >
           <div className="flex items-start gap-4 min-w-[200px] self-stretch md:self-auto">
@@ -161,7 +161,7 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
             ) : (
               <button
                 onClick={() => onSelect(flight)}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-7 py-3 rounded-xl font-bold transition-all duration-300 flex items-center gap-2 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-105 active:scale-95 group-hover:translate-x-1"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-7 py-3 rounded-xl font-bold transition-all duration-300 flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-600/30 hover:scale-105 active:scale-95 group-hover:translate-x-1"
               >
                 预订 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>

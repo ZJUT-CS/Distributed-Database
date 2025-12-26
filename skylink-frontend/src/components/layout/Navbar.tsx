@@ -103,7 +103,7 @@ const Navbar: React.FC = () => {
     <>
       <nav
         className={`backdrop-blur-md border-b sticky top-0 z-40 transition-all duration-300 transform ${isVisible ? 'translate-y-0' : '-translate-y-full'
-          } ${isResultsPage ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/90 dark:bg-gray-900/90 border-gray-200 dark:border-gray-800 text-slate-800 dark:text-gray-100'
+          } ${isResultsPage ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/70 dark:bg-gray-900/80 border-slate-200/50 dark:border-gray-800 text-slate-800 dark:text-gray-100 shadow-sm'
           }`}
       >
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">

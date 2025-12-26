@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import type { Flight } from '../../flight/types';
 import type { BookingDetails, PassengerInfo } from '../types';
 import { useAuth } from '../../auth/hooks/useAuth';
-import { CreditCard, User, ShieldCheck, Plane, Clock, Mail, Phone, ChevronRight, CheckCircle2, QrCode, Smartphone, Wallet, ArrowLeft, AlertCircle, Lock, BadgeCheck } from 'lucide-react';
+import { CreditCard, User, ShieldCheck, Plane, Clock, Mail, Phone, ChevronRight, CheckCircle2, QrCode, Smartphone, Wallet, ArrowLeft, AlertCircle, Lock, BadgeCheck, Users, UserPlus } from 'lucide-react';
 import { JourneyTimeline } from '../components/booking-ui';
 import { logger } from '@/shared/logger';
 import { useConfirm } from '@/features/admin';
@@ -51,7 +51,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   const [primaryIsSelf, setPrimaryIsSelf] = useState(false);
 
   const [contactSameAsAccount, setContactSameAsAccount] = useState(true);
-  const [contact, setContact] = useState<{ phone: string; email: string }>({
+  const [contact, setContact] = useState<{ name: string; phone: string; email: string }>({
+    name: user?.realName || '',
     phone: user?.phoneNumber || '',
     email: user?.email || '',
   });
@@ -124,9 +125,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
       const sameAsAccount = draft.contactSameAsAccount !== false;
       setContactSameAsAccount(sameAsAccount);
       if (!sameAsAccount) {
+        const name = String(draft.contact?.name ?? '');
         const phone = String(draft.contact?.phone ?? '');
         const email = String(draft.contact?.email ?? '');
-        setContact({ phone, email });
+        setContact({ name, phone, email });
       }
     } catch {
     } finally {
@@ -137,10 +139,11 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   useEffect(() => {
     if (!contactSameAsAccount) return;
     setContact({
+      name: user?.realName || '',
       phone: user?.phoneNumber || '',
       email: user?.email || '',
     });
-  }, [contactSameAsAccount, user?.email, user?.phoneNumber]);
+  }, [contactSameAsAccount, user?.email, user?.phoneNumber, user?.realName]);
 
   const pricing = useMemo(() => {
     const ticketPerPassenger = flights.reduce((sum, f) => sum + f.price, 0);
@@ -165,13 +168,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
       else if (counts.get(normalizeIdCard(p.idCard)) && (counts.get(normalizeIdCard(p.idCard)) as number) > 1) passengerErrors[idx].idCard = '身份证号重复';
     });
 
-    const contactErrors: { phone?: string; email?: string } = {};
+    const contactErrors: { name?: string; phone?: string; email?: string } = {};
+    if (!contact.name.trim()) contactErrors.name = '请输入联系人姓名';
     if (!contact.phone.trim()) contactErrors.phone = '请输入手机号';
     else if (!isPhoneValid(contact.phone)) contactErrors.phone = '手机号格式不正确';
     if (contact.email.trim() && !isEmailValid(contact.email)) contactErrors.email = '邮箱格式不正确';
 
     const hasPassengerError = passengerErrors.some((e) => !!e.name || !!e.idCard);
-    const hasContactError = !!contactErrors.phone || !!contactErrors.email;
+    const hasContactError = !!contactErrors.name || !!contactErrors.phone || !!contactErrors.email;
     return { passengerErrors, contactErrors, hasErrors: hasPassengerError || hasContactError };
   }, [contact.email, contact.phone, passengers]);
 
@@ -219,6 +223,13 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
     updatePassenger(0, { name: user?.realName || '', idCard: user?.idCard || '', type: 'adult' });
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (name === 'contactName') setContact(prev => ({ ...prev, name: value }));
+    if (name === 'contactPhone') setContact(prev => ({ ...prev, phone: value }));
+    if (name === 'contactEmail') setContact(prev => ({ ...prev, email: value }));
+  };
+
   const handleNextStep = () => {
     setAttemptedNext(true);
     if (!canUseSelfFill) {
@@ -232,7 +243,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
           document.getElementById(`passenger-card-${firstPassengerErrorIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
-        if (validation.contactErrors.phone || validation.contactErrors.email) {
+        if (validation.contactErrors.name || validation.contactErrors.phone || validation.contactErrors.email) {
           document.getElementById('contact-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 0);
@@ -479,63 +490,88 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                 </div>
               </div>
 
-              <div id="contact-section" className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-100 dark:border-slate-800 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800/50 dark:to-slate-900 flex items-center gap-3">
-                  <div className="bg-sky-600 p-2 rounded-xl text-white shadow-lg shadow-sky-500/20">
-                    <Phone className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-extrabold text-gray-900 dark:text-gray-100">联系人</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">用于接收出票短信与航班动态</p>
+              <div id="contact-section" className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800 transition-all duration-300">
+                <div className="bg-gray-50/60 dark:bg-slate-900/50 px-8 py-6 border-b border-gray-100 dark:border-slate-800 backdrop-blur-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-600 p-2.5 rounded-xl shadow-lg shadow-blue-600/20">
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-white">联系人信息</h2>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">请填写联系人详情以便接收航班动态</p>
+                    </div>
                   </div>
                 </div>
-
-                <div className="p-8 space-y-5">
-                  <label className={`flex items-center gap-2 text-sm font-bold ${user ? 'text-gray-700' : 'text-gray-400'}`}>
-                    <input
-                      type="checkbox"
-                      checked={contactSameAsAccount}
-                      disabled={!user}
-                      onChange={(e) => setContactSameAsAccount(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 disabled:opacity-50"
-                    />
-                    与账号联系方式一致
-                  </label>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase ml-1">手机号（必填）</label>
+                <div className="p-8 space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                        联系人姓名 <span className="text-red-500">*</span>
+                      </label>
                       <div className="relative group">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-sky-500 w-5 h-5 transition-colors" />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <User className={`h-5 w-5 ${validation.contactErrors.name ? 'text-red-400' : 'text-gray-400 dark:text-slate-500'} group-focus-within:text-blue-500 transition-colors`} />
+                        </div>
                         <input
                           type="text"
-                          value={contact.phone}
-                          onChange={(e) => setContact((prev) => ({ ...prev, phone: e.target.value }))}
-                          className={`w-full pl-12 pr-4 py-3.5 border rounded-2xl outline-none transition-all bg-gray-50 focus:bg-white focus:ring-4 ${showErrors && validation.contactErrors.phone ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:ring-sky-50 focus:border-sky-400'}`}
-                          placeholder="11 位手机号"
+                          name="contactName"
+                          value={contact.name}
+                          onChange={handleInputChange}
+                          className={`block w-full pl-10 pr-3 py-3 border ${validation.contactErrors.name
+                            ? 'border-red-300 bg-red-50 dark:bg-red-900/10 dark:border-red-800'
+                            : 'border-slate-200 bg-gray-50 dark:bg-slate-800 dark:border-slate-700'
+                            } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 dark:text-white dark:placeholder-slate-500`}
+                          placeholder="请输入联系人姓名"
                         />
                       </div>
-                      {showErrors && validation.contactErrors.phone && (
-                        <p className="text-xs text-red-500 ml-1 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> {validation.contactErrors.phone}
-                        </p>
-                      )}
+                      {showErrors && validation.contactErrors.name && <p className="text-red-500 text-xs ml-1 font-medium animate-fadeIn">{validation.contactErrors.name}</p>}
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase ml-1">电子邮箱（选填）</label>
+                    <div className="space-y-4">
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                        联系电话 <span className="text-red-500">*</span>
+                      </label>
                       <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-sky-500 w-5 h-5 transition-colors" />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <Phone className={`h-5 w-5 ${validation.contactErrors.phone ? 'text-red-400' : 'text-gray-400 dark:text-slate-500'} group-focus-within:text-blue-500 transition-colors`} />
+                        </div>
+                        <input
+                          type="tel"
+                          name="contactPhone"
+                          value={contact.phone}
+                          onChange={handleInputChange}
+                          className={`block w-full pl-10 pr-3 py-3 border ${validation.contactErrors.phone
+                            ? 'border-red-300 bg-red-50 dark:bg-red-900/10 dark:border-red-800'
+                            : 'border-slate-200 bg-gray-50 dark:bg-slate-800 dark:border-slate-700'
+                            } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 dark:text-white dark:placeholder-slate-500`}
+                          placeholder="请输入手机号码"
+                        />
+                      </div>
+                      {showErrors && validation.contactErrors.phone && <p className="text-red-500 text-xs ml-1 font-medium animate-fadeIn">{validation.contactErrors.phone}</p>}
+                    </div>
+
+                    <div className="space-y-4 md:col-span-2">
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                        电子邮箱 <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <Mail className={`h-5 w-5 ${validation.contactErrors.email ? 'text-red-400' : 'text-gray-400 dark:text-slate-500'} group-focus-within:text-blue-500 transition-colors`} />
+                        </div>
                         <input
                           type="email"
+                          name="contactEmail"
                           value={contact.email}
-                          onChange={(e) => setContact((prev) => ({ ...prev, email: e.target.value }))}
-                          className={`w-full pl-12 pr-4 py-3.5 border rounded-2xl outline-none transition-all bg-gray-50 focus:bg-white focus:ring-4 ${showErrors && validation.contactErrors.email ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:ring-sky-50 focus:border-sky-400'}`}
-                          placeholder="用于接收电子行程单"
+                          onChange={handleInputChange}
+                          className={`block w-full pl-10 pr-3 py-3 border ${validation.contactErrors.email
+                            ? 'border-red-300 bg-red-50 dark:bg-red-900/10 dark:border-red-800'
+                            : 'border-slate-200 bg-gray-50 dark:bg-slate-800 dark:border-slate-700'
+                            } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 dark:text-white dark:placeholder-slate-500`}
+                          placeholder="example@email.com"
                         />
                       </div>
                       {showErrors && validation.contactErrors.email && (
-                        <p className="text-xs text-red-500 ml-1 flex items-center gap-1">
+                        <p className="text-red-500 text-xs ml-1 font-medium animate-fadeIn flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" /> {validation.contactErrors.email}
                         </p>
                       )}
@@ -544,18 +580,19 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-100 dark:border-slate-800 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800/50 dark:to-slate-900 flex items-center gap-3">
-                  <div className="bg-sky-600 p-2 rounded-xl text-white shadow-lg shadow-sky-500/20">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-extrabold text-gray-900 dark:text-gray-100">增值服务</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">按乘机人数计费，可随时取消勾选</p>
+              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800 transition-all duration-300">
+                <div className="bg-gray-50/60 dark:bg-slate-900/50 px-8 py-6 border-b border-gray-100 dark:border-slate-800 backdrop-blur-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-600 p-2.5 rounded-xl shadow-lg shadow-blue-600/20">
+                      <UserPlus className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-white">乘机人信息</h2>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">请为每一位乘客填写详细信息</p>
+                    </div>
                   </div>
                 </div>
-
-                <div className="p-8 space-y-4">
+                <div className="p-8 space-y-8">
                   <label className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-sky-100 dark:hover:border-sky-900/40 hover:bg-sky-50/30 dark:hover:bg-sky-900/20 transition-colors cursor-pointer">
                     <div className="flex items-center gap-3">
                       <input
@@ -612,7 +649,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                   </button>
                 </div>
               </div>
-            </div>
+            </div >
           ) : (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
               <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800">
@@ -730,13 +767,13 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
               </div>
             </div>
           )}
-        </div>
+        </div >
 
         <div className="lg:col-span-4">
           <SummaryCard />
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

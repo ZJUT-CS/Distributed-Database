@@ -3,10 +3,10 @@
     --font-family: 'Noto Sans SC', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
 
     /* 主色调 */
-    --color-primary: #3b82f6;
-    --color-primary-light: #60a5fa;
-    --color-primary-dark: #2563eb;
-    --color-primary-glow: rgba(59, 130, 246, 0.4);
+    --color-primary: #0066FF;
+    --color-primary-light: #3384FF;
+    --color-primary-dark: #0052CC;
+    --color-primary-glow: rgba(0, 102, 255, 0.4);
 
     /* 辅助色 */
     --color-secondary: #6366f1;
@@ -36,11 +36,11 @@
     --radius-full: 9999px;
 
     /* 阴影 */
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.3);
+    --shadow-sm: 0 1px 2px 0 rgba(64, 87, 109, 0.07);
+    --shadow-md: 0 4px 6px -1px rgba(64, 87, 109, 0.07);
+    --shadow-lg: 0 10px 15px -3px rgba(64, 87, 109, 0.07);
+    --shadow-xl: 0 20px 25px -5px rgba(64, 87, 109, 0.07);
+    --shadow-glow: 0 0 20px rgba(0, 102, 255, 0.3);
 
     /* 间距 */
     --spacing-xs: 0.25rem;
@@ -120,15 +120,15 @@
 
     /* 背景颜色 */
     --bg-primary: #ffffff;
-    --bg-secondary: #f8fafc;
-    --bg-tertiary: #f1f5f9;
+    --bg-secondary: #F5F7FA;
+    --bg-tertiary: #F0F4F8;
     --bg-surface: #ffffff;
     --bg-elevated: #ffffff;
     --bg-overlay: rgba(0, 0, 0, 0.5);
 
     /* 文字颜色 */
-    --text-primary: #0f172a;
-    --text-secondary: #334155;
+    --text-primary: #091E42;
+    --text-secondary: #42526E;
     --text-tertiary: #64748b;
     --text-disabled: #94a3b8;
     --text-inverse: #ffffff;
@@ -136,7 +136,7 @@
     --text-link-hover: #2563eb;
 
     /* 边框颜色 */
-    --border-primary: #e2e8f0;
+    --border-primary: #E6EAF0;
     --border-secondary: #cbd5e1;
     --border-tertiary: #94a3b8;
     --border-focus: #3b82f6;

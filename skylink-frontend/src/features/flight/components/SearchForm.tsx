@@ -245,21 +245,21 @@ const SearchForm: React.FC<SearchFormProps> = ({
     return (
       <div
         ref={cityPickerRef}
-        className="absolute top-full z-50 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 p-6 w-[400px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0"
+        className="absolute top-full z-50 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 w-[400px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+        <div className="flex items-center gap-2 mb-4 border-b border-gray-100 dark:border-slate-800 pb-2">
           <button
             type="button"
             onClick={() => setCityTab('domestic')}
-            className={`pb-2 px-2 text-sm font-bold transition-colors border-b-2 ${cityTab === 'domestic' ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}
+            className={`pb-2 px-2 text-sm font-bold transition-colors border-b-2 ${cityTab === 'domestic' ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400' : 'text-gray-500 dark:text-slate-400 border-transparent hover:text-gray-700 dark:hover:text-slate-200'}`}
           >
             热门国内
           </button>
           <button
             type="button"
             onClick={() => setCityTab('international')}
-            className={`pb-2 px-2 text-sm font-bold transition-colors border-b-2 ${cityTab === 'international' ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}
+            className={`pb-2 px-2 text-sm font-bold transition-colors border-b-2 ${cityTab === 'international' ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400' : 'text-gray-500 dark:text-slate-400 border-transparent hover:text-gray-700 dark:hover:text-slate-200'}`}
           >
             热门国际
           </button>
@@ -271,7 +271,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
               key={city}
               type="button"
               onClick={() => handleCitySelect(city)}
-              className="py-2 px-1 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-center truncate"
+              className="py-2 px-1 rounded-lg text-sm text-gray-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-center truncate"
             >
               {city}
             </button>
@@ -304,7 +304,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
         const isCheap = basePrice < 400;
 
         let bgClass = '';
-        let textClass = 'text-gray-700 dark:text-gray-300';
+        let textClass = 'text-gray-700 dark:text-slate-300';
 
         if (selected) {
           bgClass = 'bg-blue-600 text-white rounded-full hover:bg-blue-700';
@@ -318,7 +318,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
           bgClass = 'bg-blue-50 dark:bg-blue-900/30';
           textClass = 'text-blue-700 dark:text-blue-300';
         } else if (isPast) {
-          textClass = 'text-gray-200 dark:text-gray-700 cursor-not-allowed';
+          textClass = 'text-gray-200 dark:text-slate-700 cursor-not-allowed';
         } else {
           bgClass = 'hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer';
         }
@@ -333,7 +333,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
           >
             <span className="z-10 relative">{d}</span>
             {!isPast && !selected && !inRange && (
-              <span className={`text-[9px] scale-75 -mt-1 font-medium ${isCheap ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-300'}`}>¥{basePrice}</span>
+              <span className={`text-[9px] scale-75 -mt-1 font-medium ${isCheap ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-slate-400'}`}>¥{basePrice}</span>
             )}
           </button>
         );
@@ -341,9 +341,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
       return (
         <div className="w-full">
-          <div className="text-center font-bold text-gray-800 dark:text-gray-200 mb-4 text-sm">{year}年 {month + 1}月</div>
+          <div className="text-center font-bold text-gray-800 dark:text-slate-200 mb-4 text-sm">{year}年 {month + 1}月</div>
           <div className="grid grid-cols-7 gap-y-2 text-center mb-2">
-            {['日', '一', '二', '三', '四', '五', '六'].map(d => <div key={d} className="text-xs text-gray-400 dark:text-gray-300">{d}</div>)}
+            {['日', '一', '二', '三', '四', '五', '六'].map(d => <div key={d} className="text-xs text-gray-400 dark:text-slate-400">{d}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-y-1">{days}</div>
         </div>
@@ -363,17 +363,17 @@ const SearchForm: React.FC<SearchFormProps> = ({
     return (
       <div
         ref={calendarContainerRef}
-        className="absolute top-full z-50 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 p-6 w-[650px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0 md:left-auto"
+        className="absolute top-full z-50 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 w-[650px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0 md:left-auto"
         style={activeCalendarId && activeCalendarId !== segments[0].id ? { left: '0', zIndex: 60 } : { left: '50%', transform: 'translateX(-50%)', zIndex: 60 }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
-          <button type="button" onClick={prevMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"><ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" /></button>
-          <div className="font-bold text-lg text-gray-800 dark:text-gray-200">选择日期</div>
-          <button type="button" onClick={nextMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"><ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" /></button>
+          <button type="button" onClick={prevMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full"><ChevronLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" /></button>
+          <div className="font-bold text-lg text-gray-800 dark:text-slate-200">选择日期</div>
+          <button type="button" onClick={nextMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full"><ChevronRight className="w-5 h-5 text-gray-600 dark:text-slate-400" /></button>
         </div>
         <div className="flex gap-8">
-          <div className="flex-1 border-r border-gray-100 dark:border-gray-700 pr-4">{renderMonth(0)}</div>
+          <div className="flex-1 border-r border-gray-100 dark:border-slate-800 pr-4">{renderMonth(0)}</div>
           <div className="flex-1 pl-4">{renderMonth(1)}</div>
         </div>
       </div>
@@ -417,7 +417,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
   return (
     <div className={`-mt-24 relative z-30 w-full`}>
-      <div className={`bg-white/95 dark:bg-gray-900/95 ${containerRadius} shadow-2xl border border-white/60 dark:border-gray-700/60 backdrop-blur-xl relative overflow-visible transition-all duration-300 ease-in-out`}>
+      <div className={`bg-white/80 dark:bg-slate-900/95 ${containerRadius} shadow-xl shadow-blue-900/5 dark:shadow-none border border-white/60 dark:border-slate-800/60 backdrop-blur-xl relative overflow-visible transition-all duration-300 ease-in-out`}>
 
         <div className={`${headerPadding} flex flex-col md:flex-row justify-between items-center gap-4`}>
           <div className="bg-gray-100/80 dark:bg-gray-800/80 p-1 rounded-full flex items-center shadow-inner dark:shadow-none">
@@ -439,8 +439,8 @@ const SearchForm: React.FC<SearchFormProps> = ({
                   }
                 }}
                 className={`px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 ${tripType === tab.id
-                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-md transform scale-105'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
+                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-md transform scale-105'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-200/50 dark:hover:bg-slate-800/50'
                   } ${compact ? 'py-1.5 px-4 text-xs' : ''}`}
               >
                 {tab.label}
@@ -500,13 +500,13 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
                     <div
                       onClick={(e) => { e.stopPropagation(); setActiveCityPickerId(segment.id); setActiveCityPickerType('origin'); }}
-                      className={`flex-1 relative group bg-gray-50 dark:bg-gray-800 hover:bg-blue-50/30 dark:hover:bg-blue-900/30 rounded-2xl transition-all duration-300 border cursor-pointer ${inputHeight} ${activeCityPickerId === segment.id && activeCityPickerType === 'origin' ? 'border-blue-400 dark:border-blue-500 ring-2 ring-blue-100 dark:ring-blue-900/50 animate-focus-border' : 'border-transparent hover:border-blue-100 dark:hover:border-blue-900'}`}
+                      className={`flex-1 relative group bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-blue-900/30 rounded-2xl transition-all duration-300 border cursor-pointer ${inputHeight} ${activeCityPickerId === segment.id && activeCityPickerType === 'origin' ? 'border-blue-400 dark:border-blue-500 ring-2 ring-blue-100 dark:ring-blue-900/50 animate-focus-border shadow-md' : 'border-slate-100 dark:border-transparent shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-900'}`}
                     >
-                      <div className={`absolute ${labelTop} left-5 ${labelTextSize} font-bold text-gray-400 dark:text-gray-300 uppercase tracking-wider`}>出发地</div>
+                      <div className={`absolute ${labelTop} left-5 ${labelTextSize} font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider`}>出发地</div>
                       <div className={`h-full flex items-center pl-5 pr-10 ${compact ? 'pt-1' : 'pt-3'}`}>
-                        <span className={`${mainTextSize} font-bold text-gray-800 dark:text-gray-100 truncate tracking-tight`}>{getDisplayLocation(segment.origin) || '选择城市'}</span>
+                        <span className={`${mainTextSize} font-bold text-gray-800 dark:text-slate-100 truncate tracking-tight`}>{getDisplayLocation(segment.origin) || '选择城市'}</span>
                       </div>
-                      <div className={`absolute bottom-3 right-5 ${labelTextSize} font-mono font-medium text-gray-400 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-md`}>
+                      <div className={`absolute bottom-3 right-5 ${labelTextSize} font-mono font-medium text-gray-400 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md`}>
                         {getSubLabel(segment.origin)}
                       </div>
                       {activeCityPickerId === segment.id && activeCityPickerType === 'origin' && renderCityPicker()}
@@ -520,13 +520,13 @@ const SearchForm: React.FC<SearchFormProps> = ({
 
                     <div
                       onClick={(e) => { e.stopPropagation(); setActiveCityPickerId(segment.id); setActiveCityPickerType('destination'); }}
-                      className={`flex-1 relative group bg-gray-50 dark:bg-gray-800 hover:bg-emerald-50/30 dark:hover:bg-emerald-900/30 rounded-2xl transition-all duration-300 border cursor-pointer ${inputHeight} ${activeCityPickerId === segment.id && activeCityPickerType === 'destination' ? 'border-emerald-400 dark:border-emerald-500 ring-2 ring-emerald-100 dark:ring-emerald-900/50 animate-focus-border' : 'border-transparent hover:border-emerald-100 dark:hover:border-emerald-900'}`}
+                      className={`flex-1 relative group bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-emerald-900/30 rounded-2xl transition-all duration-300 border cursor-pointer ${inputHeight} ${activeCityPickerId === segment.id && activeCityPickerType === 'destination' ? 'border-emerald-400 dark:border-emerald-500 ring-2 ring-emerald-100 dark:ring-emerald-900/50 animate-focus-border shadow-md' : 'border-slate-100 dark:border-transparent shadow-sm hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-900'}`}
                     >
-                      <div className={`absolute ${labelTop} left-5 ${labelTextSize} font-bold text-gray-400 dark:text-gray-300 uppercase tracking-wider`}>目的地</div>
+                      <div className={`absolute ${labelTop} left-5 ${labelTextSize} font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider`}>目的地</div>
                       <div className={`h-full flex items-center pl-5 pr-10 ${compact ? 'pt-1' : 'pt-3'}`}>
-                        <span className={`${mainTextSize} font-bold text-gray-800 dark:text-gray-100 truncate tracking-tight`}>{getDisplayLocation(segment.destination) || '选择城市'}</span>
+                        <span className={`${mainTextSize} font-bold text-gray-800 dark:text-slate-100 truncate tracking-tight`}>{getDisplayLocation(segment.destination) || '选择城市'}</span>
                       </div>
-                      <div className={`absolute bottom-3 right-5 ${labelTextSize} font-mono font-medium text-gray-400 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-md`}>
+                      <div className={`absolute bottom-3 right-5 ${labelTextSize} font-mono font-medium text-gray-400 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md`}>
                         {getSubLabel(segment.destination)}
                       </div>
                       {activeCityPickerId === segment.id && activeCityPickerType === 'destination' && renderCityPicker()}
@@ -537,23 +537,23 @@ const SearchForm: React.FC<SearchFormProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveCalendarId(activeCalendarId === segment.id ? null : segment.id)}
-                      className={`w-full h-full bg-gray-50 dark:bg-gray-800 rounded-2xl p-1 flex items-stretch border border-transparent hover:border-blue-200 dark:hover:border-blue-700 transition-all duration-300 group ${activeCalendarId === segment.id ? 'border-blue-400 dark:border-blue-500 bg-blue-50/10 dark:bg-blue-900/20 animate-focus-border' : ''}`}
+                      className={`w-full h-full bg-white dark:bg-slate-900 rounded-2xl p-1 flex items-stretch border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700 transition-all duration-300 group ${activeCalendarId === segment.id ? 'border-blue-400 dark:border-blue-500 bg-blue-50/10 dark:bg-blue-900/20 animate-focus-border shadow-md' : ''}`}
                     >
                       <div className={`flex-1 flex flex-col justify-center px-5 rounded-xl transition-all ${activeCalendarId === segment.id ? 'bg-white shadow-sm' : ''}`}>
                         <div className="flex items-center gap-2 mb-0.5">
-                          <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-300 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
-                          <span className={`${labelTextSize} font-bold text-gray-400 dark:text-gray-300 uppercase tracking-wider`}>
+                          <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-slate-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
+                          <span className={`${labelTextSize} font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider`}>
                             {isRoundTripMain ? '出发 - 返程' : '出发日期'}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-3">
                           <div className="flex items-baseline gap-1">
-                            <span className={`${mainTextSize} font-bold text-gray-800 dark:text-gray-100 tracking-tight`}>
+                            <span className={`${mainTextSize} font-bold text-gray-800 dark:text-slate-100 tracking-tight`}>
                               {parseYmdToLocalDate(segment.date).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}
                             </span>
                             {!isRoundTripMain && (
-                              <span className={`${labelTextSize} text-gray-400 dark:text-gray-300 font-medium mt-1`}>
+                              <span className={`${labelTextSize} text-gray-400 dark:text-slate-400 font-medium mt-1`}>
                                 {parseYmdToLocalDate(segment.date).toLocaleDateString('zh-CN', { weekday: 'short' })}
                               </span>
                             )}
@@ -563,12 +563,12 @@ const SearchForm: React.FC<SearchFormProps> = ({
                               <div className="w-8 h-px bg-gray-300 dark:bg-gray-600"></div>
                               {returnDate ? (
                                 <div className="flex items-baseline gap-1">
-                                  <span className={`${mainTextSize} font-bold text-gray-800 dark:text-gray-100 tracking-tight`}>
+                                  <span className={`${mainTextSize} font-bold text-gray-800 dark:text-slate-100 tracking-tight`}>
                                     {parseYmdToLocalDate(returnDate).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-gray-400 dark:text-gray-300 text-sm font-medium">选择返程</span>
+                                <span className="text-gray-400 dark:text-slate-400 text-sm font-medium">选择返程</span>
                               )}
                             </>
                           )}
@@ -585,24 +585,24 @@ const SearchForm: React.FC<SearchFormProps> = ({
                           <button
                             type="button"
                             onClick={() => setIsPassengerOpen(!isPassengerOpen)}
-                            className={`w-full h-full bg-gray-50 dark:bg-gray-800 border border-transparent rounded-2xl text-left pl-5 pr-4 outline-none transition-all duration-300 hover:bg-purple-50/30 dark:hover:bg-purple-900/30 flex flex-col justify-center ${isPassengerOpen ? 'bg-white dark:bg-gray-800 ring-2 ring-purple-100 dark:ring-purple-900/50 border-purple-200 dark:border-purple-700 animate-focus-border' : ''}`}
+                            className={`w-full h-full bg-white dark:bg-slate-900 border border-slate-100 shadow-sm rounded-2xl text-left pl-5 pr-4 outline-none transition-all duration-300 hover:shadow-md hover:bg-slate-50 dark:hover:bg-purple-900/30 flex flex-col justify-center ${isPassengerOpen ? 'bg-white dark:bg-slate-900 ring-2 ring-purple-100 dark:ring-purple-900/50 border-purple-200 dark:border-purple-700 animate-focus-border shadow-md' : ''}`}
                           >
-                            <label className={`block ${labelTextSize} font-bold text-gray-400 dark:text-gray-300 uppercase tracking-wider mb-0.5`}>旅客 & 舱位</label>
+                            <label className={`block ${labelTextSize} font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider mb-0.5`}>旅客 & 舱位</label>
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
-                                <span className={`font-bold text-gray-800 truncate ${compact ? 'text-base' : 'text-lg'}`}>
+                                <span className={`font-bold text-gray-800 dark:text-slate-100 truncate ${compact ? 'text-base' : 'text-lg'}`}>
                                   {adults + children + infants} 人
                                 </span>
-                                <span className={`${labelTextSize} text-gray-500 dark:text-gray-400 truncate`}>{getCabinLabel(cabinClass)}</span>
+                                <span className={`${labelTextSize} text-gray-500 dark:text-slate-400 truncate`}>{getCabinLabel(cabinClass)}</span>
                               </div>
                               <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-300 ${isPassengerOpen ? 'rotate-180' : ''}`} />
                             </div>
                           </button>
                           {isPassengerOpen && (
-                            <div className="absolute top-full right-0 mt-3 w-80 bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 p-6 animate-in fade-in slide-in-from-top-4 duration-200">
+                            <div className="absolute top-full right-0 mt-3 w-80 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 z-50 p-6 animate-in fade-in slide-in-from-top-4 duration-200">
                               <div className="space-y-6">
-                                <div className="flex justify-between items-center pb-4 border-b border-gray-100">
-                                  <h4 className="font-bold text-gray-900 text-lg">旅客选择</h4>
+                                <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-slate-800">
+                                  <h4 className="font-bold text-gray-900 dark:text-slate-100 text-lg">旅客选择</h4>
                                 </div>
                                 {[
                                   { label: '成人', sub: '12 岁及以上', val: adults, set: setAdults, min: 1 },
@@ -611,20 +611,20 @@ const SearchForm: React.FC<SearchFormProps> = ({
                                 ].map((item, idx) => (
                                   <div key={idx} className="flex justify-between items-center">
                                     <div>
-                                      <div className="font-bold text-gray-800">{item.label}</div>
-                                      <div className="text-xs text-gray-400 dark:text-gray-300">{item.sub}</div>
+                                      <div className="font-bold text-gray-800 dark:text-slate-100">{item.label}</div>
+                                      <div className="text-xs text-gray-400 dark:text-slate-400">{item.sub}</div>
                                     </div>
-                                    <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 rounded-full p-1">
-                                      <button type="button" onClick={() => item.set(Math.max(item.min, item.val - 1))} className="w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-gray-700 shadow-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50" disabled={item.val <= item.min}><Minus className="w-3.5 h-3.5" /></button>
-                                      <span className="w-6 text-center font-bold text-gray-800 dark:text-gray-200 text-sm">{item.val}</span>
+                                    <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-full p-1">
+                                      <button type="button" onClick={() => item.set(Math.max(item.min, item.val - 1))} className="w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-slate-700 shadow-sm text-gray-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50" disabled={item.val <= item.min}><Minus className="w-3.5 h-3.5" /></button>
+                                      <span className="w-6 text-center font-bold text-gray-800 dark:text-slate-100 text-sm">{item.val}</span>
                                       <button type="button" onClick={() => item.set(item.val + 1)} className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 shadow-sm text-white hover:bg-blue-700"><Plus className="w-3.5 h-3.5" /></button>
                                     </div>
                                   </div>
                                 ))}
                                 <div className="pt-2">
-                                  <div className="bg-gray-100/80 p-1 rounded-xl flex gap-1">
+                                  <div className="bg-gray-100/80 dark:bg-slate-800 p-1 rounded-xl flex gap-1">
                                     {['economy', 'business', 'first'].map((cls) => (
-                                      <button key={cls} type="button" onClick={() => setCabinClass(cls as any)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${cabinClass === cls ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200'}`}>{getCabinLabel(cls)}</button>
+                                      <button key={cls} type="button" onClick={() => setCabinClass(cls as any)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${cabinClass === cls ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>{getCabinLabel(cls)}</button>
                                     ))}
                                   </div>
                                 </div>
@@ -635,7 +635,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
                         </div>
                         <button
                           type="submit"
-                          className={`w-24 h-full bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-2xl shadow-xl shadow-blue-500/30 flex flex-col items-center justify-center transition-all transform hover:-translate-y-1 hover:shadow-2xl active:scale-95 group`}
+                          className={`w-24 h-full bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-2xl shadow-xl shadow-blue-500/30 flex flex-col items-center justify-center transition-all transform hover:-translate-y-1 hover:shadow-2xl active:scale-95 group`}
                         >
                           <Search className={`${iconSize} mb-0.5 group-hover:scale-110 transition-transform`} />
                           <span className={`${buttonTextSize} font-bold uppercase tracking-widest opacity-90`}>搜索</span>
@@ -668,9 +668,9 @@ const SearchForm: React.FC<SearchFormProps> = ({
         </form>
 
         {tripType !== 'multiCity' && (
-          <div className="border-t border-gray-100 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 rounded-b-[2rem] px-6 py-3 backdrop-blur-sm animate-in fade-in duration-500">
+          <div className="border-t border-gray-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/40 rounded-b-[2rem] px-6 py-3 backdrop-blur-sm animate-in fade-in duration-500">
             <div className="flex items-center gap-2">
-              <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+              <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
               <div className="flex-1 flex justify-between gap-2 overflow-x-auto scrollbar-hide">
                 {[...Array(5)].map((_, i) => {
                   const dStr = addDaysToYmd(date, i - 1);
@@ -684,20 +684,20 @@ const SearchForm: React.FC<SearchFormProps> = ({
                       onClick={() => { setDate(dStr); if (tripType === 'roundTrip' && returnDate && dStr > returnDate) setReturnDate(''); }}
                       className={`flex-1 min-w-[100px] flex flex-col items-center py-2 rounded-xl transition-all duration-300 border ${isSelected
                         ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-200 dark:border-blue-700/50 shadow-sm transform scale-105'
-                        : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                        : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300'
                         }`}
                     >
                       <div className={`text-xs font-medium mb-1 whitespace-nowrap ${isSelected ? 'text-blue-600 dark:text-blue-400' : ''}`}>
                         {d.getMonth() + 1}月{d.getDate()}日 <span className="opacity-75 hidden sm:inline">{d.toLocaleDateString('zh-CN', { weekday: 'short' })}</span>
                       </div>
-                      <div className={`text-sm font-bold ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                      <div className={`text-sm font-bold ${isSelected ? 'text-blue-700 dark:text-blue-400' : 'text-gray-500 dark:text-slate-400'}`}>
                         ¥{price * 7}
                       </div>
                     </button>
                   );
                 })}
               </div>
-              <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"><ChevronRight className="w-4 h-4" /></button>
+              <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"><ChevronRight className="w-4 h-4" /></button>
             </div>
           </div>
         )}

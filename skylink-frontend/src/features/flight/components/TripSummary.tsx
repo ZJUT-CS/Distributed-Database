@@ -24,7 +24,7 @@ const TripSummary: React.FC<TripSummaryProps> = ({ segments, selectedFlights, cu
 
   return (
     <div className="bg-white dark:bg-slate-800/50 rounded-xl shadow-lg border border-blue-100 dark:border-white/10 overflow-hidden mb-6 animate-fade-in-down backdrop-blur-sm">
-      <div className="bg-gradient-to-r from-slate-800 to-indigo-900 px-6 py-4 flex justify-between items-center text-white">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-900 dark:to-indigo-900 px-6 py-4 flex justify-between items-center text-white">
         <div>
           <h3 className="font-bold text-lg flex items-center gap-2">
             <Plane className="w-5 h-5 text-blue-400" />

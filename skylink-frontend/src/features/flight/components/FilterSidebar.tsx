@@ -40,12 +40,12 @@ const FilterSection = ({
 }) => {
   const [isOpen, setIsOpen] = useState(isOpenDefault);
   return (
-    <div className="border-b border-gray-100 dark:border-gray-800 last:border-0 py-5">
+    <div className="border-b border-gray-100 dark:border-slate-800 last:border-0 py-5">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex justify-between items-center group mb-4"
       >
-        <span className="font-bold text-gray-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-2">
+        <span className="font-bold text-gray-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-2">
           {icon ? <span className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center">{icon}</span> : null}
           <span>{title}</span>
         </span>
@@ -97,9 +97,9 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
     filters.durationMax < 1440;
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800 overflow-hidden sticky top-24">
-      <div className="p-5 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 flex justify-between items-center">
-        <div className="flex items-center gap-2 text-gray-800 dark:text-gray-100 font-bold">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 overflow-hidden sticky top-24">
+      <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
+        <div className="flex items-center gap-2 text-gray-800 dark:text-slate-100 font-bold">
           <SlidersHorizontal className="w-4 h-4" />
           <span>筛选航班</span>
         </div>
@@ -129,8 +129,8 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
                   type="button"
                   onClick={() => updateFilter('stops', opt.id as FilterState['stops'])}
                   className={`flex-1 min-w-[0] px-3 py-2.5 rounded-2xl border text-left text-xs transition-all ${active
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 shadow-sm shadow-blue-500/10'
-                      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                    ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 shadow-sm shadow-blue-500/10'
+                    : 'border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-gray-600 hover:bg-slate-50 dark:hover:bg-gray-700/50'
                     }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -160,7 +160,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
                 <button
                   key={t.id}
                   onClick={() => handleArrayToggle('departureTime', t.id)}
-                  className={`p-2.5 rounded-xl border text-left transition-all ${active ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 shadow-sm shadow-blue-500/10' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                  className={`p-2.5 rounded-xl border text-left transition-all ${active ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 shadow-sm shadow-blue-500/10' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-gray-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-gray-800'}`}
                 >
                   <div className="text-sm font-bold flex items-center gap-2">
                     <t.icon className={`w-4 h-4 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
@@ -222,7 +222,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
               {POPULAR_AIRPORTS.slice(0, 4).map(a => (
                 <label key={`dep-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.originAirports.includes(a.code) ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'}`}>
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.originAirports.includes(a.code) ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800'}`}>
                       {filters.originAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
                     </div>
                     <input type="checkbox" checked={filters.originAirports.includes(a.code)} onChange={() => handleArrayToggle('originAirports', a.code)} className="hidden" />
@@ -239,7 +239,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
               {POPULAR_AIRPORTS.slice(0, 4).map(a => (
                 <label key={`arr-${a.code}`} className="flex items-center justify-between gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.destinationAirports.includes(a.code) ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'}`}>
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${filters.destinationAirports.includes(a.code) ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800'}`}>
                       {filters.destinationAirports.includes(a.code) && <Check className="w-3.5 h-3.5 text-white" />}
                     </div>
                     <input type="checkbox" checked={filters.destinationAirports.includes(a.code)} onChange={() => handleArrayToggle('destinationAirports', a.code)} className="hidden" />
@@ -259,10 +259,10 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
               return (
                 <label key={airline.code} className="flex items-center justify-between cursor-pointer group p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold border ${active ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-100 dark:border-gray-700'}`}>
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold border ${active ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-800' : 'bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-100 dark:border-slate-700'}`}>
                       {airline.code}
                     </div>
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${active ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'}`}>
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${active ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800'}`}>
                       {active && <Check className="w-3.5 h-3.5 text-white" />}
                     </div>
                     <input
@@ -271,7 +271,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFilterChange }
                       checked={active}
                       onChange={() => handleArrayToggle('airlines', airline.code)}
                     />
-                    <span className={`text-sm ${active ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-600 dark:text-gray-400'}`}>{airline.name}</span>
+                    <span className={`text-sm ${active ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-600 dark:text-slate-400'}`}>{airline.name}</span>
                   </div>
                   <span className="text-xs text-gray-400 dark:text-gray-500">¥850+</span>
                 </label>

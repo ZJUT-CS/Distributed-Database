@@ -390,7 +390,7 @@ const FlightResultPage: React.FC = () => {
           <div className="flex flex-col items-end">
             <span className="text-xs text-blue-400 font-mono tracking-wider">出发地</span>
             <span className="font-bold text-2xl text-white tracking-tight">{origin}</span>
-            <span className="text-xs text-gray-400 dark:text-gray-300">{getCityName(origin)}</span>
+            <span className="text-xs text-gray-400 dark:text-slate-300">{getCityName(origin)}</span>
           </div>
 
           <div className="flex items-center text-blue-500 relative">
@@ -403,7 +403,7 @@ const FlightResultPage: React.FC = () => {
           <div className="flex flex-col items-start">
             <span className="text-xs text-emerald-400 font-mono tracking-wider">目的地</span>
             <span className="font-bold text-2xl text-white tracking-tight">{destination}</span>
-            <span className="text-xs text-gray-400 dark:text-gray-300">{getCityName(destination)}</span>
+            <span className="text-xs text-gray-400 dark:text-slate-300">{getCityName(destination)}</span>
           </div>
         </div>
       </div>
@@ -438,7 +438,7 @@ const FlightResultPage: React.FC = () => {
             <div className="lg:hidden mb-2">
               <button
                 onClick={() => setShowMobileFilters(!showMobileFilters)}
-                className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-blue-600 dark:text-blue-400 font-bold"
+                className="w-full flex items-center justify-center gap-2 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 font-bold"
               >
                 <Filter className="w-4 h-4" /> {showMobileFilters ? '隐藏筛选' : '显示筛选'}
               </button>
@@ -453,11 +453,11 @@ const FlightResultPage: React.FC = () => {
 
             <div className="lg:col-span-3">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-gray-800 dark:text-slate-200 flex items-center gap-2">
                   <span className="bg-blue-600 w-1 h-5 rounded-full inline-block"></span>
                   可选航班 ({getCityName(origin)} → {getCityName(destination)})
                 </h2>
-                <span className="text-gray-500 dark:text-gray-400 text-sm font-medium bg-white dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
+                <span className="text-gray-500 dark:text-slate-400 text-sm font-medium bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-gray-200 dark:border-slate-700 shadow-sm">
                   {filteredFlights.length} / {flights.length} 结果
                 </span>
               </div>
@@ -471,8 +471,8 @@ const FlightResultPage: React.FC = () => {
               {loadingFlights ? (
                 <FlightListSkeleton />
               ) : filteredFlights.length === 0 ? (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">没有找到符合条件的航班</p>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-8 text-center">
+                  <p className="text-gray-500 dark:text-slate-400 mb-4">没有找到符合条件的航班</p>
                   <button
                     onClick={() => setFilters({
                       stops: 'all',
