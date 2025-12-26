@@ -301,7 +301,7 @@ const SearchForm: React.FC<SearchFormProps> = ({
     return (
       <div
         ref={cityPickerRef}
-        className="absolute top-full z-50 bg-white dark:bg-slate-950 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 w-[400px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0"
+        className="absolute top-full z-[9999] bg-white dark:bg-slate-950 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 p-6 w-[400px] animate-in fade-in zoom-in-95 duration-200 mt-2 left-0"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 搜索输入框 */}
