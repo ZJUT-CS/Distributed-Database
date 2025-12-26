@@ -276,12 +276,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
 
   const StepIndicator = () => (
     <div className="flex items-center justify-center mb-8 px-4 relative">
-      <div className="flex items-center w-full max-w-lg">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all z-10 ${step >= 1 ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30' : 'bg-gray-200 dark:bg-slate-800 text-gray-500'}`}>1</div>
-        <div className="flex-1 h-1 mx-2 relative bg-gray-200 dark:bg-slate-800 rounded-full overflow-hidden">
+      <div className="flex items-center w-full max-lg:px-4 max-w-lg">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all z-10 ${step >= 1 ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30' : 'bg-gray-200 dark:bg-cosmos-surface-elevated text-gray-500 dark:text-cosmos-text-muted'}`}>1</div>
+        <div className="flex-1 h-1 mx-2 relative bg-gray-200 dark:bg-cosmos-surface-elevated rounded-full overflow-hidden">
           <div className={`absolute top-0 left-0 h-full bg-sky-600 transition-all duration-500 ease-in-out ${step === 2 ? 'w-full' : 'w-0'}`} />
         </div>
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all z-10 ${step >= 2 ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30' : 'bg-gray-200 dark:bg-slate-800 text-gray-500'}`}>2</div>
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all z-10 ${step >= 2 ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30' : 'bg-gray-200 dark:bg-cosmos-surface-elevated text-gray-500 dark:text-cosmos-text-muted'}`}>2</div>
       </div>
       <div className="absolute flex w-full max-w-lg justify-between mt-14 text-xs font-bold text-gray-500 uppercase tracking-wide">
         <span className={step >= 1 ? 'text-sky-600' : ''}>填写信息</span>
@@ -293,8 +293,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   const SummaryCard = () => {
     const meta = cabinMeta(cabinClass);
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm sticky top-24 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/40">
+      <div className="bg-white dark:bg-cosmos-surface/90 backdrop-blur-xl rounded-3xl border border-gray-100 dark:border-cosmos-border shadow-sm sticky top-24 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 dark:border-cosmos-border bg-gray-50/60 dark:bg-cosmos-surface-elevated/40">
           <div className="flex items-center justify-between">
             <h3 className="font-extrabold text-gray-900 dark:text-gray-100 text-sm uppercase tracking-wider flex items-center gap-2">
               <Plane className="w-4 h-4 text-gray-400 dark:text-gray-500" /> 行程清单
@@ -312,7 +312,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
 
         <div className="p-6">
           {/* 使用统一的行程时间线组件展示所有航班 */}
-          <div className="max-h-[400px] overflow-y-auto pr-1 space-y-3">
+          <div className="max-h-[400px] overflow-y-auto pr-1 space-y-3 scrollbar-pretty">
             {flights.map((flight, idx) => (
               <JourneyTimeline
                 key={idx}
@@ -325,7 +325,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
 
           <div className="mt-4 flex flex-wrap gap-2">
             {meta.benefits.map((b) => (
-              <span key={b} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-white dark:bg-slate-800 border border-sky-100 dark:border-sky-900/30 text-sky-700 dark:text-sky-300">
+              <span key={b} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-white dark:bg-cosmos-surface border border-sky-100 dark:border-sky-500/20 text-sky-700 dark:text-sky-300">
                 <BadgeCheck className="w-3.5 h-3.5" />
                 {b}
               </span>
@@ -375,19 +375,19 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
         <div className="lg:col-span-8 space-y-6">
           {step === 1 ? (
             <div className="space-y-6 animate-in fade-in slide-in-from-left-8 duration-500">
-              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-100 dark:border-slate-800 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800/50 dark:to-slate-900 flex items-center justify-between gap-4">
+              <div className="bg-white dark:bg-cosmos-surface/90 backdrop-blur-xl rounded-3xl shadow-sm border border-gray-100 dark:border-cosmos-border overflow-hidden">
+                <div className="px-8 py-6 border-b border-gray-100 dark:border-cosmos-border bg-gradient-to-r from-gray-50 to-white dark:from-cosmos-surface-elevated/50 dark:to-cosmos-surface flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="bg-sky-600 p-2 rounded-xl text-white shadow-lg shadow-sky-500/20">
                       <User className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-extrabold text-gray-900 dark:text-gray-100">乘机人</h2>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">共 {passengerCount} 人，信息需与证件一致</p>
+                      <h2 className="text-lg font-extrabold text-gray-900 dark:text-cosmos-text-primary">乘机人</h2>
+                      <p className="text-xs text-gray-500 dark:text-cosmos-text-muted">共 {passengerCount} 人，信息需与证件一致</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-3 py-2 rounded-2xl">
-                    <Lock className="w-4 h-4 text-gray-400" />
+                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-cosmos-text-muted bg-gray-50 dark:bg-cosmos-surface-elevated border border-gray-200 dark:border-cosmos-border px-3 py-2 rounded-2xl">
+                    <Lock className="w-4 h-4 text-gray-400 dark:text-cosmos-text-muted" />
                     人数已锁定，需修改请返回搜索页
                   </div>
                 </div>
@@ -396,10 +396,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                   {passengers.map((p, idx) => {
                     const pe = validation.passengerErrors[idx];
                     return (
-                      <div key={idx} id={`passenger-card-${idx}`} className="rounded-3xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 bg-gray-50/70 border-b border-gray-100 flex items-center justify-between gap-4">
+                      <div key={idx} id={`passenger-card-${idx}`} className="rounded-3xl border border-gray-100 dark:border-cosmos-border bg-white dark:bg-cosmos-surface-elevated/50 shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 bg-gray-50/70 dark:bg-cosmos-surface-elevated/30 border-b border-gray-100 dark:border-cosmos-border flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-700 font-extrabold">
+                            <div className="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800/50 flex items-center justify-center text-sky-700 dark:text-sky-300 font-extrabold">
                               {idx + 1}
                             </div>
                             <div className="min-w-0">
@@ -414,7 +414,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                             <select
                               value={p.type || 'adult'}
                               onChange={(e) => updatePassenger(idx, { type: e.target.value === 'child' ? 'child' : 'adult' })}
-                              className="px-3 py-2 rounded-xl border border-gray-200 dark:border-slate-700 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-sky-500"
+                              className="px-3 py-2 rounded-xl border border-gray-200 dark:border-cosmos-border text-sm font-semibold text-gray-700 dark:text-cosmos-text-primary bg-white dark:bg-cosmos-surface outline-none focus:ring-2 focus:ring-sky-500"
                             >
                               <option value="adult">成人</option>
                               <option value="child">儿童</option>
@@ -444,7 +444,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                                 type="text"
                                 value={p.name}
                                 onChange={(e) => updatePassenger(idx, { name: e.target.value })}
-                                className={`w-full pl-12 pr-4 py-3.5 border rounded-2xl outline-none transition-all bg-gray-50 focus:bg-white focus:ring-4 ${showErrors && pe?.name ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:ring-sky-50 focus:border-sky-400'}`}
+                                className={`w-full pl-12 pr-4 py-3.5 border rounded-2xl outline-none transition-all bg-gray-50 dark:bg-cosmos-surface-elevated/40 focus:bg-white dark:focus:bg-cosmos-surface focus:ring-4 ${showErrors && pe?.name ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 dark:border-cosmos-border focus:ring-sky-50 dark:focus:ring-sky-500/10 focus:border-sky-400 dark:focus:border-sky-500/50 dark:text-cosmos-text-primary'}`}
                                 placeholder="请输入姓名"
                               />
                             </div>
@@ -463,7 +463,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                                 type="text"
                                 value={p.idCard}
                                 onChange={(e) => updatePassenger(idx, { idCard: normalizeIdCard(e.target.value) })}
-                                className={`w-full pl-12 pr-4 py-3.5 border rounded-2xl outline-none transition-all bg-gray-50 focus:bg-white focus:ring-4 ${showErrors && pe?.idCard ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:ring-sky-50 focus:border-sky-400'}`}
+                                className={`w-full pl-12 pr-4 py-3.5 border rounded-2xl outline-none transition-all bg-gray-50 dark:bg-cosmos-surface-elevated/40 focus:bg-white dark:focus:bg-cosmos-surface focus:ring-4 ${showErrors && pe?.idCard ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 dark:border-cosmos-border focus:ring-sky-50 dark:focus:ring-sky-500/10 focus:border-sky-400 dark:focus:border-sky-500/50 dark:text-cosmos-text-primary'}`}
                                 placeholder="18 位身份证号"
                               />
                             </div>
@@ -479,26 +479,26 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                   })}
 
                   {!canUseSelfFill && (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-start gap-2">
+                    <div className="rounded-2xl border border-amber-200 dark:border-amber-800/30 bg-amber-50 dark:bg-amber-900/10 p-4 text-sm text-amber-800 dark:text-amber-400 flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 mt-0.5" />
                       <div className="min-w-0">
                         <div className="font-bold">未检测到实名认证信息</div>
-                        <div className="text-xs text-amber-700 mt-1">完成实名认证后，可在乘机人 1 使用“一键填充”。</div>
+                        <div className="text-xs text-amber-700 dark:text-amber-500/80 mt-1">完成实名认证后，可在乘机人 1 使用“一键填充”。</div>
                       </div>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div id="contact-section" className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800 transition-all duration-300">
-                <div className="bg-gray-50/60 dark:bg-slate-900/50 px-8 py-6 border-b border-gray-100 dark:border-slate-800 backdrop-blur-sm">
+              <div id="contact-section" className="bg-white dark:bg-cosmos-surface/90 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-cosmos-border transition-all duration-300">
+                <div className="bg-gray-50/60 dark:bg-cosmos-surface-elevated/50 px-8 py-6 border-b border-gray-100 dark:border-cosmos-border backdrop-blur-sm">
                   <div className="flex items-center gap-3">
                     <div className="bg-blue-600 p-2.5 rounded-xl shadow-lg shadow-blue-600/20">
                       <Users className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-slate-900 dark:text-white">联系人信息</h2>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">请填写联系人详情以便接收航班动态</p>
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-cosmos-text-primary">联系人信息</h2>
+                      <p className="text-sm text-slate-500 dark:text-cosmos-text-muted">请填写联系人详情以便接收航班动态</p>
                     </div>
                   </div>
                 </div>
@@ -510,7 +510,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                       </label>
                       <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <User className={`h-5 w-5 ${validation.contactErrors.name ? 'text-red-400' : 'text-gray-400 dark:text-slate-500'} group-focus-within:text-blue-500 transition-colors`} />
+                          <User className={`h-5 w-5 ${validation.contactErrors.name ? 'text-red-400' : 'text-gray-400 dark:text-cosmos-text-muted'} group-focus-within:text-blue-500 transition-colors`} />
                         </div>
                         <input
                           type="text"
@@ -519,8 +519,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                           onChange={handleInputChange}
                           className={`block w-full pl-10 pr-3 py-3 border ${validation.contactErrors.name
                             ? 'border-red-300 bg-red-50 dark:bg-red-900/10 dark:border-red-800'
-                            : 'border-slate-200 bg-gray-50 dark:bg-slate-800 dark:border-slate-700'
-                            } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 dark:text-white dark:placeholder-slate-500`}
+                            : 'border-slate-200 bg-gray-50 dark:bg-cosmos-surface-elevated dark:border-cosmos-border'
+                            } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 dark:text-cosmos-text-primary dark:placeholder-cosmos-text-muted/50 focus:bg-white dark:focus:bg-cosmos-surface-elevated/80`}
                           placeholder="请输入联系人姓名"
                         />
                       </div>
@@ -533,7 +533,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                       </label>
                       <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Phone className={`h-5 w-5 ${validation.contactErrors.phone ? 'text-red-400' : 'text-gray-400 dark:text-slate-500'} group-focus-within:text-blue-500 transition-colors`} />
+                          <Phone className={`h-5 w-5 ${validation.contactErrors.phone ? 'text-red-400' : 'text-gray-400 dark:text-cosmos-text-muted'} group-focus-within:text-blue-500 transition-colors`} />
                         </div>
                         <input
                           type="tel"
@@ -542,8 +542,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                           onChange={handleInputChange}
                           className={`block w-full pl-10 pr-3 py-3 border ${validation.contactErrors.phone
                             ? 'border-red-300 bg-red-50 dark:bg-red-900/10 dark:border-red-800'
-                            : 'border-slate-200 bg-gray-50 dark:bg-slate-800 dark:border-slate-700'
-                            } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 dark:text-white dark:placeholder-slate-500`}
+                            : 'border-slate-200 bg-gray-50 dark:bg-cosmos-surface-elevated dark:border-cosmos-border'
+                            } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 dark:text-cosmos-text-primary dark:placeholder-cosmos-text-muted/50 focus:bg-white dark:focus:bg-cosmos-surface-elevated/80`}
                           placeholder="请输入手机号码"
                         />
                       </div>
@@ -556,7 +556,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                       </label>
                       <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Mail className={`h-5 w-5 ${validation.contactErrors.email ? 'text-red-400' : 'text-gray-400 dark:text-slate-500'} group-focus-within:text-blue-500 transition-colors`} />
+                          <Mail className={`h-5 w-5 ${validation.contactErrors.email ? 'text-red-400' : 'text-gray-400 dark:text-cosmos-text-muted'} group-focus-within:text-blue-500 transition-colors`} />
                         </div>
                         <input
                           type="email"
@@ -565,8 +565,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                           onChange={handleInputChange}
                           className={`block w-full pl-10 pr-3 py-3 border ${validation.contactErrors.email
                             ? 'border-red-300 bg-red-50 dark:bg-red-900/10 dark:border-red-800'
-                            : 'border-slate-200 bg-gray-50 dark:bg-slate-800 dark:border-slate-700'
-                            } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 dark:text-white dark:placeholder-slate-500`}
+                            : 'border-slate-200 bg-gray-50 dark:bg-cosmos-surface-elevated dark:border-cosmos-border'
+                            } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 dark:text-cosmos-text-primary dark:placeholder-cosmos-text-muted/50 focus:bg-white dark:focus:bg-cosmos-surface-elevated/80`}
                           placeholder="example@email.com"
                         />
                       </div>
@@ -580,15 +580,15 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800 transition-all duration-300">
-                <div className="bg-gray-50/60 dark:bg-slate-900/50 px-8 py-6 border-b border-gray-100 dark:border-slate-800 backdrop-blur-sm">
+              <div className="bg-white dark:bg-cosmos-surface/90 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-cosmos-border transition-all duration-300">
+                <div className="bg-gray-50/60 dark:bg-cosmos-surface-elevated/50 px-8 py-6 border-b border-gray-100 dark:border-cosmos-border backdrop-blur-sm">
                   <div className="flex items-center gap-3">
                     <div className="bg-blue-600 p-2.5 rounded-xl shadow-lg shadow-blue-600/20">
                       <UserPlus className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-slate-900 dark:text-white">乘机人信息</h2>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">请为每一位乘客填写详细信息</p>
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-cosmos-text-primary">乘机人信息</h2>
+                      <p className="text-sm text-slate-500 dark:text-cosmos-text-muted">请为每一位乘客填写详细信息</p>
                     </div>
                   </div>
                 </div>
@@ -630,10 +630,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                   </label>
                 </div>
 
-                <div className="px-8 py-6 bg-gray-50 dark:bg-slate-800/60 border-t border-gray-100 dark:border-slate-800 flex justify-between items-center">
+                <div className="px-8 py-6 bg-gray-50 dark:bg-cosmos-surface-elevated/60 border-t border-gray-100 dark:border-cosmos-border flex justify-between items-center">
                   <button
                     onClick={onCancel}
-                    className="text-gray-600 dark:text-gray-400 font-extrabold text-sm hover:text-gray-900 dark:hover:text-gray-100 px-4 py-2 rounded-xl hover:bg-gray-200/50 dark:hover:bg-slate-700/50 transition-colors"
+                    className="text-gray-600 dark:text-cosmos-text-muted font-extrabold text-sm hover:text-gray-900 dark:hover:text-cosmos-text-primary px-4 py-2 rounded-xl hover:bg-gray-200/50 dark:hover:bg-cosmos-surface/50 transition-colors"
                   >
                     返回修改人数
                   </button>
@@ -641,7 +641,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                     onClick={handleNextStep}
                     aria-disabled={validation.hasErrors}
                     className={`text-white px-8 py-3.5 rounded-2xl font-extrabold shadow-xl flex items-center gap-2 transition-all transform hover:-translate-y-1 active:scale-95 ${validation.hasErrors
-                      ? 'bg-gray-300 dark:bg-slate-800 shadow-none hover:-translate-y-0 cursor-not-allowed'
+                      ? 'bg-gray-300 dark:bg-cosmos-surface-elevated shadow-none hover:-translate-y-0 cursor-not-allowed text-gray-500'
                       : 'bg-sky-600 hover:bg-sky-700 shadow-sky-500/30'
                       }`}
                   >
@@ -652,20 +652,20 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
             </div >
           ) : (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
-              <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800">
+              <div className="bg-white dark:bg-cosmos-surface/90 backdrop-blur-xl rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-cosmos-border">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex gap-4 min-w-0">
                     <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 shrink-0">
                       <CheckCircle2 className="w-6 h-6" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-extrabold text-gray-900 dark:text-gray-100">信息复核</h3>
-                      <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                      <h3 className="font-extrabold text-gray-900 dark:text-cosmos-text-primary">信息复核</h3>
+                      <div className="mt-1 text-sm text-gray-600 dark:text-cosmos-text-secondary">
                         乘机人：{normalizeName(passengers[0]?.name || '-')}
                         {passengers.length > 1 ? ` 等 ${passengers.length} 人` : ''}
                       </div>
-                      <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-500">手机号：{contact.phone.trim() || '-'}</div>
-                      <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-500">邮箱：{contact.email.trim() || '-'}</div>
+                      <div className="mt-0.5 text-xs text-gray-500 dark:text-cosmos-text-muted">手机号：{contact.phone.trim() || '-'}</div>
+                      <div className="mt-0.5 text-xs text-gray-500 dark:text-cosmos-text-muted">邮箱：{contact.email.trim() || '-'}</div>
                     </div>
                   </div>
                   <button
@@ -681,12 +681,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
 
                 <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {passengers.map((p, idx) => (
-                    <div key={idx} className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/40 p-4">
+                    <div key={idx} className="rounded-2xl border border-gray-100 dark:border-cosmos-border bg-gray-50/60 dark:bg-cosmos-surface-elevated/40 p-4">
                       <div className="flex items-center justify-between">
-                        <div className="font-extrabold text-gray-900 dark:text-gray-100 truncate">{normalizeName(p.name) || `乘机人 ${idx + 1}`}</div>
-                        <div className="text-xs font-bold text-gray-500 dark:text-gray-400">{p.type === 'child' ? '儿童' : '成人'}</div>
+                        <div className="font-extrabold text-gray-900 dark:text-cosmos-text-primary truncate">{normalizeName(p.name) || `乘机人 ${idx + 1}`}</div>
+                        <div className="text-xs font-bold text-gray-500 dark:text-cosmos-text-muted">{p.type === 'child' ? '儿童' : '成人'}</div>
                       </div>
-                      <div className="mt-1 text-xs text-gray-500 dark:text-gray-500 font-mono break-all">
+                      <div className="mt-1 text-xs text-gray-500 dark:text-cosmos-text-muted/70 font-mono break-all">
                         {normalizeIdCard(p.idCard) ? `身份证：${normalizeIdCard(p.idCard).slice(0, 6)}********${normalizeIdCard(p.idCard).slice(-4)}` : '身份证：-'}
                       </div>
                     </div>
@@ -694,59 +694,59 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-100 dark:border-slate-800 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800/50 dark:to-slate-900 flex items-center gap-3">
+              <div className="bg-white dark:bg-cosmos-surface/90 backdrop-blur-xl rounded-3xl shadow-sm border border-gray-100 dark:border-cosmos-border overflow-hidden">
+                <div className="px-8 py-6 border-b border-gray-100 dark:border-cosmos-border bg-gradient-to-r from-gray-50 to-white dark:from-cosmos-surface-elevated/50 dark:to-cosmos-surface flex items-center gap-3">
                   <div className="bg-orange-500 p-2 rounded-xl text-white shadow-lg shadow-orange-500/20">
                     <Wallet className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-extrabold text-gray-900 dark:text-gray-100">选择支付方式</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">支付安全由平台保障</p>
+                    <h2 className="text-lg font-extrabold text-gray-900 dark:text-cosmos-text-primary">选择支付方式</h2>
+                    <p className="text-xs text-gray-500 dark:text-cosmos-text-muted">支付安全由平台保障</p>
                   </div>
                 </div>
 
                 <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <button
                     onClick={() => setPaymentMethod('alipay')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'alipay' ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-900/20' : 'border-gray-100 dark:border-slate-800 hover:border-sky-200 dark:hover:border-sky-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'alipay' ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-900/20 shadow-lg shadow-sky-500/10' : 'border-gray-100 dark:border-cosmos-border hover:border-sky-200 dark:hover:border-sky-800 hover:bg-gray-50 dark:hover:bg-cosmos-surface-elevated/50'}`}
                   >
                     {paymentMethod === 'alipay' && <div className="absolute top-3 right-3 text-sky-500"><CheckCircle2 className="w-5 h-5" /></div>}
-                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm flex items-center justify-center p-2">
+                    <div className="w-12 h-12 bg-white dark:bg-cosmos-surface rounded-xl shadow-sm flex items-center justify-center p-2 border dark:border-cosmos-border">
                       <QrCode className="w-8 h-8 text-sky-500" />
                     </div>
-                    <span className={`font-extrabold ${paymentMethod === 'alipay' ? 'text-sky-700 dark:text-sky-400' : 'text-gray-600 dark:text-gray-400'}`}>支付宝</span>
+                    <span className={`font-extrabold ${paymentMethod === 'alipay' ? 'text-sky-700 dark:text-sky-400' : 'text-gray-600 dark:text-cosmos-text-muted'}`}>支付宝</span>
                   </button>
 
                   <button
                     onClick={() => setPaymentMethod('wechat')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'wechat' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20' : 'border-gray-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'wechat' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-lg shadow-emerald-500/10' : 'border-gray-100 dark:border-cosmos-border hover:border-emerald-200 dark:hover:border-emerald-800 hover:bg-gray-50 dark:hover:bg-cosmos-surface-elevated/50'}`}
                   >
                     {paymentMethod === 'wechat' && <div className="absolute top-3 right-3 text-emerald-500"><CheckCircle2 className="w-5 h-5" /></div>}
-                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm flex items-center justify-center p-2">
+                    <div className="w-12 h-12 bg-white dark:bg-cosmos-surface rounded-xl shadow-sm flex items-center justify-center p-2 border dark:border-cosmos-border">
                       <Smartphone className="w-8 h-8 text-emerald-600" />
                     </div>
-                    <span className={`font-extrabold ${paymentMethod === 'wechat' ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`}>微信支付</span>
+                    <span className={`font-extrabold ${paymentMethod === 'wechat' ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-600 dark:text-cosmos-text-muted'}`}>微信支付</span>
                   </button>
 
                   <button
                     onClick={() => setPaymentMethod('credit_card')}
-                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'credit_card' ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20' : 'border-gray-100 dark:border-slate-800 hover:border-purple-200 dark:hover:border-purple-800 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${paymentMethod === 'credit_card' ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20 shadow-lg shadow-purple-500/10' : 'border-gray-100 dark:border-cosmos-border hover:border-purple-200 dark:hover:border-purple-800 hover:bg-gray-50 dark:hover:bg-cosmos-surface-elevated/50'}`}
                   >
                     {paymentMethod === 'credit_card' && <div className="absolute top-3 right-3 text-purple-500"><CheckCircle2 className="w-5 h-5" /></div>}
-                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-sm flex items-center justify-center p-2">
+                    <div className="w-12 h-12 bg-white dark:bg-cosmos-surface rounded-xl shadow-sm flex items-center justify-center p-2 border dark:border-cosmos-border">
                       <CreditCard className="w-8 h-8 text-purple-600" />
                     </div>
-                    <span className={`font-extrabold ${paymentMethod === 'credit_card' ? 'text-purple-700 dark:text-purple-400' : 'text-gray-600 dark:text-gray-400'}`}>信用卡/银联</span>
+                    <span className={`font-extrabold ${paymentMethod === 'credit_card' ? 'text-purple-700 dark:text-purple-400' : 'text-gray-600 dark:text-cosmos-text-muted'}`}>信用卡/银联</span>
                   </button>
                 </div>
 
-                <div className="px-8 py-6 bg-gray-50 dark:bg-slate-800/60 border-t border-gray-100 dark:border-slate-800 flex justify-between items-center">
+                <div className="px-8 py-6 bg-gray-50 dark:bg-cosmos-surface-elevated/60 border-t border-gray-100 dark:border-cosmos-border flex justify-between items-center">
                   <button
                     onClick={() => {
                       setStep(1);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="text-gray-600 dark:text-gray-400 font-extrabold text-sm hover:text-gray-900 dark:hover:text-gray-100 px-4 py-2 rounded-xl hover:bg-gray-200/50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-2"
+                    className="text-gray-600 dark:text-cosmos-text-muted font-extrabold text-sm hover:text-gray-900 dark:hover:text-cosmos-text-primary px-4 py-2 rounded-xl hover:bg-gray-200/50 dark:hover:bg-cosmos-surface/50 transition-colors flex items-center gap-2"
                   >
                     <ArrowLeft className="w-4 h-4" /> 返回上一步
                   </button>

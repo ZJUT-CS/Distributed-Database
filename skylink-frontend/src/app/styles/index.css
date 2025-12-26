@@ -12,3 +12,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white dark:bg-cosmos-bg text-gray-900 dark:text-cosmos-text-primary transition-colors duration-300;
+  }
+}
