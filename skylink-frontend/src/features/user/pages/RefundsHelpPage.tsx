@@ -169,9 +169,9 @@ const RefundsHelpPage: React.FC = () => {
         <div className="absolute -bottom-56 -left-40 h-[560px] w-[560px] rounded-full bg-indigo-200/20 blur-3xl" />
       </div>
 
-      <div className="relative overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 text-white shadow-xl shadow-sky-500/15 mb-6">
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-sky-200/25 blur-3xl" />
+      <div className="relative overflow-hidden rounded-3xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-950 text-white shadow-xl shadow-sky-500/15 dark:shadow-indigo-950/50 mb-6">
+        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/15 dark:bg-sky-500/10 blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-sky-200/25 dark:bg-indigo-500/10 blur-3xl" />
         <div className="relative p-6 sm:p-7">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -205,25 +205,25 @@ const RefundsHelpPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur p-4 rounded-2xl border border-sky-100 dark:border-gray-700 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-white/90 dark:bg-cosmos-surface/90 backdrop-blur p-4 rounded-2xl border border-sky-100 dark:border-cosmos-border shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between transition-all duration-300">
         <div className="relative flex-1 md:max-w-md w-full">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-cosmos-text-muted" />
           <input
             type="text"
             placeholder="搜索申请单号、订单号或类型..."
-            className="pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 dark:text-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none w-full transition-all"
+            className="pl-10 pr-4 py-2 bg-white dark:bg-cosmos-surface-elevated border border-gray-200 dark:border-cosmos-border dark:text-cosmos-text-primary rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none w-full transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-          <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-sm whitespace-nowrap">
+          <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-cosmos-border text-gray-600 dark:text-cosmos-text-secondary hover:bg-gray-50 dark:hover:bg-cosmos-surface-elevated rounded-lg text-sm whitespace-nowrap transition-colors">
             <Filter className="w-4 h-4" />
             <span className="hidden sm:inline">筛选</span>
           </button>
-          <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 hidden md:block" />
-          <div className="flex bg-gray-100 p-1 rounded-lg">
+          <div className="h-6 w-px bg-gray-200 dark:bg-cosmos-border hidden md:block" />
+          <div className="flex bg-gray-100 dark:bg-cosmos-surface-elevated p-1 rounded-lg border dark:border-cosmos-border">
             {[
               { id: 'pending', label: '待审核' },
               { id: 'approved', label: '已通过' },
@@ -233,7 +233,9 @@ const RefundsHelpPage: React.FC = () => {
               <button
                 key={opt.id}
                 onClick={() => setStatusFilter(opt.id as AuditStatus | 'all')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${statusFilter === opt.id ? 'bg-white dark:bg-sky-600 text-sky-700 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${statusFilter === opt.id
+                  ? 'bg-white text-sky-700 shadow-sm dark:bg-sky-600 dark:text-white'
+                  : 'text-gray-500 dark:text-cosmos-text-muted hover:text-gray-700 dark:hover:text-cosmos-text-secondary'
                   }`}
               >
                 {opt.label}
@@ -243,15 +245,15 @@ const RefundsHelpPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="mt-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="mt-6 bg-white dark:bg-cosmos-surface rounded-2xl shadow-sm border border-gray-100 dark:border-cosmos-border overflow-hidden transition-all duration-300">
         {loading && (
-          <div className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">加载中...</div>
+          <div className="px-6 py-4 text-sm text-gray-500 dark:text-cosmos-text-muted border-b border-gray-100 dark:border-cosmos-border">加载中...</div>
         )}
         {error && (
           <div className="px-6 py-4 text-sm text-red-600 dark:text-red-400 border-b border-red-100 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/20">{error}</div>
         )}
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50/50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-300 font-medium border-b border-gray-100 dark:border-gray-700">
+          <thead className="bg-gray-50/50 dark:bg-cosmos-surface-elevated/50 text-gray-500 dark:text-cosmos-text-muted font-medium border-b border-gray-100 dark:border-cosmos-border">
             <tr>
               <th className="px-6 py-4">申请单号</th>
               <th className="px-6 py-4">订单号</th>
@@ -358,8 +360,8 @@ const RefundsHelpPage: React.FC = () => {
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
                       className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${currentPage === pageNum
-                          ? 'bg-sky-600 text-white'
-                          : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+                        ? 'bg-sky-600 text-white'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
                         }`}
                     >
                       {pageNum}
@@ -382,37 +384,37 @@ const RefundsHelpPage: React.FC = () => {
       {/* Re-apply Modal */}
       {isModalOpen && editingRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-6 sm:p-8 animate-scale-up">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg shadow-2xl p-6 sm:p-8 animate-scale-up border border-gray-100 dark:border-slate-800">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
               重新提交申请
             </h3>
-            <div className="mb-4 p-3 bg-red-50 rounded-xl border border-red-100 text-xs text-red-700">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-900/30 text-xs text-red-700 dark:text-red-400">
               <span className="font-bold">上次拒绝原因：</span> 证件信息不符（模拟数据）
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
+                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">
                   {editingRecord.type === '退票' ? '退票原因' : '改签原因'}
                 </label>
                 <textarea
                   value={editReason}
                   onChange={(e) => setEditReason(e.target.value)}
                   placeholder="请详细描述您的原因..."
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm min-h-[100px]"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-blue-500 dark:text-white outline-none text-sm min-h-[100px]"
                 />
               </div>
 
               {editingRecord.type === '改签' && (
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
+                  <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">
                     期望变更的航班
                   </label>
                   <input
                     value={editNewFlight}
                     onChange={(e) => setEditNewFlight(e.target.value)}
                     placeholder="例如：2025-01-01 CA1234"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-blue-500 dark:text-white outline-none text-sm"
                   />
                 </div>
               )}
@@ -421,7 +423,7 @@ const RefundsHelpPage: React.FC = () => {
             <div className="flex items-center gap-3 mt-8">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-all"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-300 font-bold hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
               >
                 取消
               </button>

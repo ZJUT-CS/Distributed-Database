@@ -350,14 +350,14 @@ const UserCenterPage: React.FC = () => {
   return (
     <div className="relative animate-fade-in-up mt-8 w-full max-w-screen-2xl mx-auto mb-20 px-4 sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-[520px] w-[520px] rounded-full bg-sky-200/35 blur-3xl" />
-        <div className="absolute -bottom-52 -left-48 h-[560px] w-[560px] rounded-full bg-indigo-200/25 blur-3xl" />
-        <div className="absolute top-1/3 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-blue-200/20 blur-3xl" />
+        <div className="absolute -top-40 -right-40 h-[520px] w-[520px] rounded-full bg-sky-200/35 dark:bg-blue-600/20 blur-3xl opacity-20 dark:opacity-40" />
+        <div className="absolute -bottom-52 -left-48 h-[560px] w-[560px] rounded-full bg-indigo-200/25 dark:bg-indigo-600/20 blur-3xl opacity-20 dark:opacity-40" />
+        <div className="absolute top-1/3 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-blue-200/20 dark:bg-azure-400/10 blur-3xl opacity-20 dark:opacity-30" />
       </div>
 
-      <div className="relative overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 text-white shadow-xl shadow-sky-500/15 mb-6">
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-sky-200/25 blur-3xl" />
+      <div className="relative overflow-hidden rounded-3xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 dark:from-cosmos-bg dark:via-cosmos-surface dark:to-indigo-950 text-white shadow-xl shadow-sky-500/15 dark:shadow-indigo-950/50 mb-6 font-primary transition-all duration-500">
+        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/10 dark:bg-sky-500/10 blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-sky-200/20 dark:bg-indigo-500/10 blur-3xl" />
         <div className="relative p-6 sm:p-7">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -386,7 +386,7 @@ const UserCenterPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] xl:grid-cols-[420px_1fr] gap-6">
-        <div className="rounded-3xl border border-sky-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-sm overflow-hidden">
+        <div className="rounded-3xl border border-sky-100 dark:border-cosmos-border bg-white/90 dark:bg-cosmos-surface/90 backdrop-blur shadow-sm overflow-hidden">
           <div className="p-6">
             <div className="flex items-center gap-4">
               <div className={`w-14 h-14 rounded-2xl ${avatarColor} flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-sky-500/20`}>
@@ -416,48 +416,48 @@ const UserCenterPage: React.FC = () => {
             )}
 
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-sky-100 dark:border-slate-800 bg-sky-50/70 dark:bg-slate-800/70 p-4">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
+              <div className="rounded-2xl border border-sky-100 dark:border-cosmos-border bg-sky-50/70 dark:bg-cosmos-surface-elevated/70 p-4 transition-all duration-300">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-cosmos-text-muted">
                   <div className="flex items-center gap-2">
                     <Lock className="w-4 h-4 text-sky-500" />
                     身份证号
                   </div>
                   {isVerified && <ShieldCheck className="w-4 h-4 text-emerald-500" />}
                 </div>
-                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100 break-all">{user.idCard ? maskIdCard(user.idCard) : '未实名认证'}</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-cosmos-text-primary break-all">{user.idCard ? maskIdCard(user.idCard) : '未实名认证'}</div>
               </div>
-              <div className="rounded-2xl border border-sky-100 dark:border-slate-800 bg-sky-50/70 dark:bg-slate-800/70 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
+              <div className="rounded-2xl border border-sky-100 dark:border-cosmos-border bg-sky-50/70 dark:bg-cosmos-surface-elevated/70 p-4 transition-all duration-300">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-cosmos-text-muted">
                   <Phone className="w-4 h-4 text-sky-500" />
                   手机号
                 </div>
-                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{maskPhone(user.phoneNumber)}</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-cosmos-text-primary">{maskPhone(user.phoneNumber)}</div>
               </div>
-              <div className="rounded-2xl border border-sky-100 dark:border-slate-800 bg-sky-50/70 dark:bg-slate-800/70 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
+              <div className="rounded-2xl border border-sky-100 dark:border-cosmos-border bg-sky-50/70 dark:bg-cosmos-surface-elevated/70 p-4 transition-all duration-300">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-cosmos-text-muted">
                   <Mail className="w-4 h-4 text-sky-500" />
                   邮箱
                 </div>
-                <div className={`mt-1 text-sm font-semibold ${user.email ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}>{user.email || '未绑定'}</div>
+                <div className={`mt-1 text-sm font-semibold ${user.email ? 'text-slate-900 dark:text-cosmos-text-primary' : 'text-slate-400 dark:text-cosmos-text-muted'}`}>{user.email || '未绑定'}</div>
               </div>
-              <div className="rounded-2xl border border-sky-100 dark:border-slate-800 bg-sky-50/70 dark:bg-slate-800/70 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
+              <div className="rounded-2xl border border-sky-100 dark:border-cosmos-border bg-sky-50/70 dark:bg-cosmos-surface-elevated/70 p-4 transition-all duration-300">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-cosmos-text-muted">
                   <CalendarDays className="w-4 h-4 text-sky-500" />
                   注册天数
                 </div>
-                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getRegisterDays(user.createdAt)} 天</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-cosmos-text-primary">{getRegisterDays(user.createdAt)} 天</div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-3xl border border-sky-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-sm overflow-hidden">
+        <div className="rounded-3xl border border-sky-100 dark:border-cosmos-border bg-white/90 dark:bg-cosmos-surface/90 backdrop-blur shadow-sm overflow-hidden">
           <div className="px-6 pt-6">
-            <div className="grid grid-cols-2 bg-sky-50 dark:bg-slate-800 p-1 rounded-2xl w-full sm:w-[360px] border border-sky-100 dark:border-slate-700">
+            <div className="grid grid-cols-2 bg-sky-50 dark:bg-cosmos-surface-elevated p-1 rounded-2xl w-full sm:w-[360px] border border-sky-100 dark:border-cosmos-border">
               <button
                 type="button"
                 onClick={() => handleTabChange('profile')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'profile' ? 'bg-white dark:bg-slate-700 text-sky-700 dark:text-sky-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'profile' ? 'bg-white dark:bg-cosmos-surface text-sky-700 dark:text-sky-300 shadow-sm' : 'text-slate-500 dark:text-cosmos-text-muted hover:text-slate-700 dark:hover:text-cosmos-text-secondary'
                   }`}
               >
                 基本资料
@@ -465,7 +465,7 @@ const UserCenterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleTabChange('security')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'security' ? 'bg-white dark:bg-slate-700 text-sky-700 dark:text-sky-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'security' ? 'bg-white dark:bg-cosmos-surface text-sky-700 dark:text-sky-300 shadow-sm' : 'text-slate-500 dark:text-cosmos-text-muted hover:text-slate-700 dark:hover:text-cosmos-text-secondary'
                   }`}
               >
                 账号安全
@@ -475,9 +475,9 @@ const UserCenterPage: React.FC = () => {
 
           {activeTab === 'profile' && (
             <div className="p-6 sm:p-8 space-y-6">
-              <div className="rounded-3xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-                <div className="px-6 py-4 bg-sky-50/70 dark:bg-slate-800/70 border-b border-sky-100 dark:border-slate-800 flex items-center justify-between">
-                  <div className="font-bold text-gray-900 dark:text-slate-100">实名认证</div>
+              <div className="rounded-3xl border border-sky-100 dark:border-cosmos-border bg-white dark:bg-cosmos-surface overflow-hidden">
+                <div className="px-6 py-4 bg-sky-50/70 dark:bg-cosmos-surface-elevated/70 border-b border-sky-100 dark:border-cosmos-border flex items-center justify-between">
+                  <div className="font-bold text-gray-900 dark:text-cosmos-text-primary">实名认证</div>
                   {isVerified ? (
                     <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                       <ShieldCheck className="w-3 h-3" /> 已认证
@@ -503,13 +503,13 @@ const UserCenterPage: React.FC = () => {
                           value={realNameDraft}
                           onChange={(e) => setRealNameDraft(e.target.value)}
                           readOnly={isVerified}
-                          className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none ${isVerified
-                            ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed'
-                            : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500 dark:text-slate-100'
+                          className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none transition-all duration-300 ${isVerified
+                            ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed dark:bg-cosmos-surface-elevated/40 dark:border-cosmos-border/50 dark:text-cosmos-text-muted'
+                            : 'bg-white border-gray-200 focus:ring-2 focus:ring-sky-500 dark:bg-cosmos-surface-elevated dark:border-cosmos-border dark:text-cosmos-text-primary dark:focus:ring-sky-900/50'
                             }`}
                           placeholder="请输入真实姓名"
                         />
-                        {isVerified && <Lock className="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2" />}
+                        {isVerified && <Lock className="w-4 h-4 text-gray-400 dark:text-cosmos-text-muted absolute right-4 top-1/2 -translate-y-1/2" />}
                       </div>
                     </div>
                     <div>
@@ -524,13 +524,13 @@ const UserCenterPage: React.FC = () => {
                           value={isVerified ? maskIdCard(idCardDraft) : idCardDraft}
                           onChange={(e) => setIdCardDraft(e.target.value)}
                           readOnly={isVerified}
-                          className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none ${isVerified
-                            ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed'
-                            : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500 dark:text-slate-100'
-                            } ${idCardError ? 'border-red-300 focus:ring-red-200' : ''}`}
+                          className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none transition-all duration-300 ${isVerified
+                            ? 'bg-gray-50 border-gray-200 text-gray-700 cursor-not-allowed dark:bg-cosmos-surface-elevated/40 dark:border-cosmos-border/50 dark:text-cosmos-text-muted'
+                            : 'bg-white border-gray-200 focus:ring-2 focus:ring-sky-500 dark:bg-cosmos-surface-elevated dark:border-cosmos-border dark:text-cosmos-text-primary dark:focus:ring-sky-900/50'
+                            } ${idCardError ? 'border-red-300 focus:ring-red-200 dark:border-red-900/50' : ''}`}
                           placeholder="请输入 18 位身份证号"
                         />
-                        {isVerified && <Lock className="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2" />}
+                        {isVerified && <Lock className="w-4 h-4 text-gray-400 dark:text-cosmos-text-muted absolute right-4 top-1/2 -translate-y-1/2" />}
                       </div>
                       {idCardError && <div className="mt-2 text-xs text-red-600">{idCardError}</div>}
                     </div>
@@ -553,8 +553,8 @@ const UserCenterPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-                <div className="px-6 py-4 bg-sky-50/70 dark:bg-slate-800/70 border-b border-sky-100 dark:border-slate-800 font-bold text-gray-900 dark:text-slate-100">基本资料</div>
+              <div className="rounded-3xl border border-sky-100 dark:border-cosmos-border bg-white dark:bg-cosmos-surface overflow-hidden">
+                <div className="px-6 py-4 bg-sky-50/70 dark:bg-cosmos-surface-elevated/70 border-b border-sky-100 dark:border-cosmos-border font-bold text-gray-900 dark:text-cosmos-text-primary">基本资料</div>
                 <div className="p-6 space-y-5">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
@@ -579,9 +579,9 @@ const UserCenterPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setGenderDraft(1)}
-                        className={`rounded-2xl border px-4 py-3 text-left transition-all ${genderDraft === 1
-                          ? 'border-blue-200 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
+                        className={`rounded-2xl border px-4 py-3 text-left transition-all duration-300 ${genderDraft === 1
+                          ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-sky-500/50 dark:bg-sky-900/30 dark:text-sky-300 shadow-sm dark:shadow-cosmos-glow/20'
+                          : 'border-gray-200 dark:border-cosmos-border bg-white dark:bg-cosmos-surface-elevated text-gray-700 dark:text-cosmos-text-primary hover:bg-gray-50 dark:hover:bg-cosmos-surface/30'
                           }`}
                       >
                         <div className="text-sm font-bold">🚹 男</div>
@@ -590,9 +590,9 @@ const UserCenterPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setGenderDraft(2)}
-                        className={`rounded-2xl border px-4 py-3 text-left transition-all ${genderDraft === 2
-                          ? 'border-pink-200 bg-pink-50 text-pink-700'
-                          : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
+                        className={`rounded-2xl border px-4 py-3 text-left transition-all duration-300 ${genderDraft === 2
+                          ? 'border-pink-200 bg-pink-50 text-pink-700 dark:border-rose-500/50 dark:bg-rose-900/20 dark:text-rose-300 shadow-sm dark:shadow-cosmos-glow/20'
+                          : 'border-gray-200 dark:border-cosmos-border bg-white dark:bg-cosmos-surface-elevated text-gray-700 dark:text-cosmos-text-primary hover:bg-gray-50 dark:hover:bg-cosmos-surface/30'
                           }`}
                       >
                         <div className="text-sm font-bold">🚺 女</div>
@@ -619,8 +619,8 @@ const UserCenterPage: React.FC = () => {
 
           {activeTab === 'security' && (
             <div className="p-6 sm:p-8 space-y-6">
-              <div className="rounded-3xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-                <div className="px-6 py-4 bg-sky-50/70 dark:bg-slate-800/70 border-b border-sky-100 dark:border-slate-800 font-bold text-gray-900 dark:text-slate-100">隐私与绑定</div>
+              <div className="rounded-3xl border border-sky-100 dark:border-cosmos-border bg-white dark:bg-cosmos-surface overflow-hidden">
+                <div className="px-6 py-4 bg-sky-50/70 dark:bg-cosmos-surface-elevated/70 border-b border-sky-100 dark:border-cosmos-border font-bold text-gray-900 dark:text-cosmos-text-primary">隐私与绑定</div>
                 <div className="p-6 space-y-5">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
@@ -656,8 +656,8 @@ const UserCenterPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-                <div className="px-6 py-4 bg-sky-50/70 dark:bg-slate-800/70 border-b border-sky-100 dark:border-slate-800 font-bold text-gray-900 dark:text-slate-100">密码管理</div>
+              <div className="rounded-3xl border border-sky-100 dark:border-cosmos-border bg-white dark:bg-cosmos-surface overflow-hidden">
+                <div className="px-6 py-4 bg-sky-50/70 dark:bg-cosmos-surface-elevated/70 border-b border-sky-100 dark:border-cosmos-border font-bold text-gray-900 dark:text-cosmos-text-primary">密码管理</div>
                 <div className="p-6 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-xs font-bold text-gray-500 flex items-center gap-2">
@@ -680,9 +680,9 @@ const UserCenterPage: React.FC = () => {
       </div>
 
       {isEmailModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 sm:p-8">
-            <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{user.email ? '修改邮箱' : '绑定邮箱'}</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cosmos-bg/80 backdrop-blur-sm">
+          <div className="bg-white dark:bg-cosmos-surface rounded-3xl w-full max-w-md shadow-2xl dark:shadow-cosmos-glow/30 p-6 sm:p-8 border dark:border-cosmos-border">
+            <div className="text-lg font-bold text-gray-900 dark:text-cosmos-text-primary">{user.email ? '修改邮箱' : '绑定邮箱'}</div>
             <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">验证码为模拟发送（固定为 123456）</div>
 
             <div className="mt-5 space-y-4">
@@ -740,9 +740,9 @@ const UserCenterPage: React.FC = () => {
       )}
 
       {isPhoneModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 sm:p-8">
-            <div className="text-lg font-bold text-gray-900 dark:text-slate-100">修改手机号</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cosmos-bg/80 backdrop-blur-sm">
+          <div className="bg-white dark:bg-cosmos-surface rounded-3xl w-full max-w-md shadow-2xl dark:shadow-cosmos-glow/30 p-6 sm:p-8 border dark:border-cosmos-border">
+            <div className="text-lg font-bold text-gray-900 dark:text-cosmos-text-primary">修改手机号</div>
             <div className="mt-1 text-sm text-gray-500">验证码为模拟发送（固定为 123456）</div>
 
             <div className="mt-5 space-y-4">
@@ -804,39 +804,36 @@ const UserCenterPage: React.FC = () => {
       )}
 
       {isPasswordModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 sm:p-8">
-            <div className="text-lg font-bold text-gray-900 dark:text-slate-100">重置密码</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cosmos-bg/80 backdrop-blur-sm">
+          <div className="bg-white dark:bg-cosmos-surface rounded-3xl w-full max-w-md shadow-2xl dark:shadow-cosmos-glow/30 p-6 sm:p-8 border dark:border-cosmos-border">
+            <div className="text-lg font-bold text-gray-900 dark:text-cosmos-text-primary">重置密码</div>
             <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">修改成功后将强制退出登录</div>
 
             <div className="mt-5 space-y-4">
               <div>
                 <div className="text-xs font-bold text-gray-500 mb-1 dark:text-gray-400">旧密码</div>
                 <input
-                  type="password"
                   value={oldPassword}
                   onChange={(e) => setOldPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 outline-none text-sm"
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-cosmos-border bg-white dark:bg-cosmos-surface-elevated dark:text-cosmos-text-primary focus:ring-2 focus:ring-sky-500 outline-none text-sm"
                   placeholder="请输入旧密码"
                 />
               </div>
               <div>
                 <div className="text-xs font-bold text-gray-500 mb-1 dark:text-gray-400">新密码</div>
                 <input
-                  type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 outline-none text-sm"
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-cosmos-border bg-white dark:bg-cosmos-surface-elevated dark:text-cosmos-text-primary focus:ring-2 focus:ring-sky-500 outline-none text-sm"
                   placeholder="请输入新密码"
                 />
               </div>
               <div>
                 <div className="text-xs font-bold text-gray-500 mb-1 dark:text-gray-400">确认新密码</div>
                 <input
-                  type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 outline-none text-sm"
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-cosmos-border bg-white dark:bg-cosmos-surface-elevated dark:text-cosmos-text-primary focus:ring-2 focus:ring-sky-500 outline-none text-sm"
                   placeholder="请再次输入新密码"
                 />
               </div>
@@ -846,7 +843,7 @@ const UserCenterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsPasswordModalOpen(false)}
-                className="flex-1 px-4 py-2.5 rounded-2xl border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 font-bold hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-2xl border border-gray-200 dark:border-cosmos-border text-gray-700 dark:text-cosmos-text-secondary font-bold hover:bg-gray-50 dark:hover:bg-cosmos-surface/50 transition-colors"
               >
                 取消
               </button>

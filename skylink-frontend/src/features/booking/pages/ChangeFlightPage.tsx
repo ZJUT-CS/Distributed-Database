@@ -426,36 +426,36 @@ const ChangeFlightPage: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="p-2.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 hover:shadow-sm text-gray-600 transition-all"
+            className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 hover:shadow-sm text-gray-600 dark:text-slate-400 transition-all"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">办理改签</h2>
-            <div className="text-sm text-gray-500 mt-1">订单号：{booking.id}</div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">办理改签</h2>
+            <div className="text-sm text-gray-500 dark:text-slate-400 mt-1">订单号：{booking.id}</div>
           </div>
         </div>
         <button
           type="button"
           onClick={() => navigate('/refunds-help')}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-300 text-sm font-bold hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
         >
           <RefreshCw className="w-4 h-4" /> 退改/售后
         </button>
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 dark:backdrop-blur-xl shadow-sm overflow-hidden">
         <div className="p-6 sm:p-8">
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
-            <span className={`px-2.5 py-1 rounded-full border ${step === 1 ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-gray-50 border-gray-100'}`}>
+          <div className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-slate-400">
+            <span className={`px-2.5 py-1 rounded-full border ${step === 1 ? 'bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400' : 'bg-gray-50 border-gray-100 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-500'}`}>
               1. 选择范围
             </span>
-            <ArrowRight className="w-4 h-4 text-gray-300" />
-            <span className={`px-2.5 py-1 rounded-full border ${step === 2 ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-gray-50 border-gray-100'}`}>
+            <ArrowRight className="w-4 h-4 text-gray-300 dark:text-slate-700" />
+            <span className={`px-2.5 py-1 rounded-full border ${step === 2 ? 'bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400' : 'bg-gray-50 border-gray-100 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-500'}`}>
               2. 选择新航班
             </span>
-            <ArrowRight className="w-4 h-4 text-gray-300" />
-            <span className={`px-2.5 py-1 rounded-full border ${step === 3 ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-gray-50 border-gray-100'}`}>
+            <ArrowRight className="w-4 h-4 text-gray-300 dark:text-slate-700" />
+            <span className={`px-2.5 py-1 rounded-full border ${step === 3 ? 'bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400' : 'bg-gray-50 border-gray-100 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-500'}`}>
               3. 确认提交
             </span>
           </div>
@@ -491,43 +491,43 @@ const ChangeFlightPage: React.FC = () => {
 
             {step === 1 && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                  <div className="text-sm font-extrabold text-gray-900">乘客/张数</div>
-                  <div className="text-xs text-gray-500 mt-1">当前系统按整单改签，人数仅用于差价展示</div>
+                <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
+                  <div className="text-sm font-extrabold text-gray-900 dark:text-white">乘客/张数</div>
+                  <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">当前系统按整单改签，人数仅用于差价展示</div>
                   <div className="mt-4 flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setPassengerCount((n) => Math.max(1, n - 1))}
-                      className="w-10 h-10 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 font-extrabold text-gray-700"
+                      className="w-10 h-10 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 font-extrabold text-gray-700 dark:text-slate-300"
                     >
                       -
                     </button>
-                    <div className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-center font-extrabold text-gray-900">
+                    <div className="flex-1 rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/80 px-4 py-2.5 text-center font-extrabold text-gray-900 dark:text-white">
                       {passengerCount}
                     </div>
                     <button
                       type="button"
                       onClick={() => setPassengerCount((n) => Math.min(9, n + 1))}
-                      className="w-10 h-10 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 font-extrabold text-gray-700"
+                      className="w-10 h-10 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 font-extrabold text-gray-700 dark:text-slate-300"
                     >
                       +
                     </button>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                  <div className="text-sm font-extrabold text-gray-900">选择新日期</div>
+                <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
+                  <div className="text-sm font-extrabold text-gray-900 dark:text-white">选择新日期</div>
                   <input
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
                     min={toDateInputValue(new Date(Date.now() + 24 * 3600000))}
-                    className="mt-4 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="mt-4 w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
 
-                <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                  <div className="text-sm font-extrabold text-gray-900">舱位等级</div>
+                <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
+                  <div className="text-sm font-extrabold text-gray-900 dark:text-white">舱位等级</div>
                   <div className="mt-4 space-y-2">
                     {(['economy', 'business', 'first'] as CabinType[]).map((ct) => (
                       <button
@@ -535,8 +535,8 @@ const ChangeFlightPage: React.FC = () => {
                         type="button"
                         onClick={() => setCabinType(ct)}
                         className={`w-full rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${cabinType === ct
-                          ? 'bg-sky-600 text-white'
-                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                          ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/20'
+                          : 'bg-gray-50 dark:bg-slate-800/80 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
                           }`}
                       >
                         {ct === 'economy' ? '经济舱' : ct === 'business' ? '公务舱' : '头等舱'}
@@ -550,39 +550,39 @@ const ChangeFlightPage: React.FC = () => {
             {step === 2 && (
               <>
                 {flightError && (
-                  <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-700">
+                  <div className="rounded-2xl border border-orange-100 dark:border-orange-900/50 bg-orange-50 dark:bg-orange-900/20 p-4 text-sm text-orange-700 dark:text-orange-400">
                     {flightError}
                   </div>
                 )}
                 {loadingFlights ? (
-                  <div className="text-center py-12 text-gray-500">加载航班中...</div>
+                  <div className="text-center py-12 text-gray-500 dark:text-slate-400">加载航班中...</div>
                 ) : flights.length > 0 ? (
                   <div className="space-y-4">
                     {flights.map((f) => (
                       <div
                         key={f.id}
                         onClick={() => handleSelectFlight(f)}
-                        className="rounded-2xl border border-gray-200 bg-white p-5 cursor-pointer hover:border-sky-300 hover:shadow-sm transition-all"
+                        className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 cursor-pointer hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-sm transition-all"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0 flex-1">
-                            <div className="text-lg font-extrabold text-gray-900 flex items-center gap-2">
-                              <Plane className="w-5 h-5 text-gray-400" />
+                            <div className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                              <Plane className="w-5 h-5 text-gray-400 dark:text-slate-500" />
                               <span className="truncate">
                                 {f.origin} → {f.destination} {f.flightNumber}
                               </span>
                               {f.isInterline && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[10px] font-bold">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-[10px] font-bold">
                                   联程
                                 </span>
                               )}
                             </div>
-                            <div className="text-sm text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
+                            <div className="text-sm text-gray-500 dark:text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
                               <span className="inline-flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
                                 {new Date(f.departureTime).toLocaleString('zh-CN')}
                               </span>
-                              <span className="text-gray-300">·</span>
+                              <span className="text-gray-300 dark:text-slate-700">·</span>
                               <span>票价：¥{formatMoney(f.price)} / 人</span>
                             </div>
                           </div>
@@ -592,14 +592,14 @@ const ChangeFlightPage: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-8 text-center text-gray-500">
+                  <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50 p-8 text-center text-gray-500 dark:text-slate-400">
                     未找到符合条件的航班，请尝试更换日期或目的地
                   </div>
                 )}
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-300 text-sm font-bold hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
                 >
                   <ArrowLeft className="w-4 h-4" /> 返回选择范围
                 </button>
@@ -608,55 +608,55 @@ const ChangeFlightPage: React.FC = () => {
 
             {step === 3 && selectedFlight && (
               <div className="space-y-4">
-                <div className="rounded-2xl border border-sky-100 bg-sky-50 p-5">
-                  <div className="text-xs font-bold text-sky-700">已选择新航班</div>
+                <div className="rounded-2xl border border-sky-100 dark:border-sky-900/30 bg-sky-50 dark:bg-sky-900/10 p-5">
+                  <div className="text-xs font-bold text-sky-700 dark:text-sky-400">已选择新航班</div>
                   <div className="mt-2 flex items-center gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-sky-600 flex-shrink-0" />
+                    <CheckCircle2 className="w-6 h-6 text-sky-600 dark:text-sky-500 flex-shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-base font-extrabold text-gray-900 truncate">
+                      <div className="text-base font-extrabold text-gray-900 dark:text-white truncate">
                         {selectedFlight.origin} → {selectedFlight.destination} {selectedFlight.flightNumber}
                       </div>
-                      <div className="text-sm text-gray-600 mt-1">
+                      <div className="text-sm text-gray-600 dark:text-slate-300 mt-1">
                         {new Date(selectedFlight.departureTime).toLocaleString('zh-CN')}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                  <div className="text-sm font-extrabold text-gray-900 mb-4">费用明细</div>
+                <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+                  <div className="text-sm font-extrabold text-gray-900 dark:text-white mb-4">费用明细</div>
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">原订单单价</span>
-                      <span className="font-bold text-gray-900">¥{formatMoney(oldUnitPrice)}</span>
+                      <span className="text-gray-600 dark:text-slate-400">原订单单价</span>
+                      <span className="font-bold text-gray-900 dark:text-white">¥{formatMoney(oldUnitPrice)}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">新航班单价</span>
-                      <span className="font-bold text-gray-900">¥{formatMoney(selectedFlight.price)}</span>
+                      <span className="text-gray-600 dark:text-slate-400">新航班单价</span>
+                      <span className="font-bold text-gray-900 dark:text-white">¥{formatMoney(selectedFlight.price)}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">差价（单价）</span>
-                      <span className={`font-bold ${diffTotal > 0 ? 'text-orange-600' : diffTotal < 0 ? 'text-sky-700' : 'text-emerald-600'}`}>
+                      <span className="text-gray-600 dark:text-slate-400">差价（单价）</span>
+                      <span className={`font-bold ${diffTotal > 0 ? 'text-orange-600 dark:text-orange-400' : diffTotal < 0 ? 'text-sky-700 dark:text-sky-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                         {diffTotal > 0 ? '+' : ''}¥{formatMoney(diffUnit)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">人数</span>
-                      <span className="font-bold text-gray-900">{passengerCount} 人</span>
+                      <span className="text-gray-600 dark:text-slate-400">人数</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{passengerCount} 人</span>
                     </div>
-                    <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                      <span className="text-gray-600">差价总额</span>
-                      <span className={`font-bold ${diffTotal > 0 ? 'text-orange-600' : diffTotal < 0 ? 'text-sky-700' : 'text-emerald-600'}`}>
+                    <div className="border-t border-gray-100 dark:border-slate-800 pt-3 flex items-center justify-between">
+                      <span className="text-gray-600 dark:text-slate-400">差价总额</span>
+                      <span className={`font-bold ${diffTotal > 0 ? 'text-orange-600 dark:text-orange-400' : diffTotal < 0 ? 'text-sky-700 dark:text-sky-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                         {diffTotal > 0 ? '+' : ''}¥{formatMoney(diffTotal)}
                       </span>
                     </div>
-                    <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                      <span className="text-gray-600">改签手续费</span>
-                      <span className="font-bold text-gray-900">¥{formatMoney(fee)}</span>
+                    <div className="border-t border-gray-100 dark:border-slate-800 pt-3 flex items-center justify-between">
+                      <span className="text-gray-600 dark:text-slate-400">改签手续费</span>
+                      <span className="font-bold text-gray-900 dark:text-white">¥{formatMoney(fee)}</span>
                     </div>
-                    <div className="border-t border-gray-100 pt-3 flex items-center justify-between text-base">
-                      <span className="font-extrabold text-gray-900">应付总额</span>
-                      <span className={`font-extrabold ${totalDue > 0 ? 'text-orange-600' : 'text-sky-700'}`}>
+                    <div className="border-t border-gray-100 dark:border-slate-800 pt-3 flex items-center justify-between text-base">
+                      <span className="font-extrabold text-gray-900 dark:text-white">应付总额</span>
+                      <span className={`font-extrabold ${totalDue > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-sky-700 dark:text-sky-400'}`}>
                         {totalDue > 0 ? '+' : ''}¥{formatMoney(totalDue)}
                       </span>
                     </div>
@@ -669,11 +669,11 @@ const ChangeFlightPage: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mt-8">
                   <button
                     type="button"
                     onClick={() => setStep(2)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-300 text-sm font-bold hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
                   >
                     <ArrowLeft className="w-4 h-4" /> 返回选择航班
                   </button>
@@ -681,7 +681,7 @@ const ChangeFlightPage: React.FC = () => {
                     type="button"
                     onClick={submit}
                     disabled={submitting}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-sky-600 text-white text-sm font-bold hover:bg-sky-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-sky-600 text-white text-sm font-bold hover:bg-sky-700 shadow-lg shadow-sky-600/20 disabled:bg-gray-300 dark:disabled:bg-slate-800 disabled:cursor-not-allowed transition-all"
                   >
                     {submitting ? '提交中...' : '确认改签'}
                   </button>

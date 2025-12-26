@@ -491,7 +491,7 @@ export const BookingDetailsPage: React.FC = () => {
                   const cabinType = booking.flight?.cabinType || booking.flights?.[0]?.cabinType || '';
                   navigate(`/booking/seat-selection?orderId=${encodeURIComponent(booking.id)}&flightId=${encodeURIComponent(flightId)}&cabinType=${encodeURIComponent(cabinType)}`);
                 }}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800 text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all shadow-sm"
               >
                 <Armchair className="w-4 h-4" />
                 在线选座
@@ -545,41 +545,41 @@ export const BookingDetailsPage: React.FC = () => {
       <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
         <div className="p-6 sm:p-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gradient-to-br from-blue-50 to-white dark:from-slate-800 dark:to-slate-900 p-5 transition-colors">
+            <div className="rounded-2xl border border-gray-100 dark:border-cosmos-border bg-gradient-to-br from-blue-50 to-white dark:from-cosmos-surface-elevated/80 dark:to-cosmos-bg p-5 transition-all duration-300">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600 dark:text-slate-400 font-medium">航线</div>
-                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <div className="text-sm text-gray-600 dark:text-cosmos-text-muted font-medium">航线</div>
+                <div className="w-10 h-10 rounded-2xl bg-blue-600 dark:bg-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 dark:shadow-cosmos-glow/20">
                   <Route className="w-5 h-5" />
                 </div>
               </div>
-              <div className="mt-2 text-lg font-bold text-gray-900 dark:text-slate-100 truncate">
+              <div className="mt-2 text-lg font-bold text-gray-900 dark:text-white truncate">
                 {first?.origin || '-'} → {last?.destination || '-'}
               </div>
               <div className="mt-1 text-xs text-gray-500 dark:text-slate-400">共 {flights.length || 0} 段</div>
             </div>
 
-            <div className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-900/10 dark:to-slate-900 p-5 transition-colors">
+            <div className="rounded-2xl border border-gray-100 dark:border-cosmos-border bg-gradient-to-br from-emerald-50 to-white dark:from-cosmos-surface-elevated/80 dark:to-cosmos-bg p-5 transition-all duration-300">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600 dark:text-slate-400 font-medium">乘客</div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <div className="text-sm text-gray-600 dark:text-cosmos-text-muted font-medium">乘客</div>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-600 dark:bg-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20 dark:shadow-cosmos-glow/20">
                   <Ticket className="w-5 h-5" />
                 </div>
               </div>
-              <div className="mt-2 text-lg font-bold text-gray-900 dark:text-slate-100 truncate">{booking.passengerName || '-'}</div>
+              <div className="mt-2 text-lg font-bold text-gray-900 dark:text-white truncate">{booking.passengerName || '-'}</div>
               <div className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                 {(booking.contactEmail || booking.phone) ? `${booking.contactEmail || '-'} ${booking.phone ? `• ${booking.phone}` : ''}` : '-'}
               </div>
               <div className="mt-2 text-xs text-gray-500 dark:text-slate-400">共 {Math.max(1, passengerList.length || 0)} 人</div>
             </div>
 
-            <div className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-900/10 dark:to-slate-900 p-5 transition-colors">
+            <div className="rounded-2xl border border-gray-100 dark:border-cosmos-border bg-gradient-to-br from-indigo-50 to-white dark:from-cosmos-surface-elevated/80 dark:to-cosmos-bg p-5 transition-all duration-300">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600 dark:text-slate-400 font-medium">价格</div>
-                <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <div className="text-sm text-gray-600 dark:text-cosmos-text-muted font-medium">价格</div>
+                <div className="w-10 h-10 rounded-2xl bg-indigo-600 dark:bg-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20 dark:shadow-cosmos-glow/20">
                   <Plane className="w-5 h-5" />
                 </div>
               </div>
-              <div className="mt-2 text-2xl font-bold text-gray-900 dark:text-slate-100">¥{(booking.totalPrice || 0).toLocaleString()}</div>
+              <div className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">¥{(booking.totalPrice || 0).toLocaleString()}</div>
               <div className="mt-1 text-xs text-gray-500 dark:text-slate-400">含税总价</div>
             </div>
           </div>
@@ -672,42 +672,42 @@ export const BookingDetailsPage: React.FC = () => {
             </div>
 
             <div className="p-6 space-y-4">
-              {payError && <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{payError}</div>}
+              {payError && <div className="rounded-2xl border border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">{payError}</div>}
 
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                <div className="text-xs text-gray-500">订单号</div>
-                <div className="font-mono text-sm text-gray-800 mt-1 break-all">{booking.id}</div>
+              <div className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/80 p-4">
+                <div className="text-xs text-gray-500 dark:text-slate-400">订单号</div>
+                <div className="font-mono text-sm text-gray-800 dark:text-slate-200 mt-1 break-all">{booking.id}</div>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <div>
-                    <div className="text-xs text-gray-500">支付金额</div>
-                    <div className="text-lg font-extrabold text-gray-900 mt-0.5">¥{Number(booking.totalPrice || 0).toLocaleString()}</div>
+                    <div className="text-xs text-gray-500 dark:text-slate-400">支付金额</div>
+                    <div className="text-lg font-extrabold text-gray-900 dark:text-white mt-0.5">¥{Number(booking.totalPrice || 0).toLocaleString()}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-500">支付方式</div>
-                    <div className="text-sm font-bold text-gray-900 mt-1">银行卡/信用卡</div>
+                    <div className="text-xs text-gray-500 dark:text-slate-400">支付方式</div>
+                    <div className="text-sm font-bold text-gray-900 dark:text-white mt-1">银行卡/信用卡</div>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-white p-4">
-                <div className="text-sm font-bold text-gray-900">行程摘要</div>
-                <div className="text-sm text-gray-600 mt-2">
+              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-950 p-4">
+                <div className="text-sm font-bold text-gray-900 dark:text-white">行程摘要</div>
+                <div className="text-sm text-gray-600 dark:text-slate-300 mt-2">
                   {first?.origin || '-'} → {last?.destination || '-'}（{flights.length || 0} 段）
                 </div>
-                <div className="text-xs text-gray-500 mt-1">乘客：{booking.passengerName}</div>
+                <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">乘客：{booking.passengerName}</div>
               </div>
 
-              <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 text-xs text-orange-800">
+              <div className="rounded-2xl border border-orange-100 dark:border-orange-900/30 bg-orange-50 dark:bg-orange-900/10 p-4 text-xs text-orange-800 dark:text-orange-400">
                 支付确认令牌有效期 30 分钟，且仅可使用一次。
               </div>
             </div>
 
-            <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex items-center gap-3">
+            <div className="px-6 py-5 bg-gray-50 dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 flex items-center gap-3">
               <button
                 type="button"
                 onClick={closePayModal}
                 disabled={payConfirming}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-100 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-400 font-bold hover:bg-gray-100 dark:hover:bg-slate-800 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 取消
               </button>
@@ -715,7 +715,7 @@ export const BookingDetailsPage: React.FC = () => {
                 type="button"
                 onClick={handleConfirmPay}
                 disabled={payConfirming}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-500/20 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-orange-600 dark:bg-orange-700 text-white font-bold hover:bg-orange-700 dark:hover:bg-orange-800 transition-all shadow-lg shadow-orange-500/20 dark:shadow-orange-950/50 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {payConfirming ? '支付中...' : '确认支付'}
               </button>
@@ -727,43 +727,43 @@ export const BookingDetailsPage: React.FC = () => {
       {refundModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg shadow-2xl animate-scale-up border border-slate-200 dark:border-slate-800">
-            <div className="p-6 border-b border-gray-100">
+            <div className="p-6 border-b border-gray-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center justify-center">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">申请退票</h3>
-                  <p className="text-sm text-gray-500 mt-0.5">订单号 {booking.id}</p>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">申请退票</h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">订单号 {booking.id}</p>
                 </div>
               </div>
             </div>
             <div className="p-6 space-y-4">
-              <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 text-xs text-orange-800">
+              <div className="rounded-2xl border border-orange-100 dark:border-orange-900/30 bg-orange-50 dark:bg-orange-900/10 p-4 text-xs text-orange-800 dark:text-orange-400">
                 <strong>温馨提示：</strong>退票申请提交后将进入人工审核流程，退款金额将根据退票规则扣除相应手续费后原路返还。
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">退票原因 <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">退票原因 <span className="text-red-500">*</span></label>
                 <textarea
                   value={refundReason}
                   onChange={(e) => setRefundReason(e.target.value)}
                   placeholder="请详细描述您的退票原因，以便我们更快处理您的申请..."
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm min-h-[120px] resize-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:text-white outline-none text-sm min-h-[120px] resize-none transition-all"
                 />
               </div>
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+              <div className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/80 p-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">订单金额</span>
-                  <span className="text-lg font-extrabold text-gray-900">¥{Number(booking.totalPrice || 0).toLocaleString()}</span>
+                  <span className="text-sm text-gray-600 dark:text-slate-400">订单金额</span>
+                  <span className="text-lg font-extrabold text-gray-900 dark:text-white">¥{Number(booking.totalPrice || 0).toLocaleString()}</span>
                 </div>
               </div>
             </div>
-            <div className="p-6 border-t border-gray-100 flex items-center gap-3">
+            <div className="p-6 border-t border-gray-100 dark:border-slate-800 flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setRefundModalOpen(false)}
                 disabled={refundApplying}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-all disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-400 font-bold hover:bg-gray-50 dark:hover:bg-slate-800 transition-all disabled:opacity-50"
               >
                 取消
               </button>
@@ -771,7 +771,7 @@ export const BookingDetailsPage: React.FC = () => {
                 type="button"
                 onClick={handleApplyRefund}
                 disabled={refundApplying || !refundReason.trim()}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-500/20 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 dark:bg-red-700 text-white font-bold hover:bg-red-700 dark:hover:bg-red-800 transition-all shadow-lg shadow-red-500/20 dark:shadow-red-950/50 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {refundApplying ? '提交中...' : '确认申请'}
               </button>
