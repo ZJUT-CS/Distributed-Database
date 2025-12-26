@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
+﻿import React, { useState, useCallback } from 'react';
 import { Eye, EyeOff, Copy, Check, Lock } from 'lucide-react';
-import { logger } from '@/lib/logger';
+import { logger } from '@/shared/logger';
 
 export type SensitiveFieldType = 'phone' | 'idCard' | 'email' | 'bankCard' | 'custom';
 

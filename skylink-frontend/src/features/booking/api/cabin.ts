@@ -1,4 +1,4 @@
-import { request } from '../../../lib/axios';
+﻿import { request } from '@/shared/api/axios';
 
 /**
  * 可用舱位配置

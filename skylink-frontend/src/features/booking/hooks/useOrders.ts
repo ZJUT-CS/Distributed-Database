@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { request } from '@/lib/axios';
+﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { request } from '@/shared/api/axios';
 import type { BookingDetails } from '../types';
 import { searchOrders, type OrderSearchResult } from '../api/order';
 

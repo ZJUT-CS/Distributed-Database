@@ -1,4 +1,4 @@
-import { request } from '../../../lib/axios';
+﻿import { request } from '@/shared/api/axios';
 import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '@/config/data/airports';
 import type { Flight } from '../types';
 

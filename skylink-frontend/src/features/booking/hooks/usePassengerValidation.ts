@@ -1,19 +1,14 @@
 import { useMemo } from 'react';
 import type { PassengerInfo } from '../types';
 
+import { normalizeIdCard, normalizeName, isIdCardValid, isPhoneValid, isEmailValid } from '@/shared/utils/validation';
+
 export interface PassengerValidationResult {
   isValid: boolean;
   hasErrors: boolean;
   errors: Record<string, string>;
   isIdCardValid: (v: string) => boolean;
 }
-
-export const normalizeIdCard = (v: string) => v.replace(/\s+/g, '').toUpperCase();
-export const normalizeName = (v: string) => v.replace(/\s+/g, ' ').trim();
-
-export const isIdCardValid = (v: string) => /^\d{17}[\dX]$/.test(normalizeIdCard(v));
-export const isPhoneValid = (v: string) => /^1[3-9]\d{9}$/.test(v.trim());
-export const isEmailValid = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 export const usePassengerValidation = (passengers: PassengerInfo[]) => {
   const validationResult = useMemo(() => {

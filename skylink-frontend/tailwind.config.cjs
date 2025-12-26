@@ -18,6 +18,21 @@ module.exports = {
           purple: '#7c3aed',
           indigo: '#4f46e5',
         },
+        cosmos: {
+          bg: '#020617',
+          surface: {
+            DEFAULT: '#0f172a',
+            elevated: '#1e293b',
+            glass: 'rgba(15, 23, 42, 0.4)',
+            'glass-light': 'rgba(30, 41, 59, 0.4)',
+          },
+          text: {
+            primary: '#f8fafc',
+            secondary: '#cbd5e1',
+            muted: '#94a3b8',
+          },
+          border: 'rgba(255, 255, 255, 0.1)',
+        },
       },
       borderRadius: {
         admin: '0.75rem',
@@ -26,6 +41,8 @@ module.exports = {
       boxShadow: {
         admin: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
         'admin-md': '0 4px 12px -4px rgb(0 0 0 / 0.12)',
+        'cosmos-glow': '0 0 20px rgba(59, 130, 246, 0.2)',
+        'cosmos-glow-lg': '0 0 40px rgba(59, 130, 246, 0.3)',
       },
       fontSize: {
         'admin-base': ['14px', { lineHeight: '20px' }],
@@ -44,6 +61,9 @@ module.exports = {
         'admin-gradient-primary': 'linear-gradient(to right, #2563eb, #4f46e5)',
         'admin-gradient-purple': 'linear-gradient(to right, #7c3aed, #4f46e5)',
         'admin-gradient-indigo': 'linear-gradient(to right, #4f46e5, #2563eb)',
+      },
+      backdropBlur: {
+        'cosmos-xl': '20px',
       },
     },
   },

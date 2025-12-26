@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Calendar, CheckCircle2, Plane, RefreshCw } from 'lucide-react';
 import { type ConfirmedBooking, type PassengerInfo } from '@/features/booking';
 import { type Flight, FlightList } from '@/features/flight';
-import { request } from '@/lib/axios';
+import { request } from '@/shared/api';
 import { applyRefundChange } from '@/features/user/api/refund';
 import { useAuth } from '@/features/auth';
 import { searchOrders, type OrderSearchResult } from '@/features/booking/api/order';
@@ -461,30 +461,30 @@ const ChangeFlightPage: React.FC = () => {
           </div>
 
           <div className="mt-6 space-y-6">
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-              <div className="text-xs font-bold text-gray-500">原行程（将被替换）</div>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:bg-slate-800 dark:border-slate-700">
+              <div className="text-xs font-bold text-gray-500 dark:text-slate-400">原行程（将被替换）</div>
               <div className="mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-lg font-extrabold text-gray-900 flex items-center gap-2">
-                    <Plane className="w-5 h-5 text-gray-400" />
+                  <div className="text-lg font-extrabold text-gray-900 flex items-center gap-2 dark:text-white">
+                    <Plane className="w-5 h-5 text-gray-400 dark:text-slate-500" />
                     <span className="truncate">
                       {oldFlight.origin} → {oldFlight.destination} {oldFlight.flightNumber}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
+                  <div className="text-sm text-gray-500 mt-1 flex items-center gap-2 flex-wrap dark:text-slate-400">
                     <span className="inline-flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       {new Date(oldFlight.departureTime).toLocaleString('zh-CN')}
                     </span>
-                    <span className="text-gray-300">·</span>
+                    <span className="text-gray-300 dark:text-slate-600">·</span>
                     <span>原票价：¥{formatMoney(oldUnitPrice)} / 人</span>
-                    <span className="text-gray-300">·</span>
+                    <span className="text-gray-300 dark:text-slate-600">·</span>
                     <span>默认人数：{passengerCount}</span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-gray-500">订单总价</div>
-                  <div className="text-xl font-extrabold text-gray-900">¥{formatMoney(oldTotal)}</div>
+                  <div className="text-xs text-gray-500 dark:text-slate-400">订单总价</div>
+                  <div className="text-xl font-extrabold text-gray-900 dark:text-white">¥{formatMoney(oldTotal)}</div>
                 </div>
               </div>
             </div>
@@ -535,8 +535,8 @@ const ChangeFlightPage: React.FC = () => {
                         type="button"
                         onClick={() => setCabinType(ct)}
                         className={`w-full rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${cabinType === ct
-                            ? 'bg-sky-600 text-white'
-                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                          ? 'bg-sky-600 text-white'
+                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                           }`}
                       >
                         {ct === 'economy' ? '经济舱' : ct === 'business' ? '公务舱' : '头等舱'}

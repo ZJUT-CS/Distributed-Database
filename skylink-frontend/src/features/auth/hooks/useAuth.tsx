@@ -1,7 +1,7 @@
-import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
+﻿import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import type { User } from '../types';
-import { TOKEN_KEY, USER_KEY, normalizeUserRole, readStoredToken, readStoredUserRaw } from '@/lib/authStorage';
-import { logger } from '@/lib/logger';
+import { TOKEN_KEY, USER_KEY, normalizeUserRole, readStoredToken, readStoredUserRaw } from '@/shared/auth/storage';
+import { logger } from '@/shared/logger';
 
 interface AuthContextType {
   user: User | null;

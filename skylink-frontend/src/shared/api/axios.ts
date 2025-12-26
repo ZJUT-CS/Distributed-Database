@@ -1,6 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import JSONBig from 'json-bigint';
-import { clearStoredToken, readStoredUserHeaderInfo, readStoredToken } from './authStorage';
+import { clearStoredToken, readStoredUserHeaderInfo, readStoredToken } from '@/shared/auth/storage';
 
 const JSONbig = JSONBig({ storeAsString: true });
 

@@ -1,4 +1,4 @@
-import { request, type PageResult } from '../../../lib/axios';
+﻿import { request, type PageResult } from '@/shared/api/axios';
 
 export interface AdminConfigItem {
   configId: number;

@@ -1,10 +1,10 @@
-import React from 'react';
+﻿import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BookingForm, type BookingDetails, type ConfirmedBooking } from '@/features/booking';
 import { type Flight } from '@/features/flight';
 import { useAuth } from '@/features/auth';
 import { createBooking } from '@/features/booking/api/booking';
-import { saveOrderPassengers } from '@/utils/storage';
+import { saveOrderPassengers } from '@/shared/utils/storage';
 import { useToast } from '@/features/admin/components/Toast';
 
 const BookingPage: React.FC = () => {

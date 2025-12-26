@@ -1,0 +1,18 @@
+/* ========== 性能优化工具类 ========== */
+
+/* 启用硬件加速 */
+.gpu-accelerate {
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+/* 延迟加载容器 */
+.lazy-container {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 500px;
+}
+
+/* 优化渲染性能 */
+.optimize-render {
+    contain: layout style paint;
+}

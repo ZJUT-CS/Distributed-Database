@@ -3,7 +3,7 @@
  * 用于确保个人中心和下单页使用相同的校验标准
  */
 
-import { isIdCardValid, normalizeName, normalizeIdCard } from '../features/booking/hooks/usePassengerValidation';
+import { isIdCardValid, normalizeName, normalizeIdCard } from './validation';
 
 export { isIdCardValid, normalizeName, normalizeIdCard };
 

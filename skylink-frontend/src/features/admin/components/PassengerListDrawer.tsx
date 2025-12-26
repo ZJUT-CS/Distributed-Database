@@ -1,9 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
 import { Users, Plane } from 'lucide-react';
 import AdminDrawer from './AdminDrawer';
 import AdminBadge from './AdminBadge';
 import { listFlightPassengers, type FlightPassengerItem } from '../api/flights';
-import { formatDateTimeZhCN } from '@/utils/formatters';
+import { formatDateTimeZhCN } from '@/shared/utils/formatters';
 
 export interface PassengerDrawerProps {
   open: boolean;

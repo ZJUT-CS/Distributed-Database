@@ -1,5 +1,5 @@
-import { GoogleGenAI, Type } from '@google/genai';
-import { logger } from '@/lib/logger';
+﻿import { GoogleGenAI, Type } from '@google/genai';
+import { logger } from '@/shared/logger';
 
 export interface AIRecommendation {
   city: string;

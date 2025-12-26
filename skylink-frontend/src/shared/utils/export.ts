@@ -3,7 +3,7 @@
  * @description 将数据数组导出为 CSV 格式并下载
  */
 
-import { logger } from '@/lib/logger';
+import { logger } from '@/shared/logger';
 
 export interface ExportColumn<T = Record<string, unknown>> {
     /** 数据字段 key */

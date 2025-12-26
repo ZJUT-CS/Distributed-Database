@@ -1,0 +1,9 @@
+/* ========== 骨架屏加载效果 ========== */
+.skeleton {
+    background: linear-gradient(90deg,
+            var(--color-gray-200) 0%,
+            var(--color-gray-100) 50%,
+            var(--color-gray-200) 100%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+}
