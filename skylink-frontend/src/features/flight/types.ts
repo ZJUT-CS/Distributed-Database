@@ -39,6 +39,8 @@ export interface Flight {
     hasMeal: boolean;
     hasWifi: boolean;
     hasEntertainment: boolean;
+    hasPriorityBoarding: boolean;
+    hasLieFlatSeats: boolean;
   };
   aircraft?: string;
 
@@ -93,7 +95,7 @@ export interface MapPoint {
   lat: number;
   lng: number;
   value: number;
-  type: 'hub' | 'normal' | 'origin' | 'destination';
+  type: 'hub' | 'normal' | 'origin' | 'destination' | 'hot';
   info?: string;
 }
 

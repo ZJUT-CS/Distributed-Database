@@ -118,27 +118,54 @@ export async function searchFlights(params: {
   const parseAmenities = (services?: string) => {
     const raw = (services || '').toLowerCase();
     const tokens = raw
-      .split(/[，,;；、\/\|\s]+/)
+      .split(/[，,;；、\/\|\s\+]+/)  // 支持多种分隔符：逗号、分号、顿号、斜杠、竖线、空格、加号
       .map((t) => t.trim())
       .filter(Boolean);
+
+    // Debug log to trace parsing
+    if (services && process.env.NODE_ENV === 'development') {
+      console.log('[parseAmenities] input:', services, '-> tokens:', tokens);
+    }
+
     const includesAny = (t: string, kws: string[]) => kws.some((k) => t.includes(k));
-    const hasPower =
-      tokens.length > 0
-        ? tokens.some((t) => includesAny(t, ['电源', 'power', 'usb', '插座']))
-        : raw.includes('电源') || raw.includes('power') || raw.includes('usb') || raw.includes('插座');
+
+    // 餐食/饮品关键词
     const hasMeal =
       tokens.length > 0
-        ? tokens.some((t) => includesAny(t, ['餐', 'meal', '餐饮', '食']))
-        : raw.includes('餐') || raw.includes('meal') || raw.includes('餐饮') || raw.includes('食');
+        ? tokens.some((t) => includesAny(t, ['餐', 'meal', '餐饮', '食', '饮品', '饮料', '饮']))
+        : raw.includes('餐') || raw.includes('meal') || raw.includes('饮');
+
+    // 电源/USB关键词
+    const hasPower =
+      tokens.length > 0
+        ? tokens.some((t) => includesAny(t, ['电源', 'power', 'usb', '插座', '充电']))
+        : raw.includes('电源') || raw.includes('power') || raw.includes('usb') || raw.includes('充电');
+
+    // WiFi关键词
     const hasWifi =
       tokens.length > 0
-        ? tokens.some((t) => includesAny(t, ['wifi', '无线', 'wi-fi']))
-        : raw.includes('wifi') || raw.includes('无线') || raw.includes('wi-fi');
+        ? tokens.some((t) => includesAny(t, ['wifi', '无线', 'wi-fi', '网络']))
+        : raw.includes('wifi') || raw.includes('无线');
+
+    // 娱乐系统关键词
     const hasEntertainment =
       tokens.length > 0
-        ? tokens.some((t) => includesAny(t, ['娱乐', 'entertainment', '影音']))
+        ? tokens.some((t) => includesAny(t, ['娱乐', 'entertainment', '影音', '电视', '电影']))
         : raw.includes('娱乐') || raw.includes('entertainment') || raw.includes('影音');
-    return { hasPower, hasMeal, hasWifi, hasEntertainment };
+
+    // 优先登机关键词
+    const hasPriorityBoarding =
+      tokens.length > 0
+        ? tokens.some((t) => includesAny(t, ['优先登机', 'priority', 'boarding', '快速登机', '优先']))
+        : raw.includes('优先') || raw.includes('priority') || raw.includes('boarding');
+
+    // 平躺座椅关键词
+    const hasLieFlatSeats =
+      tokens.length > 0
+        ? tokens.some((t) => includesAny(t, ['平躺', 'lie-flat', 'lieflat', 'flat', '全平躺', '躺']))
+        : raw.includes('平躺') || raw.includes('lie-flat') || raw.includes('躺');
+
+    return { hasPower, hasMeal, hasWifi, hasEntertainment, hasPriorityBoarding, hasLieFlatSeats };
   };
 
   // 统一计算并规范化时长，避免负值显示

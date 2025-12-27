@@ -26,6 +26,7 @@ export interface WorldMapRenderProps {
   onPointMouseEnter: (point: MapPoint, rect: DOMRect) => void;
   onPointMouseLeave: () => void;
   onPointDoubleClick?: (point: MapPoint, projected: { x: number; y: number }) => void;
+  onPointClick?: (point: MapPoint, projected: { x: number; y: number }) => void;
 }
 
 export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
@@ -43,6 +44,7 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
   onPointMouseEnter,
   onPointMouseLeave,
   onPointDoubleClick,
+  onPointClick,
 }) => {
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const [viewport, setViewport] = React.useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -256,11 +258,12 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
         <MapPoints
           points={visiblePoints}
           hoveredPoint={hoveredPoint}
-          colors={{ hub: colors.hub, origin: colors.origin, destination: colors.destination }}
+          colors={{ hub: colors.hub, origin: colors.origin, destination: colors.destination, hot: '#ef4444' }}
           isDark={isDark}
           onPointMouseEnter={onPointMouseEnter}
           onPointMouseLeave={onPointMouseLeave}
           onPointDoubleClick={onPointDoubleClick}
+          onPointClick={onPointClick}
         />
       </g>
     </svg>

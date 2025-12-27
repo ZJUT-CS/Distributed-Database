@@ -63,7 +63,7 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
       duration: '',
       stops: 0,
       baggageWeight: 23,
-      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false, hasPriorityBoarding: false, hasLieFlatSeats: false },
     },
     flights: [{
       id: dbFlightId,
@@ -80,7 +80,7 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => {
       duration: '',
       stops: 0,
       baggageWeight: 23,
-      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false, hasPriorityBoarding: false, hasLieFlatSeats: false },
     }],
     status:
       o.orderStatus === ORDER_STATUS.PENDING_PAYMENT
@@ -133,7 +133,7 @@ const mapOrdersToBooking = (orders: OrderSearchResult[]): ConfirmedBooking | nul
       duration: '',
       stops: 0,
       baggageWeight: 23,
-      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false, hasPriorityBoarding: false, hasLieFlatSeats: false },
     };
   });
 

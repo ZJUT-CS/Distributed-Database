@@ -30,5 +30,7 @@ public class BookingFlightDto {
         private boolean hasMeal;
         private boolean hasWifi;
         private boolean hasEntertainment;
+        private boolean hasPriorityBoarding;
+        private boolean hasLieFlatSeats;
     }
 }

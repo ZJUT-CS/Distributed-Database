@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import type { Flight } from '../types';
-import { Plane, ArrowRight, Luggage, Zap, Utensils, Wifi, MonitorPlay } from 'lucide-react';
+import { Plane, ArrowRight, Luggage, Zap, Utensils, Wifi, MonitorPlay, UserCheck, BedDouble } from 'lucide-react';
 import { EmptyStateFlights } from '@/components/common';
 
 interface FlightListProps {
@@ -101,6 +101,8 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
                 <AmenityIcon icon={Utensils} label="提供餐饮" active={flight.amenities.hasMeal} />
                 <AmenityIcon icon={Wifi} label="机上 WiFi" active={flight.amenities.hasWifi} />
                 <AmenityIcon icon={MonitorPlay} label="机上娱乐系统" active={flight.amenities.hasEntertainment} />
+                <AmenityIcon icon={UserCheck} label="优先登机" active={flight.amenities.hasPriorityBoarding} />
+                <AmenityIcon icon={BedDouble} label="平躺座椅" active={flight.amenities.hasLieFlatSeats} />
               </div>
             </div>
           </div>

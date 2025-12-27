@@ -60,6 +60,8 @@ export const generateMockFlights = (origin: string, destination: string, date: s
         hasMeal: true,
         hasWifi: isPremium || Math.random() > 0.5,
         hasEntertainment: isPremium || Math.random() > 0.3,
+        hasPriorityBoarding: false,
+        hasLieFlatSeats: false,
       },
       aircraft: AIRCRAFTS[Math.floor(Math.random() * AIRCRAFTS.length)],
     });

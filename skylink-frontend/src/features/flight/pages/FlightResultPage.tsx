@@ -7,6 +7,7 @@ import { Plane, Filter, MoveRight } from 'lucide-react';
 import { useResolvedTheme } from '@/shared/hooks/useResolvedTheme';
 import { useAuth } from '@/features/auth';
 import { searchFlights } from '@/features/flight/api/search';
+import { getHotCities, type HotCity } from '@/features/flight/api/hotCities';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -54,6 +55,7 @@ const FlightResultPage: React.FC = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [userMapPoints, setUserMapPoints] = useState<MapPoint[]>([]);
   const [userMapRoutes, setUserMapRoutes] = useState<Array<{ from: string; to: string }>>([]);
+  const [hotCities, setHotCities] = useState<HotCity[]>([]);
 
   const fetchFlights = async (orig: string, dest: string, dt: string, cabin?: string) => {
     const o = (orig || '').trim();
@@ -94,6 +96,15 @@ const FlightResultPage: React.FC = () => {
       setTripSegments(segs);
       fetchFlights(origin, destination, date, cabinClass);
     }
+
+    // 获取热门城市数据
+    getHotCities()
+      .then((response) => {
+        setHotCities(response.cities || []);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch hot cities:', err);
+      });
   }, [location.state, urlParams]);
 
   const handleSearch = (params: SearchParams) => {
@@ -353,12 +364,47 @@ const FlightResultPage: React.FC = () => {
   };
 
   const mapData = useMemo(() => getRouteMapData(), [origin, destination]);
-  const mergedMapPoints = useMemo(() => [...mapData.points, ...userMapPoints], [mapData.points, userMapPoints]);
+
+  // 将热门城市转换为地图点（排除当前出发地和目的地）
+  const hotCityPoints = useMemo(() => {
+    return hotCities
+      .filter((city) => city.mainAirport && city.mainAirport !== origin && city.mainAirport !== destination)
+      .map((city): MapPoint | null => {
+        const airport = findAirport(city.mainAirport);
+        if (!airport) return null;
+        return {
+          id: airport.code,
+          name: airport.city || city.cityName,
+          lat: airport.lat,
+          lng: airport.lng,
+          type: 'hot',
+          value: city.dailyDepartures, // 使用每日出发航班数作为权重
+          info: `热门城市 · ${city.dailyDepartures}班/日`,
+        };
+      })
+      .filter((p): p is MapPoint => p !== null);
+  }, [hotCities, origin, destination]);
+
+  const mergedMapPoints = useMemo(() => [...mapData.points, ...userMapPoints, ...hotCityPoints], [mapData.points, userMapPoints, hotCityPoints]);
   const mergedMapRoutes = useMemo(() => [...mapData.routes, ...userMapRoutes], [mapData.routes, userMapRoutes]);
   const heatPoints = useMemo(() => getHeatPoints(), [filteredFlights]);
 
   // 获取当前主题用于地图适配
   const resolvedTheme = useResolvedTheme();
+
+  const handleHotCityClick = (point: MapPoint) => {
+    // 只处理热门城市点击
+    if (point.type !== 'hot') return;
+
+    // 设置新的目的地为点击的城市
+    setDestination(point.id);
+
+    // 触发新的航班搜索
+    fetchFlights(origin, point.id, date, cabinClass);
+
+    // 平滑滚动到航班列表
+    window.scrollTo({ top: 640, behavior: 'smooth' });
+  };
 
   const handleAiRequest = () => {
     if (!user) navigate('/login');
@@ -394,6 +440,7 @@ const FlightResultPage: React.FC = () => {
             setUserMapPoints([]);
             setUserMapRoutes([]);
           }}
+          onPointClick={handleHotCityClick}
         />
 
         <div className={`absolute top-6 left-1/2 -translate-x-1/2 backdrop-blur-md px-6 py-3 rounded-full border shadow-2xl flex items-center gap-8 animate-fade-in-down z-10 pointer-events-none transition-colors duration-500 ${resolvedTheme === 'dark'

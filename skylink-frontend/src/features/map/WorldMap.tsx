@@ -46,6 +46,7 @@ interface WorldMapProps {
   autoFitPaddingPx?: number;
   onReset?: () => void;
   onViewChange?: (view: { scale: number; offset: { x: number; y: number } }) => void;
+  onPointClick?: (point: MapPoint) => void;
   minScale?: number;
   maxScale?: number;
   defaultScale?: number;
@@ -73,6 +74,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
   autoFitPaddingPx,
   onReset,
   onViewChange,
+  onPointClick,
   minScale,
   maxScale,
   defaultScale,
@@ -213,6 +215,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
         onPointDoubleClick={(point: MapPoint, projected: { x: number; y: number }) => {
           focusOnPoint(projected.x, projected.y, 2);
         }}
+        onPointClick={onPointClick ? (point: MapPoint) => onPointClick(point) : undefined}
       />
 
       {enableControls && dragIndicator.active && dragIndicator.strength > 0.01 && (
