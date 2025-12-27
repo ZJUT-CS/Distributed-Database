@@ -1,7 +1,9 @@
 package com.team.skylink.module.booking.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.common.Result;
 import com.team.skylink.common.enums.OrderStatusEnum;
 import com.team.skylink.common.exception.InventoryShortageException;
@@ -176,7 +178,10 @@ public class BookingServiceImpl implements BookingService {
             BigDecimal discountedAmount = totalDiscountedAmount.multiply(ratio).setScale(2, java.math.RoundingMode.HALF_UP);
             
             order.setTotalAmount(discountedAmount);
-            orderMapper.updateById(order);
+            // Avoid updateById to prevent ShardingSphere "Can not update sharding value" error
+            orderMapper.update(null, Wrappers.<Orders>lambdaUpdate()
+                    .eq(Orders::getOrderId, order.getOrderId())
+                    .set(Orders::getTotalAmount, discountedAmount));
             log.info("更新订单金额：orderId={}, 原金额={}, 新金额={}", order.getOrderId(), originalAmount, discountedAmount);
         }
 
