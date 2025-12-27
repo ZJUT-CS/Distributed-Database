@@ -1,6 +1,8 @@
 package com.team.skylink.module.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.common.PageResult;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.admin.dto.AdminUserCreateRequest;
@@ -111,8 +113,13 @@ public class AdminUserServiceImpl implements AdminUserService {
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
 
-        u.setPasswordHash(passwordEncoder.encode(req.getPassword()));
-        int rows = userMapper.updateById(u);
+        // u.setPasswordHash(passwordEncoder.encode(req.getPassword()));
+        // int rows = userMapper.updateById(u);
+        
+        int rows = userMapper.update(null, Wrappers.<User>lambdaUpdate()
+                .eq(User::getUserId, userId)
+                .set(User::getPasswordHash, passwordEncoder.encode(req.getPassword())));
+                
         return Result.ok(rows > 0);
     }
 

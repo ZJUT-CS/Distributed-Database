@@ -1,6 +1,8 @@
 package com.team.skylink.module.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.common.Result;
 import com.team.skylink.module.user.dto.LoginRequest;
 import com.team.skylink.module.user.dto.LoginResponse;
@@ -102,21 +104,29 @@ public class AuthServiceImpl implements AuthService {
         if (userId == null || userId <= 0) return Result.fail(400, "userId is required");
         User u = userMapper.selectById(userId);
         if (u == null) return Result.fail(404, "user not found");
+        
+        LambdaUpdateWrapper<User> uw = Wrappers.lambdaUpdate();
+        uw.eq(User::getUserId, userId);
+        boolean hasUpdate = false;
+
         if (gender != null) {
             int g = gender;
             if (g != 0 && g != 1 && g != 2) return Result.fail(400, "invalid gender");
-            u.setGender(g);
+            uw.set(User::getGender, g);
+            hasUpdate = true;
         }
         if (avatarUrl != null) {
             String v = avatarUrl.trim();
             if (v.length() > 512) return Result.fail(400, "avatarUrl too long");
             if (!v.isEmpty() && !(v.startsWith("http://") || v.startsWith("https://"))) return Result.fail(400, "invalid avatarUrl");
-            u.setAvatarUrl(v.isEmpty() ? null : v);
+            uw.set(User::getAvatarUrl, v.isEmpty() ? null : v);
+            hasUpdate = true;
         }
         if (email != null) {
             String v = email.trim();
             if (!v.isEmpty() && !v.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) return Result.fail(400, "invalid email");
-            u.setEmail(v.isEmpty() ? null : v);
+            uw.set(User::getEmail, v.isEmpty() ? null : v);
+            hasUpdate = true;
         }
         if (realName != null || idCard != null) {
             if (u.getIdCard() != null && !u.getIdCard().isBlank()) return Result.fail(409, "already verified");
@@ -124,12 +134,16 @@ public class AuthServiceImpl implements AuthService {
             String idc = idCard != null ? idCard.trim() : "";
             if (rn.isEmpty() || idc.isEmpty()) return Result.fail(400, "realName and idCard are required");
             if (!idc.matches("^\\d{17}[\\dXx]$")) return Result.fail(400, "invalid idCard");
-            u.setRealName(rn);
-            u.setIdCard(idc.toUpperCase());
+            uw.set(User::getRealName, rn);
+            uw.set(User::getIdCard, idc.toUpperCase());
+            hasUpdate = true;
         }
-        int rows = userMapper.updateById(u);
+        
+        if (!hasUpdate) return Result.ok(u);
+        
+        int rows = userMapper.update(null, uw);
         if (rows <= 0) return Result.fail(500, "update failed");
-        return Result.ok(u);
+        return Result.ok(userMapper.selectById(userId));
     }
 
     @Override
@@ -172,8 +186,13 @@ public class AuthServiceImpl implements AuthService {
         }
         String np = newPassword == null ? "" : newPassword.trim();
         if (np.length() < 6) return Result.fail(400, "password too short");
-        u.setPasswordHash(passwordEncoder.encode(np));
-        int rows = userMapper.updateById(u);
+        // u.setPasswordHash(passwordEncoder.encode(np));
+        // int rows = userMapper.updateById(u);
+        
+        int rows = userMapper.update(null, Wrappers.<User>lambdaUpdate()
+                .eq(User::getUserId, userId)
+                .set(User::getPasswordHash, passwordEncoder.encode(np)));
+                
         return Result.ok(rows > 0);
     }
 }

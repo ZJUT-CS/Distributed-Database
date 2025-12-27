@@ -262,8 +262,13 @@ public class RefundChangeServiceImpl implements RefundChangeService {
              Orders order = orderMapper.selectById(rec.getOrderId());
              
              // Approve logic
-             rec.setAuditStatus(1); // Approved
-             refundChangeRecordMapper.updateById(rec);
+             // rec.setAuditStatus(1); // Approved
+             // refundChangeRecordMapper.updateById(rec);
+             // Use LambdaUpdateWrapper to avoid updating sharding key
+             LambdaUpdateWrapper<RefundChangeRecord> approveUpdate = Wrappers.<RefundChangeRecord>lambdaUpdate()
+                     .eq(RefundChangeRecord::getRecordId, rec.getRecordId())
+                     .set(RefundChangeRecord::getAuditStatus, 1);
+             refundChangeRecordMapper.update(null, approveUpdate);
              
              if (rec.getOperType() == 1) { // Refund
                  seatService.releaseSeats(order.getOrderId());
