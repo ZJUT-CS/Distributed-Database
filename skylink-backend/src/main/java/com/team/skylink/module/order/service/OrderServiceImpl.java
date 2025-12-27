@@ -415,7 +415,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    // 移除 @Transactional 以避免长事务（包含 sleep 重试）以及 UnexpectedRollbackException
+    // changeSeat 内部已使用 REQUIRES_NEW 确保独立事务
     public Result<OrderSearchResponse> selectSeat(Long orderId, Long seatId) {
         log.info("=== 收到选座请求 === orderId={} seatId={}", orderId, seatId);
 
@@ -481,6 +482,17 @@ public class OrderServiceImpl implements OrderService {
                 // 短暂休眠后重试
                 Thread.sleep(50 * (i + 1));
             } catch (Exception e) {
+                // 捕获到异常（如乐观锁失败抛出的 InventoryShortageException）
+                // 检查是否是因为座位状态确实已变
+                if (e.getMessage() != null && e.getMessage().contains("所选座位刚刚被占用")) {
+                     Seat currentSeat = seatService.getById(seatId);
+                     if (currentSeat != null && currentSeat.getStatus() != 1) {
+                         failReason = "很抱歉，该座位刚刚已被其他用户锁定";
+                         log.warn("选座并发冲突(捕获异常): seatId={} status={}", seatId, currentSeat.getStatus());
+                         break;
+                     }
+                }
+                
                 log.error("选座异常重试 {}/{}: {}", i + 1, maxRetries, e.getMessage());
             }
         }

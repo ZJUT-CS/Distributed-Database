@@ -12,6 +12,7 @@ import com.team.skylink.module.order.entity.Orders;
 import com.team.skylink.module.order.mapper.OrderMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
@@ -206,9 +207,88 @@ public class SeatServiceImpl extends ServiceImpl<SeatMapper, Seat> implements Se
     }
     
     @Override
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
     public boolean changeSeat(Long orderId, Long newSeatId) {
-         // 简化版换座：仅做示例，确保不报错
-        return true; 
+        // 1. 获取订单
+        Orders order = orderMapper.selectById(orderId);
+        if (order == null) {
+            log.error("changeSeat failed: Order not found. orderId={}", orderId);
+            return false;
+        }
+
+        // 2. 检查新座位是否可用 (乐观锁前置检查)
+        Seat newSeat = baseMapper.selectById(newSeatId);
+        if (newSeat == null) {
+            log.error("changeSeat failed: New seat not found. seatId={}", newSeatId);
+            return false;
+        }
+        
+        // 允许自己换给自己 (幂等性)
+        if (newSeatId.equals(order.getSeatId())) {
+             return true;
+        }
+
+        if (newSeat.getStatus() != 1) {
+            log.warn("changeSeat failed: New seat is not available. seatId={} status={}", newSeatId, newSeat.getStatus());
+            return false;
+        }
+
+        // 3. 处理旧座位
+        Long oldSeatId = order.getSeatId();
+        int targetStatus = 3; // 默认锁定状态
+        
+        // 如果旧座位存在，优先继承旧座位状态
+        if (oldSeatId != null) {
+            Seat oldSeat = baseMapper.selectById(oldSeatId);
+            if (oldSeat != null) {
+                targetStatus = oldSeat.getStatus(); 
+                
+                // 释放旧座位
+                oldSeat.setStatus(1);
+                oldSeat.setOrderId(null);
+                oldSeat.setUserId(null);
+                oldSeat.setUpdateTime(LocalDateTime.now());
+                baseMapper.updateById(oldSeat);
+            }
+        } else {
+            // 如果没有旧座位，根据订单状态决定
+            // 2=已支付/出票 -> 状态2(OCCUPIED)
+            // 1=待支付 -> 状态3(LOCKED)
+            if (order.getOrderStatus() != null && order.getOrderStatus() == 2) {
+                targetStatus = 2;
+            }
+        }
+
+        // 4. 占用新座位 (使用乐观锁确保并发安全)
+        // update seat set status=?, order_id=?, user_id=? where seat_id=? and status=1
+        boolean success = update(null, Wrappers.<Seat>lambdaUpdate()
+                .eq(Seat::getSeatId, newSeatId)
+                .eq(Seat::getStatus, 1) // 关键：确保它是available的
+                .set(Seat::getStatus, targetStatus)
+                .set(Seat::getOrderId, orderId)
+                .set(Seat::getUserId, order.getUserId())
+                .set(Seat::getUpdateTime, LocalDateTime.now()));
+
+        if (!success) {
+            // 再次查询当前座位状态，以便调试
+            Seat currentDbSeat = baseMapper.selectById(newSeatId);
+            Integer currentStatus = currentDbSeat != null ? currentDbSeat.getStatus() : null;
+            log.warn("changeSeat failed: Optimistic lock failure for seatId={}. Current DB status={}", newSeatId, currentStatus);
+            
+            throw new InventoryShortageException("所选座位刚刚被占用，请重试");
+        }
+
+        // 5. 更新订单关联
+        // order.setSeatId(newSeatId);
+        // orderMapper.updateById(order); 
+        // ⬆️ 原全量更新会触发 ShardingSphere 报错 "Can not update sharding value"，因为 updateById 包含了分片键
+        
+        // 改为只更新 seat_id 字段
+        orderMapper.update(null, Wrappers.<Orders>lambdaUpdate()
+                .eq(Orders::getOrderId, orderId)
+                .set(Orders::getSeatId, newSeatId));
+
+        return true;
     }
 
     private List<String> cabinTypeVariants(String cabinType) {
