@@ -146,13 +146,13 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
   }, [contactSameAsAccount, user?.email, user?.phoneNumber, user?.realName]);
 
   const pricing = useMemo(() => {
+    // 后端搜索价格已包含税费(120/段)，无需前端再计算
     const ticketPerPassenger = flights.reduce((sum, f) => sum + f.price, 0);
     const ticketAmount = ticketPerPassenger * passengerCount;
-    const taxAmount = flights.length * 120 * passengerCount;
     const insuranceAmount = addons.insurance ? 30 * passengerCount : 0;
     const fastTicketAmount = addons.fastTicket ? 20 * passengerCount : 0;
-    const totalAmount = ticketAmount + taxAmount + insuranceAmount + fastTicketAmount;
-    return { ticketPerPassenger, ticketAmount, taxAmount, insuranceAmount, fastTicketAmount, totalAmount };
+    const totalAmount = ticketAmount + insuranceAmount + fastTicketAmount;
+    return { ticketPerPassenger, ticketAmount, insuranceAmount, fastTicketAmount, totalAmount };
   }, [addons.fastTicket, addons.insurance, flights, passengerCount]);
 
   useEffect(() => {
@@ -341,10 +341,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ flights, passengerCount, cabi
             <div className="flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
               <span>机票 (×{passengerCount})</span>
               <span className="font-extrabold">¥{pricing.ticketAmount.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
-              <span>机建燃油 (×{passengerCount})</span>
-              <span className="font-extrabold">¥{pricing.taxAmount.toLocaleString()}</span>
             </div>
             {addons.insurance && (
               <div className="flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">

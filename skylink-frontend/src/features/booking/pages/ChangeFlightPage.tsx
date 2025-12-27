@@ -47,7 +47,7 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => ({
     duration: '',
     stops: 0,
     baggageWeight: 23,
-    amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+    amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false, hasPriorityBoarding: false, hasLieFlatSeats: false },
   },
   flights: [
     {
@@ -65,7 +65,7 @@ const mapOrderToBooking = (o: OrderSearchResult): ConfirmedBooking => ({
       duration: '',
       stops: 0,
       baggageWeight: 23,
-      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+      amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false, hasPriorityBoarding: false, hasLieFlatSeats: false },
     },
   ],
   status:
@@ -270,7 +270,7 @@ const ChangeFlightPage: React.FC = () => {
             duration: r.duration || '',
             stops: 0,
             baggageWeight: 23,
-            amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+            amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false, hasPriorityBoarding: false, hasLieFlatSeats: false },
           } satisfies Flight;
         })
         .filter(Boolean) as Flight[];
@@ -303,7 +303,7 @@ const ChangeFlightPage: React.FC = () => {
             duration: '',
             stops: Math.max(0, segs.length - 1),
             baggageWeight: 23,
-            amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false },
+            amenities: { hasPower: false, hasMeal: true, hasWifi: false, hasEntertainment: false, hasPriorityBoarding: false, hasLieFlatSeats: false },
           } satisfies Flight;
         })
         .filter(Boolean) as Flight[];

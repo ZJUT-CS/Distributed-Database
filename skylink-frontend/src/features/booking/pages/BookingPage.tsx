@@ -55,7 +55,8 @@ const BookingPage: React.FC = () => {
         flightIds: flights.map(f => f.id),
         cabinId,
         passengers,
-        isInterline: flights.length > 1,
+        // ✅ 检查航班对象的 isInterline 属性，而不是数组长度
+        isInterline: flights.some(f => f.isInterline) || flights.length > 1,
         addons: details.addons
       });
 

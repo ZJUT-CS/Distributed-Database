@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import type { Flight } from '../types';
-import { Plane, ArrowRight, Luggage, Zap, Utensils, Wifi, MonitorPlay } from 'lucide-react';
+import { Plane, ArrowRight, Luggage, Zap, Utensils, Wifi, MonitorPlay, UserCheck, BedDouble } from 'lucide-react';
 import { EmptyStateFlights } from '@/components/common';
 
 interface FlightListProps {
@@ -8,9 +8,10 @@ interface FlightListProps {
   onSelect: (flight: Flight) => void;
   renderAction?: (flight: Flight) => React.ReactNode;
   renderPrice?: (flight: Flight) => React.ReactNode;
+  passengerCount?: number;
 }
 
-const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction, renderPrice }) => {
+const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction, renderPrice, passengerCount = 1 }) => {
   useEffect(() => {
     if (flights.length > 0) {
       console.group('✈️ Flight Search Results');
@@ -47,9 +48,9 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
   }) => {
     if (!active) return null;
     return (
-      <div className="group relative">
+      <div className="group/icon relative">
         <Icon className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 cursor-help" />
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20">
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/icon:block z-20">
           <div className="bg-gray-800 dark:bg-gray-900 border border-gray-700 dark:border-gray-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap relative">
             {label}
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800 dark:border-t-gray-900"></div>
@@ -101,6 +102,8 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
                 <AmenityIcon icon={Utensils} label="提供餐饮" active={flight.amenities.hasMeal} />
                 <AmenityIcon icon={Wifi} label="机上 WiFi" active={flight.amenities.hasWifi} />
                 <AmenityIcon icon={MonitorPlay} label="机上娱乐系统" active={flight.amenities.hasEntertainment} />
+                <AmenityIcon icon={UserCheck} label="优先登机" active={flight.amenities.hasPriorityBoarding} />
+                <AmenityIcon icon={BedDouble} label="平躺座椅" active={flight.amenities.hasLieFlatSeats} />
               </div>
             </div>
           </div>
@@ -162,8 +165,8 @@ const FlightList: React.FC<FlightListProps> = ({ flights, onSelect, renderAction
               renderPrice(flight)
             ) : (
               <div className="text-right">
-                <p className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 dark:from-orange-400 dark:to-orange-500 bg-clip-text text-transparent">¥{flight.price.toLocaleString()}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">含税总价</p>
+                <p className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 dark:from-orange-400 dark:to-orange-500 bg-clip-text text-transparent">¥{(flight.price * passengerCount).toLocaleString()}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">含税总价 ({passengerCount}人)</p>
               </div>
             )}
 

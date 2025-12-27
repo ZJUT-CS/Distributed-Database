@@ -56,7 +56,8 @@ public class PaymentServiceImpl implements PaymentService {
 
     private static final ConcurrentHashMap<String, PaymentTokenRecord> PAYMENT_TOKENS = new ConcurrentHashMap<>();
 
-    public PaymentServiceImpl(PaymentMapper paymentMapper, OrderMapper orderMapper, SeatService seatService, SimpMessagingTemplate messagingTemplate) {
+    public PaymentServiceImpl(PaymentMapper paymentMapper, OrderMapper orderMapper, SeatService seatService,
+            SimpMessagingTemplate messagingTemplate) {
         this.paymentMapper = paymentMapper;
         this.orderMapper = orderMapper;
         this.seatService = seatService;
@@ -72,8 +73,7 @@ public class PaymentServiceImpl implements PaymentService {
             LocalDateTime paymentTimeStart,
             LocalDateTime paymentTimeEnd,
             int page,
-            int size
-    ) {
+            int size) {
         QueryWrapper<Payment> qw = new QueryWrapper<>();
         if (orderNo != null) {
             qw.eq("order_id", orderNo);
@@ -101,7 +101,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         Long total = paymentMapper.selectCount(qw);
-        
+
         int offset = (page - 1) * size;
         qw.last("limit " + offset + "," + size);
 
@@ -131,8 +131,7 @@ public class PaymentServiceImpl implements PaymentService {
             LocalDateTime paymentTimeStart,
             LocalDateTime paymentTimeEnd,
             Integer page,
-            Integer size
-    ) {
+            Integer size) {
         int safePage = (page == null || page < 1) ? 1 : page;
         int safeSize = (size == null || size < 1) ? 10 : Math.min(size, 100);
 
@@ -266,7 +265,7 @@ public class PaymentServiceImpl implements PaymentService {
         // 验证请求的订单列表是否包含在 Token 记录的订单列表中（或者完全匹配）
         // 这里简化为：Token 里的订单必须包含请求的订单
         if (!record.orderIds.containsAll(orderIds)) {
-             return Result.fail(400, "orderNo mismatch");
+            return Result.fail(400, "orderNo mismatch");
         }
 
         if (record.amount != null && req.getAmount() != null && record.amount.compareTo(req.getAmount()) != 0) {
@@ -285,14 +284,14 @@ public class PaymentServiceImpl implements PaymentService {
         PAYMENT_TOKENS.remove(req.getToken());
 
         Payment lastPayment = null;
-        String tradeNo = UUID.randomUUID().toString();
         LocalDateTime payTime = LocalDateTime.now();
 
         // 批量处理所有订单
         for (Long orderId : record.orderIds) {
             Orders o = orderMapper.selectById(orderId);
-            if (o == null) continue;
-            
+            if (o == null)
+                continue;
+
             // 如果已支付，跳过
             if (o.getOrderStatus() != null && o.getOrderStatus() == OrderStatusEnum.CONFIRMED.getCode()) {
                 continue;
@@ -308,7 +307,7 @@ public class PaymentServiceImpl implements PaymentService {
             p.setPaymentAmount(o.getTotalAmount()); // 使用订单实际金额
             p.setPaymentMethod(req.getMethod());
             p.setPaymentStatus(1);
-            p.setTradeNo(tradeNo);
+            p.setTradeNo(UUID.randomUUID().toString()); // 为每个订单生成独立的 tradeNo
             p.setPaymentTime(payTime);
             p.setCreateTime(payTime);
             p.setUpdateTime(payTime);
@@ -317,7 +316,7 @@ public class PaymentServiceImpl implements PaymentService {
 
             LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(Orders::getOrderId, o.getOrderId())
-                .set(Orders::getOrderStatus, OrderStatusEnum.CONFIRMED.getCode())
+                    .set(Orders::getOrderStatus, OrderStatusEnum.CONFIRMED.getCode())
                     .set(Orders::getPayTime, payTime);
             orderMapper.update(null, updateWrapper);
 
@@ -330,7 +329,8 @@ public class PaymentServiceImpl implements PaymentService {
 
             try {
                 messagingTemplate.convertAndSend("/topic/orders/" + o.getOrderId(), "PAID");
-            } catch (Exception ignore) {}
+            } catch (Exception ignore) {
+            }
         }
 
         if (lastPayment == null) {
@@ -381,7 +381,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .set(Orders::getOrderStatus, OrderStatusEnum.CONFIRMED.getCode())
                 .set(Orders::getPayTime, now);
         orderMapper.update(null, updateWrapper);
-        
+
         // 确认座位 (锁定 -> 已售)
         if (o.getSeatId() != null) {
             seatService.confirmSeat(o.getSeatId(), o.getOrderId());
@@ -391,8 +391,9 @@ public class PaymentServiceImpl implements PaymentService {
 
         try {
             messagingTemplate.convertAndSend("/topic/orders/" + o.getOrderId(), "PAID");
-        } catch (Exception ignore) {}
-        
+        } catch (Exception ignore) {
+        }
+
         PaymentSearchResponse r = new PaymentSearchResponse();
         r.setPaymentId(String.valueOf(p.getPaymentId()));
         r.setOrderNo(String.valueOf(p.getOrderId()));
@@ -406,7 +407,8 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private Long parseOrderId(String orderNo) {
-        if (orderNo == null || orderNo.isBlank()) return null;
+        if (orderNo == null || orderNo.isBlank())
+            return null;
         try {
             if (orderNo.contains("+")) {
                 // Return first ID for interline composite IDs
@@ -433,4 +435,3 @@ public class PaymentServiceImpl implements PaymentService {
         return ids;
     }
 }
-

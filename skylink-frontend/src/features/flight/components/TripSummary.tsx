@@ -8,9 +8,10 @@ interface TripSummaryProps {
   selectedFlights: Flight[];
   currentLegIndex: number;
   onEditStep: (index: number) => void;
+  passengerCount?: number;
 }
 
-const TripSummary: React.FC<TripSummaryProps> = ({ segments, selectedFlights, currentLegIndex, onEditStep }) => {
+const TripSummary: React.FC<TripSummaryProps> = ({ segments, selectedFlights, currentLegIndex, onEditStep, passengerCount = 1 }) => {
   const getCityName = (code: string) => POPULAR_AIRPORTS.find((a) => a.code === code)?.city || code;
 
   const formatDate = (dateStr: string) => {
@@ -20,7 +21,7 @@ const TripSummary: React.FC<TripSummaryProps> = ({ segments, selectedFlights, cu
 
   const formatTime = (iso: string) => new Date(iso).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
-  const currentTotal = selectedFlights.reduce((acc, curr) => acc + curr.price, 0);
+  const currentTotal = selectedFlights.reduce((acc, curr) => acc + curr.price, 0) * passengerCount;
 
   return (
     <div className="bg-white dark:bg-slate-800/50 rounded-xl shadow-lg border border-blue-100 dark:border-white/10 overflow-hidden mb-6 animate-fade-in-down backdrop-blur-sm">
@@ -33,7 +34,7 @@ const TripSummary: React.FC<TripSummaryProps> = ({ segments, selectedFlights, cu
           <p className="text-xs text-blue-200 mt-0.5">请依次选择您的航班</p>
         </div>
         <div className="text-right">
-          <div className="text-xs text-blue-200">当前总价</div>
+          <div className="text-xs text-blue-200">当前总价 ({passengerCount}人)</div>
           <div className="font-bold text-xl text-yellow-400">¥{currentTotal.toLocaleString()}</div>
         </div>
       </div>
