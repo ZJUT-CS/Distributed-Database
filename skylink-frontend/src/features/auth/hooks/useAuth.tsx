@@ -34,6 +34,10 @@ const parseStoredUser = (): { user: User | null; token: string | null } => {
       role: normalizeUserRole(parsed.role),
       adminRole: parsed.adminRole ?? parsed.admin_role ?? parsed.roleId ?? parsed.role_id,
       createdAt: parsed.createdAt,
+      avatarUrl: parsed.avatarUrl,
+      realName: parsed.realName,
+      idCard: parsed.idCard,
+      gender: parsed.gender,
     };
 
     return { user, token };
@@ -109,6 +113,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: user?.role || 'user',  // 保留原值或默认 user
           adminRole: user?.adminRole,
           createdAt: profile.createTime ?? user?.createdAt,
+          // 头像
+          avatarUrl: profile.avatarUrl ?? undefined,
           // 实名认证关键字段
           realName: profile.realName ?? undefined,
           idCard: profile.idCard ?? undefined,
@@ -119,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
       }
     } catch (error) {
-        logger.error('Failed to refresh user from server, falling back to localStorage', error);
+      logger.error('Failed to refresh user from server, falling back to localStorage', error);
       // 降级：从 localStorage 读取
       const { user: storedUser, token: storedToken } = parseStoredUser();
       setUser(storedUser);
