@@ -64,7 +64,7 @@ const Footer: React.FC = () => {
             <div className="hidden md:block w-px h-5 bg-slate-200 dark:bg-slate-700"></div>
 
             <div className="flex items-center gap-2">
-              <a href="#" className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 transition-colors" title="Github">
+              <a href="https://github.com/ZJUT-CS/Distributed-Database" target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 transition-colors" title="Github">
                 <Github className="w-4 h-4" />
               </a>
               <ThemeToggle />

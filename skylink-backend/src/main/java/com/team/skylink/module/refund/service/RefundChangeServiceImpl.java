@@ -20,6 +20,7 @@ import com.team.skylink.module.refund.dto.RefundChangeSearchResponse;
 import com.team.skylink.module.refund.entity.RefundChangeRecord;
 import com.team.skylink.module.refund.mapper.RefundChangeRecordMapper;
 import com.team.skylink.module.user.mapper.UserMapper;
+import com.team.skylink.module.order.service.PriceStrategyService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +40,7 @@ public class RefundChangeServiceImpl implements RefundChangeService {
     private final RefundChangeRecordMapper refundChangeRecordMapper;
     private final UserMapper userMapper;
     private final SeatService seatService;
+    private final PriceStrategyService priceStrategyService;
 
     public RefundChangeServiceImpl(
             OrderMapper orderMapper,
@@ -48,7 +50,8 @@ public class RefundChangeServiceImpl implements RefundChangeService {
             RouteMapper routeMapper,
             RefundChangeRecordMapper refundChangeRecordMapper,
             UserMapper userMapper,
-            SeatService seatService
+            SeatService seatService,
+            PriceStrategyService priceStrategyService
     ) {
         this.orderMapper = orderMapper;
         this.paymentMapper = paymentMapper;
@@ -58,6 +61,7 @@ public class RefundChangeServiceImpl implements RefundChangeService {
         this.refundChangeRecordMapper = refundChangeRecordMapper;
         this.userMapper = userMapper;
         this.seatService = seatService;
+        this.priceStrategyService = priceStrategyService;
     }
 
     @Override
@@ -167,22 +171,40 @@ public class RefundChangeServiceImpl implements RefundChangeService {
                 return Result.fail(400, "改签必须完全匹配原订单航段数量 (Interline change requires matching segments)");
             }
 
+            // Build newCabinTypes (support single and interline)
+            List<String> newCabinTypes = req.getNewCabinTypes();
+            if (newCabinTypes == null || newCabinTypes.isEmpty()) {
+                if (req.getNewCabinType() != null) {
+                    newCabinTypes = new ArrayList<>();
+                    for (int i = 0; i < newFlightIds.size(); i++) {
+                        newCabinTypes.add(req.getNewCabinType());
+                    }
+                } else {
+                    return Result.fail(400, "改签必须提供 newCabinType 或 newCabinTypes");
+                }
+            }
+
+            if (newCabinTypes.size() != newFlightIds.size()) {
+                return Result.fail(400, "newCabinTypes 长度必须与 newFlightIds 一致");
+            }
+
             // Look up flights and configs
             for (int i = 0; i < newFlightIds.size(); i++) {
                 Long fId = newFlightIds.get(i);
+                String cabinType = newCabinTypes.get(i);
                 Flight nf = fId != null ? flightMapper.selectById(fId) : null;
                 if (nf == null) return Result.fail(404, "New flight not found: " + fId);
 
                 AircraftCabinConfig nc = configMapper.selectOne(Wrappers.<AircraftCabinConfig>lambdaQuery()
                         .eq(AircraftCabinConfig::getModelId, nf.getModelId())
-                        .eq(AircraftCabinConfig::getCabinType, req.getNewCabinType())
+                        .eq(AircraftCabinConfig::getCabinType, cabinType)
                         .last("LIMIT 1"));
-                if (nc == null) return Result.fail(404, "New cabin config not found for flightId: " + fId);
+                if (nc == null) return Result.fail(404, "New cabin config not found for flightId: " + fId + ", cabinType: " + cabinType);
 
                 // Check inventory
                 Integer avail = seatService.getAvailableCount(nf.getFlightId(), nc.getCabinType());
                 if (avail < targetOrders.get(i).getTicketNum()) {
-                    return Result.fail(409, "Insufficient seats in new flightId: " + fId);
+                    return Result.fail(409, "Insufficient seats in new flightId: " + fId + ", cabinType: " + cabinType);
                 }
                 newFlights.add(nf);
                 newConfigs.add(nc);
@@ -270,18 +292,34 @@ public class RefundChangeServiceImpl implements RefundChangeService {
                  order.setOrderStatus(5); // Refunded
                  order.setRefundTime(now);
              } else { // Change
+                 Flight oldFlight = flightMapper.selectById(order.getFlightId());
+                 Flight newFlight = flightMapper.selectById(rec.getNewFlightId());
+                 AircraftCabinConfig oldConfig = configMapper.selectById(order.getCabinId());
+                 AircraftCabinConfig newConfig = configMapper.selectById(rec.getNewCabinId());
+                 Route oldRoute = oldFlight != null ? routeMapper.selectById(oldFlight.getRouteId()) : null;
+                 Route newRoute = newFlight != null ? routeMapper.selectById(newFlight.getRouteId()) : null;
+
+                 if (oldFlight == null || newFlight == null || oldConfig == null || newConfig == null || oldRoute == null || newRoute == null) {
+                     throw new RuntimeException("Change failed for order " + order.getOrderId() + ": Missing flight/config/route data");
+                 }
+
+                 boolean isInterline = order.getParentOrderId() != null;
+                 BigDecimal newSegmentPrice = priceStrategyService.calculateSegmentPrice(newFlight, newRoute, newConfig, isInterline, order.getUserId());
+                 BigDecimal newTotalAmount = newSegmentPrice.multiply(new BigDecimal(order.getTicketNum()));
+
                  // 1. Release old
                  seatService.releaseSeats(order.getOrderId());
-                 
+
                  // 2. Lock new
                  try {
                      Long newSeatId = seatService.lockRandomSeat(rec.getNewFlightId(), rec.getNewCabinId(), order.getUserId());
-                     // Associate
                      seatService.associateOrder(order.getUserId(), java.util.Collections.singletonList(newSeatId), order.getOrderId());
                      LambdaUpdateWrapper<Orders> changeUpdate = Wrappers.<Orders>lambdaUpdate()
                              .eq(Orders::getOrderId, order.getOrderId())
+                             .set(Orders::getFlightId, rec.getNewFlightId())
                              .set(Orders::getCabinId, rec.getNewCabinId())
                              .set(Orders::getSeatId, newSeatId)
+                             .set(Orders::getTotalAmount, newTotalAmount)
                              .set(Orders::getOrderStatus, 1)
                              .set(Orders::getChangeTime, now);
                      orderMapper.update(null, changeUpdate);

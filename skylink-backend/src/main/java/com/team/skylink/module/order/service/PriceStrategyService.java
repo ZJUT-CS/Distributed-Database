@@ -42,10 +42,8 @@ public class PriceStrategyService {
         }
         BigDecimal price = basePrice;
 
-        // L2: Bundle Layer (Interline Discount)
-        if (isInterline) {
-            price = price.multiply(new BigDecimal("0.90")); // 9折
-        }
+        // L2: Bundle Layer (Interline Discount) - Moved to applyInterlineDiscount for proper handling
+        // Interline discount is now applied at the total price level, not per segment
 
         // L3: Dynamic Layer
         BigDecimal dynamicMultiplier = BigDecimal.ONE;
@@ -93,6 +91,16 @@ public class PriceStrategyService {
     }
 
     /**
+     * Apply L2 Interline Discount (Once per interline order total)
+     * @param totalPrice Total price of the interline order (sum of all segments)
+     * @return Final price after interline discount
+     */
+    public BigDecimal applyInterlineDiscount(BigDecimal totalPrice) {
+        totalPrice = totalPrice.multiply(new BigDecimal("0.90"));
+        return totalPrice.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    /**
      * Apply L4 User Discount (Once per order)
      * @param totalPrice Total price of the order (sum of segments)
      * @param isNewUser Whether user is new
@@ -100,9 +108,8 @@ public class PriceStrategyService {
      */
     public BigDecimal applyUserDiscount(BigDecimal totalPrice, boolean isNewUser) {
         if (isNewUser) {
-            totalPrice = totalPrice.multiply(new BigDecimal("0.90")); // 9折
+            totalPrice = totalPrice.multiply(new BigDecimal("0.90"));
         }
-        // Rounding (2 decimal places)
         return totalPrice.setScale(2, java.math.RoundingMode.HALF_UP);
     }
 }

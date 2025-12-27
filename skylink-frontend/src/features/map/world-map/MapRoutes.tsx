@@ -29,10 +29,16 @@ export const MapRoutes: React.FC<MapRoutesProps> = ({ routes, points, isDragging
         const pathD = buildArcPath(start, end);
 
         const isActive = route.active === true;
-        const strokeOpacity = isActive ? 0.35 : 0.2;
-        const dashOpacity = isActive ? 1 : 0.8;
-        const strokeWidthBase = isActive ? 3 : 2;
-        const dashWidth = isActive ? 4 : 3;
+        const isMain = route.routeLevel === 'MAIN' || !route.routeLevel;
+        const isRegional = route.routeLevel === 'REGIONAL';
+
+        const strokeOpacity = isMain ? (isActive ? 0.45 : 0.3) : (isActive ? 0.4 : 0.3);
+        const dashOpacity = isMain ? (isActive ? 1 : 0.9) : (isActive ? 0.95 : 0.85);
+        const strokeWidthBase = isMain ? (isActive ? 3.5 : 2.5) : (isActive ? 3 : 2.5);
+        const dashWidth = isMain ? (isActive ? 4.5 : 3.5) : (isActive ? 4 : 3);
+
+        // 联程航线使用亮橙色，增加对比度
+        const routeColor = isRegional ? (isDark ? '#fb923c' : '#f97316') : colors.routeStroke;
 
         return (
           <g key={`route-special-${idx}`}>
@@ -41,19 +47,19 @@ export const MapRoutes: React.FC<MapRoutesProps> = ({ routes, points, isDragging
                 <path
                   d={pathD}
                   fill="none"
-                  stroke={colors.routeStroke}
-                  strokeWidth={strokeWidthBase + 4}
+                  stroke={routeColor}
+                  strokeWidth={strokeWidthBase + 6}
                   strokeLinecap="round"
-                  opacity={0.1}
+                  opacity={isMain ? 0.15 : 0.1}
                   filter="url(#glow-lg)"
                 />
                 <path
                   d={pathD}
                   fill="none"
-                  stroke={colors.routeStroke}
-                  strokeWidth={strokeWidthBase + 2}
+                  stroke={routeColor}
+                  strokeWidth={strokeWidthBase + 3}
                   strokeLinecap="round"
-                  opacity={0.2}
+                  opacity={isMain ? 0.25 : 0.15}
                   filter="url(#glow-md)"
                 />
               </>
@@ -62,36 +68,38 @@ export const MapRoutes: React.FC<MapRoutesProps> = ({ routes, points, isDragging
             <path
               d={pathD}
               fill="none"
-              stroke={colors.routeStroke}
+              stroke={routeColor}
               strokeWidth={strokeWidthBase}
               strokeLinecap="round"
               opacity={strokeOpacity}
+              strokeDasharray={isRegional ? '6,4' : undefined}
+              markerEnd={isRegional ? 'url(#arrow-orange)' : undefined}
             />
 
             <path
               d={pathD}
               fill="none"
-              stroke={colors.routeStroke}
+              stroke={routeColor}
               strokeWidth={dashWidth}
               strokeLinecap="round"
-              strokeDasharray="10, 300"
+              strokeDasharray={isMain ? '12, 300' : '8, 200'}
               opacity={dashOpacity}
               filter={isDark ? 'url(#glow)' : ''}
               style={{
-                animation: 'dash-flow 3s linear infinite',
+                animation: isMain ? 'dash-flow 3s linear infinite' : 'dash-flow 4s linear infinite',
                 animationPlayState: isDragging ? 'paused' : 'running',
               }}
             />
 
-            {isDark && (
+            {isDark && isMain && (
               <path
                 d={pathD}
                 fill="none"
                 stroke="url(#sweep-gradient)"
                 strokeWidth={dashWidth}
                 strokeLinecap="round"
-                strokeDasharray="50, 500"
-                opacity={0.6}
+                strokeDasharray="60, 600"
+                opacity={0.7}
                 style={{
                   animation: 'dash-flow 4s linear infinite',
                   animationPlayState: isDragging ? 'paused' : 'running',
@@ -102,7 +110,7 @@ export const MapRoutes: React.FC<MapRoutesProps> = ({ routes, points, isDragging
             <g
               style={{
                 offsetPath: `path("${pathD}")`,
-                animation: 'fly-path 6s ease-in-out infinite',
+                animation: isMain ? 'fly-path 6s ease-in-out infinite' : 'fly-path 10s ease-in-out infinite',
                 animationPlayState: isDragging ? 'paused' : 'running',
                 offsetRotate: 'auto',
               }}
@@ -110,8 +118,8 @@ export const MapRoutes: React.FC<MapRoutesProps> = ({ routes, points, isDragging
               <g transform="translate(-6,-6)">
                 <path
                   d="M14 8 L6 2 L7 7 L2 8 L7 9 L6 14 Z"
-                  fill={colors.planeFill}
-                  opacity={0.95}
+                  fill={isRegional ? (isDark ? '#fdba74' : '#fb923c') : colors.planeFill}
+                  opacity={isMain ? 0.95 : 0.7}
                   filter={isDark ? 'url(#glow)' : ''}
                 />
               </g>

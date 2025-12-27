@@ -14,6 +14,19 @@ export const MapDefs: React.FC<MapDefsProps> = ({ isDark, gridColor }) => {
         <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2" />
       </linearGradient>
 
+      {/* 橙色联程箭头 Marker */}
+      <marker
+        id="arrow-orange"
+        viewBox="0 0 10 10"
+        refX="5"
+        refY="5"
+        markerWidth="6"
+        markerHeight="6"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b" />
+      </marker>
+
       <filter id="glow-sm" x="-30%" y="-30%" width="160%" height="160%">
         <feGaussianBlur stdDeviation="1.5" result="blur" />
         <feComposite in="SourceGraphic" in2="blur" operator="over" />

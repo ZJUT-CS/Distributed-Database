@@ -116,8 +116,9 @@ public class BookingServiceImpl implements BookingService {
         Long userId = req.getUserId();
 
         List<String> orderIdStrs = new ArrayList<>();
+        List<Long> createdOrderIds = new ArrayList<>();
 
-        // 【修改点】 循环处理每一段航班：锁座 -> 建单 -> 关联
+        // 【修改点】 第一阶段：锁座 -> 建单 -> 关联（暂不应用联程折扣）
         for (int i = 0; i < flightIds.size(); i++) {
             Long flightId = flightIds.get(i);
 
@@ -145,6 +146,7 @@ public class BookingServiceImpl implements BookingService {
             // 2. 生成订单 ID
             long orderId = IdWorker.getId();
             orderIdStrs.add(String.valueOf(orderId));
+            createdOrderIds.add(orderId);
 
             // 3. 关联订单ID到座位
             List<Long> seatIds = lockedSeats.stream().map(Seat::getSeatId).collect(Collectors.toList());
@@ -153,6 +155,29 @@ public class BookingServiceImpl implements BookingService {
             // 4. 保存订单到数据库 (tripType: 1=去程/第一段, 2=返程/第二段)
             saveSingleOrder(userId, flightId, req.getCabinId(), parentOrderId,
                     i == 0 ? 1 : 2, passengersJson, passengerCount, orderId, lockedSeats, req.getAddons());
+        }
+
+        // 【新增】 第二阶段：计算联程折扣，更新所有子订单金额
+        BigDecimal totalOriginalAmount = BigDecimal.ZERO;
+        List<Orders> orders = orderMapper.selectBatchIds(createdOrderIds);
+        Map<Long, BigDecimal> orderIdToOriginalAmount = new HashMap<>();
+
+        for (Orders order : orders) {
+            orderIdToOriginalAmount.put(order.getOrderId(), order.getTotalAmount());
+            totalOriginalAmount = totalOriginalAmount.add(order.getTotalAmount());
+        }
+
+        BigDecimal totalDiscountedAmount = priceStrategyService.applyInterlineDiscount(totalOriginalAmount);
+        log.info("联程折扣应用：原总价={}, 折扣后总价={}", totalOriginalAmount, totalDiscountedAmount);
+
+        for (Orders order : orders) {
+            BigDecimal originalAmount = orderIdToOriginalAmount.get(order.getOrderId());
+            BigDecimal ratio = originalAmount.divide(totalOriginalAmount, 4, java.math.RoundingMode.HALF_UP);
+            BigDecimal discountedAmount = totalDiscountedAmount.multiply(ratio).setScale(2, java.math.RoundingMode.HALF_UP);
+            
+            order.setTotalAmount(discountedAmount);
+            orderMapper.updateById(order);
+            log.info("更新订单金额：orderId={}, 原金额={}, 新金额={}", order.getOrderId(), originalAmount, discountedAmount);
         }
 
         Map<String, Object> res = new HashMap<>();

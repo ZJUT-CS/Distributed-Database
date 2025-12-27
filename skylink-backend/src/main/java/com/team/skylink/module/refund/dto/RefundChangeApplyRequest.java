@@ -27,7 +27,17 @@ public class RefundChangeApplyRequest {
      * 兼容字段（只读/过渡）：旧前端传 newFlightNo，不再允许用于改签写入。
      */
     private String newFlightNo;
+
+    /**
+     * 改签目标舱位类型（单段）：economy/business/first
+     */
     private String newCabinType;
+
+    /**
+     * 改签目标舱位类型（联程）：长度需与 newFlightIds 一致
+     */
+    private java.util.List<String> newCabinTypes;
+
     private String remark;
 }
 

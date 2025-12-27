@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.team.skylink.common.PageResult;
 import com.team.skylink.common.Result;
-import com.team.skylink.common.PageResult;
 import com.team.skylink.common.enums.OrderStatusEnum;
 import com.team.skylink.module.flight.service.SeatService;
 import com.team.skylink.module.order.entity.Orders;
@@ -29,6 +28,7 @@ import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Service
 public class PaymentServiceImpl implements PaymentService {
     private final PaymentMapper paymentMapper;
@@ -219,6 +219,8 @@ public class PaymentServiceImpl implements PaymentService {
             return Result.fail(400, "invalid orderNo format");
         }
 
+        log.info("createConfirmToken: orderNo={}, 解析得到的订单ID列表={}", req.getOrderNo(), orderIds);
+
         List<Orders> ordersList = orderMapper.selectBatchIds(orderIds);
         if (ordersList.size() != orderIds.size()) {
             return Result.fail(404, "some orders not found");
@@ -232,7 +234,10 @@ public class PaymentServiceImpl implements PaymentService {
             if (o.getTotalAmount() != null) {
                 totalAmount = totalAmount.add(o.getTotalAmount());
             }
+            log.info("订单详情：orderId={}, totalAmount={}, parentOrderId={}", o.getOrderId(), o.getTotalAmount(), o.getParentOrderId());
         }
+
+        log.info("createConfirmToken: orderNo={}, 订单数量={}, 累加总金额={}", req.getOrderNo(), ordersList.size(), totalAmount);
 
         if (req.getAmount() != null && totalAmount.compareTo(req.getAmount()) != 0) {
             return Result.fail(400, "amount mismatch. Expected: " + totalAmount + ", Got: " + req.getAmount());
@@ -253,6 +258,8 @@ public class PaymentServiceImpl implements PaymentService {
             return Result.fail(400, "invalid orderNo format");
         }
 
+        log.info("confirmPay: orderNo={}, 解析得到的订单ID列表={}", req.getOrderNo(), orderIds);
+
         PaymentTokenRecord record = PAYMENT_TOKENS.get(req.getToken());
         if (record == null) {
             return Result.fail(400, "invalid token");
@@ -262,8 +269,6 @@ public class PaymentServiceImpl implements PaymentService {
             PAYMENT_TOKENS.remove(req.getToken());
             return Result.fail(400, "token expired");
         }
-        // 验证请求的订单列表是否包含在 Token 记录的订单列表中（或者完全匹配）
-        // 这里简化为：Token 里的订单必须包含请求的订单
         if (!record.orderIds.containsAll(orderIds)) {
             return Result.fail(400, "orderNo mismatch");
         }
@@ -275,6 +280,8 @@ public class PaymentServiceImpl implements PaymentService {
             return Result.fail(400, "timestamp mismatch");
         }
 
+        log.info("confirmPay: Token记录 - orderIds={}, amount={}", record.orderIds, record.amount);
+
         synchronized (record) {
             if (record.used) {
                 return Result.fail(409, "token already used");
@@ -285,14 +292,13 @@ public class PaymentServiceImpl implements PaymentService {
 
         Payment lastPayment = null;
         LocalDateTime payTime = LocalDateTime.now();
+        BigDecimal actualPaidAmount = BigDecimal.ZERO;
 
-        // 批量处理所有订单
         for (Long orderId : record.orderIds) {
             Orders o = orderMapper.selectById(orderId);
             if (o == null)
                 continue;
 
-            // 如果已支付，跳过
             if (o.getOrderStatus() != null && o.getOrderStatus() == OrderStatusEnum.CONFIRMED.getCode()) {
                 continue;
             }
@@ -304,15 +310,17 @@ public class PaymentServiceImpl implements PaymentService {
 
             Payment p = new Payment();
             p.setOrderId(o.getOrderId());
-            p.setPaymentAmount(o.getTotalAmount()); // 使用订单实际金额
+            p.setPaymentAmount(o.getTotalAmount());
             p.setPaymentMethod(req.getMethod());
             p.setPaymentStatus(1);
-            p.setTradeNo(UUID.randomUUID().toString()); // 为每个订单生成独立的 tradeNo
+            p.setTradeNo(UUID.randomUUID().toString());
             p.setPaymentTime(payTime);
             p.setCreateTime(payTime);
             p.setUpdateTime(payTime);
             paymentMapper.insert(p);
             lastPayment = p;
+            actualPaidAmount = actualPaidAmount.add(o.getTotalAmount());
+            log.info("订单支付成功：orderId={}, totalAmount={}, parentOrderId={}", o.getOrderId(), o.getTotalAmount(), o.getParentOrderId());
 
             LambdaUpdateWrapper<Orders> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(Orders::getOrderId, o.getOrderId())
@@ -320,7 +328,6 @@ public class PaymentServiceImpl implements PaymentService {
                     .set(Orders::getPayTime, payTime);
             orderMapper.update(null, updateWrapper);
 
-            // 确认座位 (锁定 -> 已售)
             if (o.getSeatId() != null) {
                 seatService.confirmSeat(o.getSeatId(), o.getOrderId());
             } else {
@@ -332,6 +339,8 @@ public class PaymentServiceImpl implements PaymentService {
             } catch (Exception ignore) {
             }
         }
+
+        log.info("confirmPay完成: orderNo={}, 订单数量={}, 实际支付总金额={}", req.getOrderNo(), record.orderIds.size(), actualPaidAmount);
 
         if (lastPayment == null) {
             return Result.fail(409, "all orders already paid or not found");
@@ -424,10 +433,33 @@ public class PaymentServiceImpl implements PaymentService {
         if (orderNo == null || orderNo.isBlank()) {
             return Collections.emptyList();
         }
+        
         List<Long> ids = new ArrayList<>();
         try {
-            for (String part : orderNo.split("\\+")) {
-                ids.add(Long.parseLong(part.trim()));
+            if (orderNo.contains("+")) {
+                for (String part : orderNo.split("\\+")) {
+                    ids.add(Long.parseLong(part.trim()));
+                }
+            } else {
+                Long singleOrderId = Long.parseLong(orderNo.trim());
+                Orders order = orderMapper.selectById(singleOrderId);
+                if (order != null) {
+                    if (order.getParentOrderId() != null) {
+                        return Collections.singletonList(singleOrderId);
+                    }
+                    List<Orders> childOrders = orderMapper.selectList(
+                        new QueryWrapper<Orders>().eq("parent_order_id", singleOrderId)
+                    );
+                    if (!childOrders.isEmpty()) {
+                        for (Orders child : childOrders) {
+                            ids.add(child.getOrderId());
+                        }
+                    } else {
+                        ids.add(singleOrderId);
+                    }
+                } else {
+                    ids.add(singleOrderId);
+                }
             }
         } catch (NumberFormatException e) {
             return Collections.emptyList();

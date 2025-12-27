@@ -345,27 +345,60 @@ const FlightResultPage: React.FC = () => {
       { id: destAirport.code, name: destAirport.name, lat: destAirport.lat, lng: destAirport.lng, type: 'destination', value: 100, info: '目的地' }
     ];
 
-    const routes = getBestItineraryRoutes().length > 0
-      ? getBestItineraryRoutes().map(r => ({ from: r.from, to: r.to, id: (r as any).id, active: (r as any).active }))
-      : [{ from: originAirport.code, to: destAirport.code, active: true, id: `${originAirport.code}-${destAirport.code}` }];
+    // 1. 基础路线：出发地 -> 目的地 (总是显示)
+    const routes: any[] = [
+      { from: originAirport.code, to: destAirport.code, active: true, id: `${originAirport.code}-${destAirport.code}`, routeLevel: 'MAIN' }
+    ];
 
-    const extraCodes = routes
-      .map((r) => r.from)
-      .concat(routes.map((r) => r.to))
-      .filter((x) => x && x !== originAirport.code && x !== destAirport.code);
+    // 2. 查找一个代表性的联程航班 (例如：价格最低的联程航班)
+    // 这样可以在地图上展示 "可能的" 转机路径
+    const interlineFlight = filteredFlights
+      .filter(f => f.isInterline && (f as any).segments && (f as any).segments.length > 1)
+      .sort((a, b) => a.price - b.price)[0];
 
-    extraCodes.forEach((code) => {
-      const a = findAirport(code);
-      if (!a) return;
-      if (points.some((p) => p.id === a.code)) return;
-      points.push({ id: a.code, name: a.name, lat: a.lat, lng: a.lng, type: 'normal', value: 60, info: '中转/航点' });
-    });
+    if (interlineFlight) {
+      const segs = (interlineFlight as any).segments;
+      segs.forEach((seg: any, idx: number) => {
+        const fromCode = String(seg.origin);
+        const toCode = String(seg.destination);
+
+        // 添加联程航段路线
+        routes.push({
+          from: fromCode,
+          to: toCode,
+          active: true, // 或者 false，视视觉需求而定，这里设为 true 同样显示弧线
+          id: `interline-${idx}-${fromCode}-${toCode}`,
+          routeLevel: 'REGIONAL' // 使用不同级别可能有助于区分样式 (如果 WorldMap 支持)
+        });
+
+        // 尝试添加中转点/航段点到 points
+        [fromCode, toCode].forEach(code => {
+          // 如果已经在 points 里了 (出发/目的地)，就不重复添加
+          // 如果是中转点，需要添加
+          if (!points.some(p => p.id === code)) {
+            const a = findAirport(code);
+            if (a) {
+              points.push({
+                id: a.code,
+                name: a.name,
+                lat: a.lat,
+                lng: a.lng,
+                type: 'hub', // 标记为枢纽/中转
+                value: 80,
+                info: `${a.name} (中转)`
+              });
+            }
+          }
+        });
+      });
+    }
+
     return { points, routes };
   };
 
-  const mapData = useMemo(() => getRouteMapData(), [origin, destination]);
+  const mapData = useMemo(() => getRouteMapData(), [origin, destination, filteredFlights]);
 
-  // 将热门城市转换为地图点（排除当前出发地和目的地）
+  // 将热门 city 转换为地图点（排除当前出发地和目的地）
   const hotCityPoints = useMemo(() => {
     return hotCities
       .filter((city) => city.mainAirport && city.mainAirport !== origin && city.mainAirport !== destination)
@@ -385,7 +418,30 @@ const FlightResultPage: React.FC = () => {
       .filter((p): p is MapPoint => p !== null);
   }, [hotCities, origin, destination]);
 
-  const mergedMapPoints = useMemo(() => [...mapData.points, ...userMapPoints, ...hotCityPoints], [mapData.points, userMapPoints, hotCityPoints]);
+  // 合并所有地图点并去重，优先级：出发/目的地 > 联程中转 > 热门城市
+  const mergedMapPoints = useMemo(() => {
+    const pointMap = new Map<string, MapPoint>();
+
+    // 1. 基础航线点 (出发/目的/中转) - 最高优先级
+    mapData.points.forEach(p => pointMap.set(p.id, p));
+
+    // 2. 热门城市 - 较低优先级，不覆盖已有的航线点
+    hotCityPoints.forEach(p => {
+      if (!pointMap.has(p.id)) {
+        pointMap.set(p.id, p);
+      }
+    });
+
+    // 3. 用户自定义点
+    userMapPoints.forEach(p => {
+      if (!pointMap.has(p.id)) {
+        pointMap.set(p.id, p);
+      }
+    });
+
+    return Array.from(pointMap.values());
+  }, [mapData.points, userMapPoints, hotCityPoints]);
+
   const mergedMapRoutes = useMemo(() => [...mapData.routes, ...userMapRoutes], [mapData.routes, userMapRoutes]);
   const heatPoints = useMemo(() => getHeatPoints(), [filteredFlights]);
 

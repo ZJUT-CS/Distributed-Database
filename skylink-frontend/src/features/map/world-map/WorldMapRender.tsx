@@ -120,7 +120,7 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
 
   const colors = {
     grid: isDark ? '#334155' : '#bfdbfe', // 浅色模式下用 blue-200 网格
-    hub: '#ef4444',
+    hub: '#f59e0b', // 改为橙色，区分热门城市的红色脉冲
     origin: '#3b82f6',
     destination: '#10b981',
     routeStroke: isDark ? 'url(#routeGradientDark)' : '#2563eb', // 更加鲜艳的蓝色线条
