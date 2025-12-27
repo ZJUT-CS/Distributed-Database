@@ -1,6 +1,7 @@
 package com.team.skylink.module.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.team.skylink.common.PageResult;
@@ -187,11 +188,21 @@ public class AdminOrderServiceImpl implements AdminOrderService {
             releaseSeatsForOrder(o);
         }
 
-        o.setOrderStatus(target);
+        // o.setOrderStatus(target);
+        // if (target != null && target == OrderStatusEnum.PENDING_PAYMENT.getCode() && o.getAuditTime() == null) {
+        //    o.setAuditTime(LocalDateTime.now());
+        // }
+        // return Result.ok(orderMapper.updateById(o) > 0);
+        
+        LambdaUpdateWrapper<Orders> update = Wrappers.<Orders>lambdaUpdate()
+                .eq(Orders::getOrderId, o.getOrderId())
+                .set(Orders::getOrderStatus, target);
+                
         if (target != null && target == OrderStatusEnum.PENDING_PAYMENT.getCode() && o.getAuditTime() == null) {
-            o.setAuditTime(LocalDateTime.now());
+            update.set(Orders::getAuditTime, LocalDateTime.now());
         }
-        return Result.ok(orderMapper.updateById(o) > 0);
+        
+        return Result.ok(orderMapper.update(null, update) > 0);
     }
 
     @Override

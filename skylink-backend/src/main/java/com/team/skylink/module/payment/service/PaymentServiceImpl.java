@@ -303,9 +303,15 @@ public class PaymentServiceImpl implements PaymentService {
                 continue;
             }
 
-            Long exists = paymentMapper.selectCount(new QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
+            QueryWrapper<Payment> paymentQuery = new QueryWrapper<Payment>().eq("order_id", o.getOrderId());
+            Long exists = paymentMapper.selectCount(paymentQuery);
             if (exists != null && exists > 0) {
-                continue;
+                if (o.getOrderStatus() != null && o.getOrderStatus() == OrderStatusEnum.PENDING_PAYMENT.getCode()) {
+                    log.info("Deleting existing payment for PENDING_PAYMENT order (likely change flight): {}", o.getOrderId());
+                    paymentMapper.delete(paymentQuery);
+                } else {
+                    continue;
+                }
             }
 
             Payment p = new Payment();
@@ -370,9 +376,15 @@ public class PaymentServiceImpl implements PaymentService {
         if (o == null) {
             return Result.fail(404, "order not found");
         }
-        Long exists = paymentMapper.selectCount(new QueryWrapper<Payment>().eq("order_id", o.getOrderId()));
+        QueryWrapper<Payment> paymentQuery = new QueryWrapper<Payment>().eq("order_id", o.getOrderId());
+        Long exists = paymentMapper.selectCount(paymentQuery);
         if (exists != null && exists > 0) {
-            return Result.fail(409, "payment already exists");
+            if (o.getOrderStatus() != null && o.getOrderStatus() == OrderStatusEnum.PENDING_PAYMENT.getCode()) {
+                log.info("Deleting existing payment for PENDING_PAYMENT order (likely change flight): {}", o.getOrderId());
+                paymentMapper.delete(paymentQuery);
+            } else {
+                return Result.fail(409, "payment already exists");
+            }
         }
         LocalDateTime now = LocalDateTime.now();
         Payment p = new Payment();
