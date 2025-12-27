@@ -75,7 +75,11 @@ public class FlightServiceImpl implements FlightService {
     }
 
     @Override
-    //@Cacheable(value = "flightSearchV3", key = "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo, #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom, #departureTimeTo, #page, #size)", unless = "#result.data.directFlights.total == 0")
+    // @Cacheable(value = "flightSearchV3", key =
+    // "T(java.util.Objects).hash(#departurePlace, #destination, #flightNo,
+    // #airlineCompany, #cabinType, #status, #departureDate, #departureTimeFrom,
+    // #departureTimeTo, #page, #size)", unless = "#result.data.directFlights.total
+    // == 0")
     public Result<FlightSearchResult> search(String departurePlace, String destination, String flightNo,
             String airlineCompany, String cabinType, Integer status, LocalDate departureDate,
             LocalDateTime departureTimeFrom, LocalDateTime departureTimeTo, int page, int size) {
@@ -132,8 +136,9 @@ public class FlightServiceImpl implements FlightService {
             // Bulk fetch Configs
             Map<Long, List<AircraftCabinConfig>> configMap = new HashMap<>();
             if (!allModelIds.isEmpty()) {
-                List<AircraftCabinConfig> allConfigs = cabinConfigMapper.selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
-                        .in(AircraftCabinConfig::getModelId, allModelIds));
+                List<AircraftCabinConfig> allConfigs = cabinConfigMapper
+                        .selectList(Wrappers.<AircraftCabinConfig>lambdaQuery()
+                                .in(AircraftCabinConfig::getModelId, allModelIds));
                 configMap = allConfigs.stream().collect(Collectors.groupingBy(AircraftCabinConfig::getModelId));
             }
 
@@ -141,7 +146,8 @@ public class FlightServiceImpl implements FlightService {
             Map<Long, Map<String, Integer>> seatMap = seatService.getAvailableCountBatch(new ArrayList<>(allFlightIds));
 
             for (Flight f : records) {
-                FlightSearchResponse res = convertToResponseOptimized(f, cabinType, routeMap, configMap, seatMap, modelMap, false);
+                FlightSearchResponse res = convertToResponseOptimized(f, cabinType, routeMap, configMap, seatMap,
+                        modelMap, false);
                 if (res != null) {
                     directFlights.add(res);
                 }
@@ -262,7 +268,8 @@ public class FlightServiceImpl implements FlightService {
     }
 
     private List<String> resolveCabinTypes(String cabinType) {
-        if (!StringUtils.hasText(cabinType)) return Collections.emptyList();
+        if (!StringUtils.hasText(cabinType))
+            return Collections.emptyList();
         String upper = cabinType.toUpperCase();
         if ("Y".equals(upper) || "ECONOMY".equals(upper)) {
             return Arrays.asList("Y", "ECONOMY", "Economy");
@@ -290,7 +297,7 @@ public class FlightServiceImpl implements FlightService {
             return null;
 
         List<AircraftCabinConfig> configs = configMap.getOrDefault(f.getModelId(), Collections.emptyList());
-        
+
         // Filter by LayoutNo
         Integer layoutNo = f.getLayoutNo() != null ? f.getLayoutNo() : 1;
         configs = configs.stream()
@@ -319,8 +326,8 @@ public class FlightServiceImpl implements FlightService {
             BigDecimal price = priceStrategyService.calculateSegmentPrice(f, route, cfg, isInterline, null);
 
             // 🔴 把它注释掉，直接写死！
-            //BigDecimal price = new BigDecimal("999"); // 写一个绝对不可能出现的数字
-            //System.err.println("🔥🔥🔥 强制改价测试：航班 " + f.getFlightNo() + " 设置为 999");
+            // BigDecimal price = new BigDecimal("999"); // 写一个绝对不可能出现的数字
+            // System.err.println("🔥🔥🔥 强制改价测试：航班 " + f.getFlightNo() + " 设置为 999");
 
             // Check inventory using pre-fetched map
             Integer availableCount = flightSeats.getOrDefault(cfg.getCabinType(), 0);
@@ -335,6 +342,9 @@ public class FlightServiceImpl implements FlightService {
 
         if (bestPrice == null)
             return null;
+
+        // ✅ Add tax (120 CNY per segment) to match order creation pricing
+        bestPrice = bestPrice.add(new BigDecimal("120"));
 
         FlightSearchResponse dto = new FlightSearchResponse();
         dto.setFlightId(f.getFlightId()); // ✅ 设置数据库主键ID
@@ -412,7 +422,7 @@ public class FlightServiceImpl implements FlightService {
         f.setCreateTime(LocalDateTime.now());
         f.setUpdateTime(LocalDateTime.now());
         f.setStopoverInfo(req.getStopoverInfo());
-        
+
         Integer layoutNo = req.getLayoutNo() != null ? req.getLayoutNo() : 1;
         f.setLayoutNo(layoutNo);
 
@@ -538,7 +548,7 @@ public class FlightServiceImpl implements FlightService {
                 int calculatedTotalSeats = configs.stream()
                         .mapToInt(c -> c.getCapacity() != null ? c.getCapacity() : 0)
                         .sum();
-                
+
                 Integer total = req.getTotalSeats();
                 if (total == null) {
                     total = calculatedTotalSeats > 0 ? calculatedTotalSeats : model.getTotalPhysicalSeats();
