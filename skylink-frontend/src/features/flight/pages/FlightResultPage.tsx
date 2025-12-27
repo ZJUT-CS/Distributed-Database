@@ -492,6 +492,7 @@ const FlightResultPage: React.FC = () => {
             selectedFlights={selectedFlights}
             currentLegIndex={currentLegIndex}
             onEditStep={handleEditStep}
+            passengerCount={passengers}
           />
 
           <div className="flex flex-col lg:grid lg:grid-cols-4 gap-6">
@@ -555,6 +556,7 @@ const FlightResultPage: React.FC = () => {
                 <FlightList
                   flights={filteredFlights}
                   onSelect={handleFlightSelect}
+                  passengerCount={passengers}
                 />
               )}
             </div>
