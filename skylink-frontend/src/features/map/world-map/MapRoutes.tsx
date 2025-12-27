@@ -109,7 +109,7 @@ export const MapRoutes: React.FC<MapRoutesProps> = ({ routes, points, isDragging
             >
               <g transform="translate(-6,-6)">
                 <path
-                  d="M2 8 L10 2 L9 7 L14 8 L9 9 L10 14 Z"
+                  d="M14 8 L6 2 L7 7 L2 8 L7 9 L6 14 Z"
                   fill={colors.planeFill}
                   opacity={0.95}
                   filter={isDark ? 'url(#glow)' : ''}

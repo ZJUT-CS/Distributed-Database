@@ -1,10 +1,16 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 
 const App: React.FC = () => {
+  const location = useLocation();
+
+  // 在管理后台、登录、注册等页面不显示Footer
+  const hideFooterRoutes = ['/admin', '/login', '/register'];
+  const shouldHideFooter = hideFooterRoutes.some(route => location.pathname.startsWith(route));
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-slate-50 dark:bg-gray-950 flex flex-col font-sans transition-colors duration-300">
@@ -14,7 +20,7 @@ const App: React.FC = () => {
             <Outlet />
           </div>
         </main>
-        <Footer />
+        {!shouldHideFooter && <Footer />}
       </div>
     </ErrorBoundary>
   );

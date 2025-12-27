@@ -147,7 +147,13 @@ const Navbar: React.FC = () => {
                   <div className={`w-9 h-9 rounded-full overflow-hidden border-2 transition-all flex items-center justify-center ${isResultsPage ? 'border-slate-600 bg-slate-800' : 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 group-hover:border-blue-400'
                     } ${user ? 'border-blue-400' : ''}`}>
                     {user ? (
-                      <Image src={user.avatarUrl || ''} alt={user.username} loading="eager" />
+                      user.avatarUrl ? (
+                        <Image src={user.avatarUrl} alt={user.username} loading="eager" />
+                      ) : (
+                        <span className={`text-sm font-bold ${isResultsPage ? 'text-blue-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                          {(user.username || 'U').slice(-1).toUpperCase()}
+                        </span>
+                      )
                     ) : (
                       <UserIcon className={`w-5 h-5 ${isResultsPage ? 'text-slate-400' : 'text-gray-400 dark:text-gray-500'} group-hover:text-blue-500`} />
                     )}

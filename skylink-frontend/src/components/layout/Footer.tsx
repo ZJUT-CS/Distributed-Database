@@ -4,7 +4,7 @@ import ThemeToggle from '../common/ThemeToggle';
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-white/80 dark:bg-slate-950/30 border-t border-slate-200/60 dark:border-slate-800/50 py-8 mt-auto backdrop-blur-md transition-all duration-300">
+    <footer className="relative z-0 bg-white/80 dark:bg-slate-950/30 border-t border-slate-200/60 dark:border-slate-800/50 py-8 mt-auto backdrop-blur-md transition-all duration-300">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
 
