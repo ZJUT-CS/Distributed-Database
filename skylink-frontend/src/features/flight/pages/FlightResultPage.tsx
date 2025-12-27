@@ -4,6 +4,7 @@ import { SearchForm, FilterSidebar, FlightList, FlightListSkeleton, TripSummary,
 import WorldMap from '@/features/map/components/WorldMap';
 import { POPULAR_AIRPORTS as AIRPORTS_CONST } from '@/config/data/airports';
 import { Plane, Filter, MoveRight } from 'lucide-react';
+import { useResolvedTheme } from '@/shared/hooks/useResolvedTheme';
 import { useAuth } from '@/features/auth';
 import { searchFlights } from '@/features/flight/api/search';
 
@@ -356,6 +357,9 @@ const FlightResultPage: React.FC = () => {
   const mergedMapRoutes = useMemo(() => [...mapData.routes, ...userMapRoutes], [mapData.routes, userMapRoutes]);
   const heatPoints = useMemo(() => getHeatPoints(), [filteredFlights]);
 
+  // 获取当前主题用于地图适配
+  const resolvedTheme = useResolvedTheme();
+
   const handleAiRequest = () => {
     if (!user) navigate('/login');
     else window.dispatchEvent(new CustomEvent('open-ai-modal'));
@@ -363,8 +367,14 @@ const FlightResultPage: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col relative">
-      <div className="w-full h-[640px] bg-gradient-to-br from-slate-900 via-[#0f172a] to-indigo-950 relative overflow-hidden border-b border-gray-800 shadow-inner group">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/30 via-transparent to-transparent pointer-events-none"></div>
+      <div className={`w-full h-[640px] relative overflow-hidden border-b shadow-inner group transition-colors duration-500 ${resolvedTheme === 'dark'
+        ? 'bg-gradient-to-br from-slate-900 via-[#0f172a] to-indigo-950 border-gray-800'
+        : 'bg-gradient-to-br from-[#f8fafc] via-[#eff6ff] to-[#e0f2fe] border-blue-200'
+        }`}>
+        <div className={`absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] pointer-events-none ${resolvedTheme === 'dark'
+          ? 'from-blue-900/30 via-transparent to-transparent'
+          : 'from-blue-300/10 via-transparent to-transparent'
+          }`}></div>
 
         <WorldMap
           points={mergedMapPoints}
@@ -373,7 +383,7 @@ const FlightResultPage: React.FC = () => {
           showHeatLegend={true}
           className="h-full w-full rounded-none border-none opacity-100"
           showGrid={true}
-          theme="dark"
+          theme={resolvedTheme}
           enableControls={true}
           maxScale={4}
           minZoomLevel={3}
@@ -386,29 +396,32 @@ const FlightResultPage: React.FC = () => {
           }}
         />
 
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-slate-800/80 backdrop-blur-md px-6 py-3 rounded-full border border-slate-600 shadow-2xl flex items-center gap-8 animate-fade-in-down z-10 pointer-events-none">
+        <div className={`absolute top-6 left-1/2 -translate-x-1/2 backdrop-blur-md px-6 py-3 rounded-full border shadow-2xl flex items-center gap-8 animate-fade-in-down z-10 pointer-events-none transition-colors duration-500 ${resolvedTheme === 'dark'
+          ? 'bg-slate-800/80 border-slate-600'
+          : 'bg-white/90 border-gray-200'
+          }`}>
           <div className="flex flex-col items-end">
-            <span className="text-xs text-blue-400 font-mono tracking-wider">出发地</span>
-            <span className="font-bold text-2xl text-white tracking-tight">{origin}</span>
-            <span className="text-xs text-gray-400 dark:text-slate-300">{getCityName(origin)}</span>
+            <span className="text-xs text-blue-500 font-mono tracking-wider">出发地</span>
+            <span className={`font-bold text-2xl tracking-tight ${resolvedTheme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{origin}</span>
+            <span className={`text-xs ${resolvedTheme === 'dark' ? 'text-slate-300' : 'text-gray-500'}`}>{getCityName(origin)}</span>
           </div>
 
           <div className="flex items-center text-blue-500 relative">
             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse absolute -left-1"></div>
             <div className="w-32 h-[2px] bg-gradient-to-r from-blue-500/10 via-blue-500 to-blue-500/10"></div>
-            <Plane className="w-5 h-5 absolute left-1/2 -translate-x-1/2 text-white drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+            <Plane className={`w-5 h-5 absolute left-1/2 -translate-x-1/2 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)] ${resolvedTheme === 'dark' ? 'text-white' : 'text-blue-600'}`} />
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse absolute -right-1"></div>
           </div>
 
           <div className="flex flex-col items-start">
-            <span className="text-xs text-emerald-400 font-mono tracking-wider">目的地</span>
-            <span className="font-bold text-2xl text-white tracking-tight">{destination}</span>
-            <span className="text-xs text-gray-400 dark:text-slate-300">{getCityName(destination)}</span>
+            <span className="text-xs text-emerald-500 font-mono tracking-wider">目的地</span>
+            <span className={`font-bold text-2xl tracking-tight ${resolvedTheme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{destination}</span>
+            <span className={`text-xs ${resolvedTheme === 'dark' ? 'text-slate-300' : 'text-gray-500'}`}>{getCityName(destination)}</span>
           </div>
         </div>
       </div>
 
-      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+      <div className={`w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 ${resolvedTheme === 'light' ? '-mt-4 pt-6 bg-gradient-to-b from-blue-100/80 via-blue-50/50 to-transparent' : ''}`}>
         <SearchForm
           onSearch={handleSearch}
           onAiRequest={handleAiRequest}

@@ -27,6 +27,9 @@ export const MapStyles: React.FC = () => {
 
           .world-map-landmass svg :is(path, polygon, rect, circle, ellipse) {
             fill: var(--wm-land-fill) !important;
+            stroke: var(--wm-land-stroke, none) !important;
+            stroke-width: 0.5px;
+            vector-effect: non-scaling-stroke;
           }
         `}
     </style>

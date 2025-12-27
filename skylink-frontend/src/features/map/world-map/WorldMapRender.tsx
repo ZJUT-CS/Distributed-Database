@@ -117,18 +117,19 @@ export const WorldMapRender: React.FC<WorldMapRenderProps> = ({
   }, [baseMapping, offset.x, offset.y, scale, elastic.deformationX, elastic.deformationY]);
 
   const colors = {
-    grid: isDark ? '#334155' : '#f1f5f9',
+    grid: isDark ? '#334155' : '#bfdbfe', // 浅色模式下用 blue-200 网格
     hub: '#ef4444',
     origin: '#3b82f6',
     destination: '#10b981',
-    routeStroke: isDark ? 'url(#routeGradientDark)' : '#3b82f6',
-    planeFill: isDark ? '#60a5fa' : '#2563eb',
-    mapOpacity: isDark ? 0.4 : 0.3,
+    routeStroke: isDark ? 'url(#routeGradientDark)' : '#2563eb', // 更加鲜艳的蓝色线条
+    planeFill: isDark ? '#60a5fa' : '#1d4ed8',
+    mapOpacity: isDark ? 0.4 : 0.85, // 提高陆地不透明度
   };
 
   const landmassStyle = React.useMemo(() => {
     return {
-      '--wm-land-fill': isDark ? '#94a3b8' : '#64748b',
+      '--wm-land-fill': isDark ? '#94a3b8' : '#596c8e', // 使用钢蓝色作为陆地填充
+      '--wm-land-stroke': isDark ? '#334155' : '#ffffff', // 浅色模式下白色描边增强轮廓
     } as React.CSSProperties;
   }, [isDark]);
 
