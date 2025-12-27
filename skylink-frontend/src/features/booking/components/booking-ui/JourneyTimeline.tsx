@@ -76,13 +76,13 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
             {/* 联程航班标识 */}
             {isInterline && showInterlineBadge && (
                 <div className="flex items-center gap-2 text-sm flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 font-bold shadow-sm">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700/50 font-bold shadow-sm transition-colors">
                         <Plane className="w-4 h-4" />
                         联程航班 ({segments.length} 段航程)
                     </span>
                     {effectiveTransferCity && (
-                        <span className="text-gray-600">
-                            经 <span className="font-bold text-gray-900">{effectiveTransferCity}</span> 中转
+                        <span className="text-gray-600 dark:text-slate-400">
+                            经 <span className="font-bold text-gray-900 dark:text-white">{effectiveTransferCity}</span> 中转
                         </span>
                     )}
                 </div>
@@ -108,9 +108,9 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
                         {/* 中转信息 (仅在联程且不是最后一段时显示) */}
                         {isInterline && index < segments.length - 1 && (
                             <div className="flex items-center justify-center py-2">
-                                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-sm">
-                                    <Clock className="w-3.5 h-3.5 text-orange-600" />
-                                    <span className="text-xs font-bold text-orange-700">
+                                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/30 dark:to-amber-900/30 border border-orange-200 dark:border-orange-700/50 shadow-sm backdrop-blur-sm">
+                                    <Clock className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                                    <span className="text-xs font-bold text-orange-700 dark:text-orange-200">
                                         中转停留 {effectiveTransferDuration != null
                                             ? `${Math.floor(effectiveTransferDuration / 60)}h ${effectiveTransferDuration % 60}m`
                                             : '待确认'}
@@ -124,16 +124,16 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
 
             {/* 总览信息 (仅联程时显示) */}
             {isInterline && !compact && (
-                <div className="rounded-xl bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-100 p-3 mt-2">
+                <div className="rounded-xl bg-gradient-to-r from-gray-50 to-slate-50 dark:from-slate-800/40 dark:to-slate-900/40 border border-gray-100 dark:border-slate-700 p-3 mt-2">
                     <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                            <span className="text-gray-500">全程</span>
-                            <span className="font-bold text-gray-900">
+                            <span className="text-gray-500 dark:text-slate-400">全程</span>
+                            <span className="font-bold text-gray-900 dark:text-white">
                                 {segments[0]?.origin} → {segments[segments.length - 1]?.destination}
                             </span>
                         </div>
                         {effectiveTransferDuration != null && (
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-gray-500 dark:text-slate-500">
                                 含中转 {Math.floor(effectiveTransferDuration / 60)}h {effectiveTransferDuration % 60}m
                             </span>
                         )}
